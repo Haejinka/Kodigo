@@ -9,6 +9,7 @@ import { useToast } from '@/components/shared/Toast';
 import { formatCurrency } from '@/lib/utils';
 import { useProductStore } from '@/stores/productStore';
 import { useSupplierStore } from '@/stores/supplierStore';
+import { useAuthStore } from '@/stores/authStore';
 import type { RestockItem } from '@/types';
 
 const urgencyVariant: Record<string, 'danger' | 'warning' | 'info'> = {
@@ -33,6 +34,7 @@ function useRestockItems(): RestockItem[] {
             : 'low';
         return {
           productId: p.id,
+          storeId: p.storeId,
           productName: p.name,
           currentStock: p.currentStock,
           suggestedQty,
@@ -57,6 +59,7 @@ export function RestockingPage() {
   const items = useRestockItems();
   const products = useProductStore((s) => s.products);
   const { createPurchaseOrder, recalculatePriceScores } = useSupplierStore();
+  const { stores, activeStoreId } = useAuthStore();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -79,12 +82,13 @@ export function RestockingPage() {
   const handleCreatePO = async () => {
     setCreating(true);
 
-    // Group selected items by supplier
-    const grouped = new Map<string, { supplierId: string; supplierName: string; items: RestockItem[] }>();
+    // Group selected items by supplier and store
+    const grouped = new Map<string, { storeId: string; supplierId: string; supplierName: string; items: RestockItem[] }>();
     for (const item of selectedItems) {
-      const key = item.suggestedSupplierId || '__unassigned__';
+      const key = `${item.storeId}_${item.suggestedSupplierId || '__unassigned__'}`;
       if (!grouped.has(key)) {
         grouped.set(key, {
+          storeId: item.storeId,
           supplierId: item.suggestedSupplierId,
           supplierName: item.suggestedSupplierName,
           items: [],
@@ -93,10 +97,11 @@ export function RestockingPage() {
       grouped.get(key)!.items.push(item);
     }
 
-    // Create one PO per supplier group
+    // Create one PO per supplier+store group
     for (const group of grouped.values()) {
       if (!group.supplierId) continue; // skip unassigned
       createPurchaseOrder(
+        group.storeId, // NEW: added storeId
         group.supplierId,
         group.supplierName,
         group.items.map((i) => ({
@@ -192,6 +197,11 @@ export function RestockingPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <p className="font-medium text-gray-900 truncate">{item.productName}</p>
+                      {activeStoreId === 'all' && (
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
+                          {stores.find(s => s.id === item.storeId)?.name || 'Unknown'}
+                        </span>
+                      )}
                       <Badge variant={urgencyVariant[item.urgency]}>
                         {item.urgency.charAt(0).toUpperCase() + item.urgency.slice(1)} Priority
                       </Badge>

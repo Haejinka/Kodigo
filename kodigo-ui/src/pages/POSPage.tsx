@@ -20,7 +20,8 @@ function useClock() {
 
 export function POSPage() {
   const { addItem } = useCartStore();
-  const { user, logout } = useAuthStore();
+  const { user, logout, activeStoreId, stores } = useAuthStore();
+  const activeStoreName = stores.find(s => s.id === activeStoreId)?.name || 'Unknown Store';
   const navigate = useNavigate();
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -104,6 +105,25 @@ export function POSPage() {
     resetPendingQty();
   };
 
+  if (activeStoreId === 'all') {
+    return (
+      <div className="flex flex-col h-screen items-center justify-center p-6 bg-gray-50 text-center">
+        <Store className="w-16 h-16 text-gray-400 mb-6" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Select a Specific Store</h2>
+        <p className="text-gray-500 max-w-md mx-auto mb-8">
+          The POS terminal requires a specific store to process transactions correctly. 
+          Please use the navigation menu or dashboard to select your active branch.
+        </p>
+        <button
+          onClick={() => navigate('/')}
+          className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition"
+        >
+          Return to Dashboard
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* POS Topbar */}
@@ -112,6 +132,10 @@ export function POSPage() {
           <Store className="w-5 h-5 text-blue-600" />
           <span className="font-bold text-gray-900 text-sm">KodiGo POS</span>
         </div>
+        <div className="w-px h-5 bg-gray-200" />
+        <span className="text-sm font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded">
+          {activeStoreName}
+        </span>
         <div className="w-px h-5 bg-gray-200" />
         <span className="text-sm text-gray-500">
           Cashier: <span className="font-medium text-gray-800">{user?.name ?? '—'}</span>

@@ -35,6 +35,24 @@ create type restock_urgency as enum ('high', 'medium', 'low');
 
 
 -- ---------------------------------------------------------------------------
+-- 1.5 invite_codes
+-- ---------------------------------------------------------------------------
+
+create table public.invite_codes (
+  id          uuid        primary key default gen_random_uuid(),
+  code        text        not null unique,
+  role        user_role   not null default 'admin',
+  is_used     boolean     not null default false,
+  used_by     uuid        references auth.users(id) on delete set null,
+  used_at     timestamptz,
+  created_by  uuid        references auth.users(id) on delete set null,
+  created_at  timestamptz not null default now()
+);
+
+comment on table public.invite_codes is
+  'Pre-generated invite codes for registering specific roles (like admin).';
+
+-- ---------------------------------------------------------------------------
 -- 2. profiles  (extends auth.users – one row per authenticated user)
 -- ---------------------------------------------------------------------------
 
@@ -540,12 +558,44 @@ create trigger trg_notification_prefs_updated_at
 
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer as $$
+declare
+  v_role user_role := 'cashier';
+  v_invite_code text;
 begin
+  -- Check if an invite code was provided in the metadata
+  v_invite_code := new.raw_user_meta_data->>'invite_code';
+  
+  if v_invite_code is not null then
+    -- Verify if the code is valid, unused, and for the admin role
+    if exists (
+      select 1 from public.invite_codes
+      where code = v_invite_code
+        and is_used = false
+        and role = 'admin'
+    ) then
+      v_role := 'admin';
+      
+      -- Mark the code as used immediately
+      update public.invite_codes
+      set is_used = true,
+          used_by = new.id,
+          used_at = now()
+      where code = v_invite_code;
+    else
+      -- Optional: Raise an exception if the code is invalid so the user cannot sign up at all
+      raise exception 'Invalid or expired invite code provided.';
+    end if;
+  else
+    -- If no invite code is provided, we default to cashier.
+    -- Alternatively, you can block ALL signups without an invite code:
+    -- raise exception 'An invite code is required to register.';
+  end if;
+
   insert into public.profiles (id, name, role)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    coalesce((new.raw_user_meta_data->>'role')::user_role, 'cashier')
+    v_role
   );
 
   insert into public.notification_preferences (user_id)
@@ -577,7 +627,14 @@ alter table public.stock_adjustments        enable row level security;
 alter table public.stock_alerts             enable row level security;
 alter table public.purchase_orders          enable row level security;
 alter table public.purchase_order_items     enable row level security;
-
+  -- Helper: return if the current authenticated user is an admin or super_admin
+  create or replace function public.is_admin()
+  returns boolean language sql stable security definer as $$
+    select exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role in ('admin', 'super_admin')
+    );
+  $$;
 -- Helper: return the role of the current authenticated user
 create or replace function public.current_user_role()
 returns user_role language sql stable security definer as $$

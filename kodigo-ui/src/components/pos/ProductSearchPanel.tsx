@@ -19,7 +19,7 @@ interface ProductSearchPanelProps {
   onScanStart?: () => void;
 }
 
-export function ProductSearchPanel({ onAddProduct, onResetQty, onScanStart }: ProductSearchPanelProps) {
+export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchPanelProps) {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const products = useProductStore((s) => s.products);

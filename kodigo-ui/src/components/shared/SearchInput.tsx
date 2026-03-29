@@ -13,7 +13,7 @@ interface SearchInputProps {
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
-export function SearchInput({ value, onChange, placeholder = 'Search...', showBarcodeIcon, className, autoFocus, id, onKeyDown }: SearchInputProps) {
+export function SearchInput({ value, onChange, placeholder = 'Search...', className, autoFocus, id, onKeyDown }: SearchInputProps) {
   const [internal, setInternal] = useState(value ?? '');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

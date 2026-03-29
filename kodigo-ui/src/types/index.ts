@@ -1,6 +1,20 @@
-// ─── Auth ────────────────────────────────────────────────────────────────────
+// ─── Auth & Stores ─────────────────────────────────────────────────────────────
 
-export type UserRole = 'admin' | 'cashier';
+export interface Store {
+  id: string;
+  name: string;
+  address: string;
+  taxRate: number;
+}
+
+export interface StoreUser {
+  id: string;
+  storeId: string;
+  profileId: string;
+  store: Store;
+}
+
+export type UserRole = 'admin' | 'cashier' | 'super_admin';
 
 export interface User {
   id: string;
@@ -8,6 +22,8 @@ export interface User {
   name: string;
   role: UserRole;
   avatarUrl?: string;
+  passwordHash?: string;
+  storeId?: string;
 }
 
 // ─── Products & Inventory ────────────────────────────────────────────────────
@@ -19,6 +35,7 @@ export interface Category {
 
 export interface Supplier {
   id: string;
+  storeId: string;
   name: string;
   contact: string;
   email: string;
@@ -35,6 +52,7 @@ export interface Supplier {
 
 export interface Product {
   id: string;
+  storeId: string;
   name: string;
   sku: string;
   barcode?: string;
@@ -97,6 +115,7 @@ export interface SaleItem {
 
 export interface Sale {
   id: string;
+  storeId: string;
   items: SaleItem[];
   subtotal: number;
   tax: number;
@@ -104,7 +123,7 @@ export interface Sale {
   total: number;
   cashReceived: number;
   change: number;
-  cashierId: string;
+  cashierId: string | null;
   cashierName: string;
   createdAt: string;
 }
@@ -113,6 +132,7 @@ export interface Sale {
 
 export interface StockAlert {
   id: string;
+  storeId: string;
   productId: string;
   productName: string;
   type: 'low' | 'critical' | 'out-of-stock';
@@ -126,6 +146,7 @@ export interface StockAlert {
 
 export interface RestockItem {
   productId: string;
+  storeId: string;
   productName: string;
   currentStock: number;
   suggestedQty: number;
@@ -143,6 +164,7 @@ export interface RestockItem {
 
 export interface PurchaseOrder {
   id: string;
+  storeId: string;
   supplierId: string;
   supplierName: string;
   items: { productId: string; productName: string; quantity: number; unitCost: number }[];
@@ -191,6 +213,7 @@ export type AdjustmentReason = 'damaged' | 'expired' | 'lost' | 'manual-count' |
 
 export interface StockAdjustment {
   id: string;
+  storeId: string;
   productId: string;
   productName: string;
   reason: AdjustmentReason;

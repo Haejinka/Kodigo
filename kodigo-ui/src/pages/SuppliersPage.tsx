@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Star, ExternalLink, Edit, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/shared/Badge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/shared/Toast';
 import { useSupplierStore } from '@/stores/supplierStore';
+import { useAuthStore } from '@/stores/authStore';
 import type { Supplier } from '@/types';
 import type { Column } from '@/components/shared/DataTable';
 
@@ -28,9 +29,16 @@ export function SuppliersPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { suppliers, deleteSupplier } = useSupplierStore();
+  const { activeStoreId } = useAuthStore();
   const [search, setSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Supplier | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Clear local state when switching stores
+  useEffect(() => {
+    setSearch('');
+    setDeleteTarget(null);
+  }, [activeStoreId]);
 
   const filtered = suppliers.filter((s) =>
     !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.contact.toLowerCase().includes(search.toLowerCase())
@@ -40,10 +48,15 @@ export function SuppliersPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     await new Promise((r) => setTimeout(r, 600));
-    deleteSupplier(deleteTarget.id);
-    toast('success', `"${deleteTarget.name}" removed successfully.`);
-    setDeleteTarget(null);
-    setDeleting(false);
+    try {
+      await deleteSupplier(deleteTarget.id);
+      toast('success', `"${deleteTarget.name}" removed successfully.`);
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast('error', err?.message || 'Failed to remove supplier.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const columns: Column<Supplier>[] = [

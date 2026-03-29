@@ -12,6 +12,7 @@ import { StockAdjustmentLog } from '@/components/inventory/StockAdjustmentLog';
 import { useToast } from '@/components/shared/Toast';
 import { formatCurrency } from '@/lib/utils';
 import { useProductStore } from '@/stores/productStore';
+import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 import type { Product, AdjustmentReason } from '@/types';
 import type { Column } from '@/components/shared/DataTable';
@@ -22,17 +23,19 @@ export function InventoryPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { products, deleteProduct, adjustStock, stockAdjustments } = useProductStore();
+  const { activeStoreId, stores } = useAuthStore();
   const [tab, setTab] = useState<Tab>('products');
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [viewMode, setViewMode] = useState<'separate' | 'combined'>('separate');
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [adjustTarget, setAdjustTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const categories = [...new Set(products.map((p) => p.categoryName))].sort();
 
-  const filtered = products.filter((p) => {
+  let filtered = products.filter((p) => {
     const q = search.toLowerCase();
     const matchesSearch =
       !search || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
@@ -46,6 +49,20 @@ export function InventoryPage() {
     })();
     return matchesSearch && matchesCategory && matchesStock;
   });
+
+  if (activeStoreId === 'all' && viewMode === 'combined') {
+    const combinedMap = new Map<string, Product>();
+    for (const p of filtered) {
+      const key = p.sku || p.barcode || p.name;
+      if (!combinedMap.has(key)) {
+        combinedMap.set(key, { ...p, storeId: 'combined' });
+      } else {
+        const existing = combinedMap.get(key)!;
+        existing.currentStock += p.currentStock;
+      }
+    }
+    filtered = Array.from(combinedMap.values());
+  }
 
   const columns: Column<Product>[] = [
     {
@@ -71,6 +88,15 @@ export function InventoryPage() {
         </div>
       ),
     },
+    ...(activeStoreId === 'all' ? [{
+      key: 'store',
+      header: 'Store',
+      accessor: (p: Product) => (
+        <span className="text-sm font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+          {p.storeId === 'combined' ? 'Multiple Stores' : (stores.find(s => s.id === p.storeId)?.name || 'Unknown')}
+        </span>
+      ),
+    }] : []),
     { key: 'category', header: 'Category', accessor: (p) => <span className="text-gray-600">{p.categoryName}</span> },
     {
       key: 'stock',
@@ -100,27 +126,31 @@ export function InventoryPage() {
       header: '',
       accessor: (p) => (
         <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={() => setAdjustTarget(p)}
-            className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
-            title="Adjust stock"
-          >
-            <Sliders className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => navigate(`/inventory/products/${p.id}`)}
-            className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
-            title="Edit"
-          >
-            <Edit className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setDeleteTarget(p)}
-            className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-            title="Delete"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {p.storeId !== 'combined' && (
+            <>
+              <button
+                onClick={() => setAdjustTarget(p)}
+                className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
+                title="Adjust stock"
+              >
+                <Sliders className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => navigate(`/inventory/products/${p.id}`)}
+                className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
+                title="Edit"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setDeleteTarget(p)}
+                className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                title="Delete"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
+          )}
         </div>
       ),
       align: 'right',
@@ -131,10 +161,15 @@ export function InventoryPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     await new Promise((r) => setTimeout(r, 600));
-    deleteProduct(deleteTarget.id);
-    toast('success', `"${deleteTarget.name}" deleted successfully.`);
-    setDeleteTarget(null);
-    setDeleting(false);
+    try {
+      await deleteProduct(deleteTarget.id);
+      toast('success', `"${deleteTarget.name}" deleted successfully.`);
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast('error', err?.message || 'Failed to delete product.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleAdjust = async (delta: number, reason: AdjustmentReason, note: string) => {
@@ -163,6 +198,16 @@ export function InventoryPage() {
         <option value="low">Low Stock</option>
         <option value="out">Out of Stock</option>
       </select>
+      {activeStoreId === 'all' && (
+        <select
+          value={viewMode}
+          onChange={(e) => setViewMode(e.target.value as 'separate' | 'combined')}
+          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="separate">Separate Views</option>
+          <option value="combined">Combined View</option>
+        </select>
+      )}
     </div>
   );
 

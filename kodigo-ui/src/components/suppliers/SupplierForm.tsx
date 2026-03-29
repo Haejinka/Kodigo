@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Info } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { useToast } from '@/components/shared/Toast';
+import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 import type { Supplier } from '@/types';
 import type { SupplierFormData } from '@/stores/supplierStore';
@@ -46,10 +47,12 @@ const inputCls =
 export function SupplierForm({ initial, onSubmit, mode, backPath = '/suppliers' }: SupplierFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { activeStoreId, stores } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState<SupplierFormData>({
+    storeId: initial?.storeId ?? (activeStoreId === 'all' ? '' : activeStoreId) ?? '',
     name: initial?.name ?? '',
     contact: initial?.contact ?? '',
     email: initial?.email ?? '',
@@ -65,6 +68,7 @@ export function SupplierForm({ initial, onSubmit, mode, backPath = '/suppliers' 
 
   const validate = () => {
     const errs: Record<string, string> = {};
+    if (!form.storeId) errs.storeId = 'Store selection is required';
     if (!form.name.trim()) errs.name = 'Supplier name is required';
     if (!form.contact.trim()) errs.contact = 'Contact person is required';
     if (!form.email.trim()) errs.email = 'Email is required';
@@ -83,15 +87,30 @@ export function SupplierForm({ initial, onSubmit, mode, backPath = '/suppliers' 
       await onSubmit(form);
       toast('success', mode === 'create' ? 'Supplier added successfully!' : 'Supplier updated successfully!');
       navigate(backPath);
-    } catch {
-      toast('error', 'Failed to save supplier. Please try again.');
-    } finally {
+    } catch (err: any) { toast('error', err?.message || 'Failed to save supplier. Please try again.'); } finally {
       setLoading(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h3 className="font-semibold text-gray-900 mb-4">Store Access</h3>
+        <Field label="Store" required error={errors.storeId}>
+          <select
+            className={inputCls}
+            value={form.storeId}
+            onChange={(e) => set('storeId', e.target.value)}
+            disabled={mode === 'edit'}
+          >
+            <option value="" disabled>Select a store</option>
+            {stores.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
       {/* Contact Details */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <h3 className="font-semibold text-gray-900 mb-4">Contact Details</h3>

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Bell, Menu, Store } from 'lucide-react';
+import { Bell, Menu, Store as StoreIcon, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import { useAlertStore } from '@/stores/alertStore';
+import { useCartStore } from '@/stores/cartStore';
 import { formatDateTime } from '@/lib/utils';
 import { MobileSidebarDrawer } from './Sidebar';
 
@@ -11,9 +12,17 @@ interface TopbarProps {
   onMenuToggle?: () => void;
 }
 
-export function Topbar({ onMenuToggle }: TopbarProps) {
-  const { user, logout } = useAuthStore();
+export function Topbar({}: TopbarProps) {
+  const { user, profile, role, logout, stores, activeStoreId, setActiveStoreId } = useAuthStore();
   const { alerts, unreadCount, markAllRead } = useAlertStore();
+  const clearCart = useCartStore(s => s.clearCart);
+  
+  const handleStoreChange = (storeId: string) => {
+    setActiveStoreId(storeId);
+    setStoreOpen(false);
+    clearCart();
+  };
+  const [storeOpen, setStoreOpen] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -50,16 +59,67 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
 
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <Store className="w-6 h-6 text-blue-600" />
-          <span className="font-bold text-gray-900 text-base">KodiGo</span>
+          <StoreIcon className="w-6 h-6 text-blue-600" />
+          <span className="font-bold text-gray-900 text-base">KodiGo</span>     
         </div>
 
         <div className="flex-1" />
 
+        {/* Store Selector */}
+        {role === 'admin' && stores.length > 0 && ( 
+          <div className="relative mr-2">
+            <button
+              onClick={() => { setStoreOpen((v) => !v); setAlertOpen(false); setProfileOpen(false); }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <StoreIcon className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-700 max-w-[120px] truncate">
+                {activeStoreId === 'all' ? 'All Stores' : (stores.find(s => s.id === activeStoreId)?.name || 'Select Store')}
+              </span>
+              <ChevronDown className="w-4 h-4 text-gray-500" />
+            </button>
+            {storeOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setStoreOpen(false)} />
+                <div className="absolute right-0 top-11 z-20 w-56 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+                  <div className="px-4 py-2 border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    Switch Store
+                  </div>
+                  <div className="max-h-60 overflow-y-auto">
+                    {stores.length > 1 && (
+                      <button
+                        onClick={() => handleStoreChange('all')}
+                        className={cn(
+                          "w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors border-b border-gray-100",
+                          activeStoreId === 'all' ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
+                        )}
+                      >
+                        All Stores
+                      </button>
+                    )}
+                    {stores.map((store) => (
+                      <button
+                        key={store.id}
+                        onClick={() => handleStoreChange(store.id)}
+                        className={cn(
+                          "w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors",
+                          activeStoreId === store.id ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
+                        )}
+                      >
+                        {store.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Alert Bell */}
         <div className="relative">
           <button
-            onClick={() => { setAlertOpen((v) => !v); setProfileOpen(false); }}
+            onClick={() => { setAlertOpen((v) => !v); setProfileOpen(false); setStoreOpen(false); }} 
             className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
             aria-label="Notifications"
           >
@@ -121,7 +181,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
         {/* User Avatar */}
         <div className="relative">
           <button
-            onClick={() => { setProfileOpen((v) => !v); setAlertOpen(false); }}
+            onClick={() => { setProfileOpen((v) => !v); setAlertOpen(false); setStoreOpen(false); }} 
             className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-semibold">

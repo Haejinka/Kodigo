@@ -16,9 +16,10 @@ import type {
 // ─── Users ───────────────────────────────────────────────────────────────────
 
 export const mockUsers: User[] = [
-  { id: 'u1', email: 'admin@kodigo.ph', name: 'Maria Santos', role: 'admin' },
-  { id: 'u2', email: 'cashier@kodigo.ph', name: 'Juan dela Cruz', role: 'cashier' },
-  { id: 'u3', email: 'cashier2@kodigo.ph', name: 'Ana Reyes', role: 'cashier' },
+  { id: 'u1', email: 'admin@kodigo.ph', name: 'Maria Santos', role: 'admin', passwordHash: 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f' },
+  { id: 'u2', email: 'cashier@kodigo.ph', name: 'Juan dela Cruz', role: 'cashier', passwordHash: 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f' },
+  { id: 'u3', email: 'cashier2@kodigo.ph', name: 'Ana Reyes', role: 'cashier', passwordHash: 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f' },
+  { id: 'u4', email: 'vergaraevon@gmail.com', name: 'EVON', role: 'super_admin' as any, passwordHash: 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f' },
 ];
 
 // ─── Categories ──────────────────────────────────────────────────────────────

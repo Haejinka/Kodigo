@@ -5,6 +5,7 @@ import { openCashDrawer } from '@/lib/hardware';
 import { Button } from '@/components/shared/Button';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
+import { processSale } from '@/lib/offline-sync';
 import type { Sale } from '@/types';
 
 interface PaymentModalProps {
@@ -35,13 +36,20 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     Math.ceil(orderTotal / 500) * 500,
   ].filter((v, i, arr) => arr.indexOf(v) === i && v >= orderTotal);
 
-  const handleConfirm = async () => {
+    const handleConfirm = async () => {
     if (!canConfirm) return;
     setProcessing(true);
 
-    // Build the sale record — cashier info captured at transaction time
+    const storeId = useAuthStore.getState().activeStoreId;
+    if (!storeId || storeId === 'all') {
+      alert("Please select a specific store to process sales.");
+      setProcessing(false);
+      return;
+    }
+
     const sale: Sale = {
-      id: `txn-${Date.now()}`,
+      id: crypto.randomUUID(),
+      storeId,
       items: items.map((i) => ({
         productId: i.product.id,
         productName: i.product.name,
@@ -55,20 +63,22 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       total: orderTotal,
       cashReceived: cashAmount,
       change,
-      cashierId: user?.id ?? 'unknown',
-      cashierName: user?.name ?? 'Unknown Cashier',
+      cashierId: user?.id || null,
+      cashierName: user?.name || "Unknown Cashier",
       createdAt: new Date().toISOString(),
     };
 
-    await new Promise((r) => setTimeout(r, 1000)); // TODO: replace with POST to Supabase
-    // await supabase.from('sales').insert(sale); // <- wire here in Phase 1 backend
-
-    // Trigger the cash drawer to open automatically when cash payment is confirmed
-    await openCashDrawer();
-
-    setCompletedSale(sale);
-    setProcessing(false);
-    setStep('confirmed');
+    try {
+      await processSale(sale);
+      await openCashDrawer();
+      setCompletedSale(sale);
+      setStep("confirmed");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to process transaction.");
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleDone = () => {
@@ -229,3 +239,4 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     </div>
   );
 }
+

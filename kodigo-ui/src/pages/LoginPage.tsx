@@ -1,12 +1,24 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { Store, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/shared/Button';
 
 export function LoginPage() {
-  const { login, isLoading, error } = useAuthStore();
+  const { login, isLoading, error, isAuthenticated, role } = useAuthStore();
   const navigate = useNavigate();
+
+  // If already logged in, redirect them immediately 
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (role === 'super_admin') {
+        navigate('/super-admin');
+      } else {
+        navigate(role === 'cashier' ? '/pos' : '/dashboard');
+      }
+    }
+  }, [isAuthenticated, role, navigate]);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -14,18 +26,7 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await login(email, password);
-    const { isAuthenticated, role } = useAuthStore.getState();
-    if (isAuthenticated) {
-      navigate(role === 'cashier' ? '/pos' : '/dashboard');
-    }
-  };
-
-  const demoLogin = async (demoEmail: string) => {
-    await login(demoEmail, 'demo');
-    const { isAuthenticated, role } = useAuthStore.getState();
-    if (isAuthenticated) {
-      navigate(role === 'cashier' ? '/pos' : '/dashboard');
-    }
+    // The useEffect above will handle the routing once state updates
   };
 
   return (
@@ -88,36 +89,14 @@ export function LoginPage() {
               Sign In
             </Button>
           </form>
-
-          {/* Demo accounts */}
-          <div className="mt-5 pt-5 border-t border-gray-100">
-            <p className="text-xs text-gray-400 mb-3 text-center font-medium">DEMO ACCOUNTS</p>
-            <div className="space-y-2">
-              <button
-                onClick={() => demoLogin('admin@kodigo.ph')}
-                disabled={isLoading}
-                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-sm disabled:opacity-50"
-              >
-                <div className="text-left">
-                  <p className="font-medium text-gray-800">Admin (Owner)</p>
-                  <p className="text-xs text-gray-400">admin@kodigo.ph</p>
-                </div>
-                <span className="text-xs bg-purple-100 text-purple-700 font-semibold px-2 py-0.5 rounded-full">Admin</span>
-              </button>
-              <button
-                onClick={() => demoLogin('cashier@kodigo.ph')}
-                disabled={isLoading}
-                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-sm disabled:opacity-50"
-              >
-                <div className="text-left">
-                  <p className="font-medium text-gray-800">Cashier</p>
-                  <p className="text-xs text-gray-400">cashier@kodigo.ph</p>
-                </div>
-                <span className="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">Cashier</span>
-              </button>
-            </div>
-          </div>
         </div>
+
+        <p className="text-center text-sm text-gray-600 mt-6">
+          New to KodiGo?{' '}
+          <Link to="/register" className="text-blue-600 font-semibold hover:text-blue-700 hover:underline">
+            Create an owner account
+          </Link>
+        </p>
 
         <p className="text-center text-xs text-gray-400 mt-6">
           KodiGo v0.1.0 · Cloud POS for Sari-Sari Stores

@@ -1,5 +1,5 @@
 # KodiGo — AI Agent Build Guideline
-> **Living Document** | Version: 0.3.0 | Last Updated: 2026-03-16
+> **Living Document** | Version: 0.3.1 | Last Updated: 2026-03-25
 > This document is the single source of truth for building KodiGo. Update it continuously as the UI and requirements evolve. Never let code outpace this document.
 
 ---
@@ -59,7 +59,7 @@ Bump the version at the top of this file on every meaningful update:
 |------|-------------|
 | Admin (Owner) | Full access — analytics, suppliers, users, all settings |
 | Cashier | POS only — process sales, view product info |
-| Manager *(Phase 2)* | Inventory + basic analytics, no supplier or user management |
+| Manager *(Phase 3)* | Inventory + basic analytics, no supplier or user management |
 
 ### Key Constraints
 - Must work on desktop and mobile browsers

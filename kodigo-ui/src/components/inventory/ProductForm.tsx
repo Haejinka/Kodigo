@@ -1,10 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ImagePlus, X, Link, Package } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { useToast } from '@/components/shared/Toast';
 import type { Product } from '@/types';
-import { mockCategories, mockSuppliers } from '@/lib/mock-data';
+import { useProductStore } from '@/stores/productStore';
+import { useSupplierStore } from '@/stores/supplierStore';
+import { useAuthStore } from '@/stores/authStore';
 
 type ProductFormData = Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'categoryName' | 'supplierName'>;
 
@@ -32,12 +34,17 @@ const selectCls = inputCls;
 export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const suppliers = useSupplierStore((s) => s.suppliers);
+  const categories = useProductStore((s) => s.categories);
+  const fetchCategories = useProductStore((s) => s.fetchCategories);
+  const { stores, activeStoreId } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [urlInputMode, setUrlInputMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<ProductFormData>({
+    storeId: initial?.storeId ?? (activeStoreId === 'all' ? '' : activeStoreId) ?? '',
     name: initial?.name ?? '',
     sku: initial?.sku ?? '',
     barcode: initial?.barcode ?? '',
@@ -60,6 +67,12 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     setForm((prev) => ({ ...prev, [key]: value }));
     if (errors[key]) setErrors((e) => { const ne = { ...e }; delete ne[key]; return ne; });
   };
+
+  useEffect(() => {
+    const targetStoreId = form.storeId || (activeStoreId === 'all' ? 'all' : activeStoreId);
+    if (!targetStoreId) return;
+    void fetchCategories(targetStoreId);
+  }, [form.storeId, activeStoreId, fetchCategories]);
 
   const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -84,9 +97,11 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
 
   const validate = () => {
     const errs: Record<string, string> = {};
+    if (!form.storeId) errs.storeId = 'Store is required';
     if (!form.name.trim()) errs.name = 'Product name is required';
     if (!form.sku.trim()) errs.sku = 'SKU is required';
     if (!form.categoryId) errs.categoryId = 'Category is required';
+    if (form.storeId && categories.length === 0) errs.categoryId = 'No categories available for this store yet';
     if (form.sellingPrice <= 0) errs.sellingPrice = 'Selling price must be > 0';
     if (form.costPrice < 0) errs.costPrice = 'Cost price cannot be negative';
     return errs;
@@ -101,8 +116,8 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       await onSubmit(form);
       toast('success', mode === 'create' ? 'Product created successfully!' : 'Product updated successfully!');
       navigate('/inventory');
-    } catch {
-      toast('error', 'Failed to save product. Please try again.');
+    } catch (err: any) {
+      toast('error', err?.message || 'Failed to save product. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -183,6 +198,20 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <h3 className="font-semibold text-gray-900 mb-4">Basic Information</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="Store" required>
+            <select
+              className={selectCls}
+              value={form.storeId}
+              onChange={(e) => set('storeId', e.target.value)}
+              disabled={mode === 'edit'}
+            >
+              <option value="" disabled>Select a store</option>
+              {stores.map(store => (
+                <option key={store.id} value={store.id}>{store.name}</option>
+              ))}
+            </select>
+            {errors.storeId && <p className="text-xs text-red-500 mt-1">{errors.storeId}</p>}
+          </Field>
           <Field label="Product Name" required>
             <input
               className={inputCls}
@@ -216,10 +245,33 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
               onChange={(e) => set('categoryId', e.target.value)}
             >
               <option value="">Select category…</option>
-              {mockCategories.map((c) => (
+              {categories.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
+            {categories.length === 0 && (
+              <div className="mt-1 flex items-center gap-2">
+                <p className="text-xs text-amber-600">No categories found for this store.</p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!form.storeId) {
+                      toast('error', 'Select a store first.');
+                      return;
+                    }
+                    await fetchCategories(form.storeId);
+                    if (useProductStore.getState().categories.length > 0) {
+                      toast('success', 'Default categories loaded for this store.');
+                    } else {
+                      toast('error', 'Failed to load categories. Check your permissions or network.');
+                    }
+                  }}
+                  className="text-xs font-medium text-blue-700 hover:text-blue-800 underline"
+                >
+                  Generate default categories
+                </button>
+              </div>
+            )}
             {errors.categoryId && <p className="text-xs text-red-500 mt-1">{errors.categoryId}</p>}
           </Field>
           <Field label="Supplier">
@@ -229,7 +281,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
               onChange={(e) => set('supplierId', e.target.value)}
             >
               <option value="">Select supplier…</option>
-              {mockSuppliers.map((s) => (
+              {suppliers.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { CartItem, Product } from '@/types';
+import { useAuthStore } from './authStore';
 
 interface CartState {
   items: CartItem[];
@@ -61,3 +62,10 @@ export const useCartStore = create<CartState>((set, get) => ({
   total: () => get().items.reduce((sum, i) => sum + i.lineTotal, 0),
   itemCount: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
 }));
+
+// Clear cart when active store changes
+useAuthStore.subscribe((state, prevState) => {
+  if (state.activeStoreId !== prevState.activeStoreId) {
+    useCartStore.getState().clearCart();
+  }
+});

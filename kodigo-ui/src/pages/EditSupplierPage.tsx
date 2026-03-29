@@ -16,7 +16,7 @@ export function EditSupplierPage() {
   const handleSubmit = async (data: SupplierFormData) => {
     if (!id) return;
     await new Promise((r) => setTimeout(r, 600));
-    updateSupplier(id, data);
+    await updateSupplier(id, data);
   };
 
   if (!supplier) {

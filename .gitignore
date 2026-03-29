@@ -1,0 +1,7 @@
+# Project Root ignores
+node_modules/
+.env
+.env.*
+!.env.example
+.DS_Store
+.supabase/

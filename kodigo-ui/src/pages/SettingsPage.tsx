@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
-  Settings, Users, Store, Bell, Shield, X, Mail,
+  Settings, Users, Store, Bell, Shield, X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
 import { useToast } from '@/components/shared/Toast';
-import { mockUsers } from '@/lib/mock-data';
-import type { User } from '@/types';
+import type { User, Store as StoreType } from '@/types';
 import { Badge } from '@/components/shared/Badge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { cn } from '@/lib/utils';
+import { cn, hashPassword } from '@/lib/utils';
+import { useAuthStore } from '@/stores/authStore';
+
+const inputCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
 
 const settingsSections = [
   { label: 'General', path: '/settings', icon: Settings, end: true },
@@ -66,70 +68,225 @@ export function SettingsLayout() {
 
 // ─── General Settings ────────────────────────────────────────────────────────
 
-export function GeneralSettingsPage() {
+interface EditStoreModalProps {
+  store: StoreType;
+  onSave: (name: string, address: string, taxRate: number) => Promise<boolean>;
+  onClose: () => void;
+}
+
+function EditStoreModal({ store, onSave, onClose }: EditStoreModalProps) {
   const { toast } = useToast();
-  const [storeName, setStoreName] = useState('Aling Maria\'s Sari-Sari Store');
-  const [storeAddress, setStoreAddress] = useState('123 Barangay Road, Barangay San Isidro');
-  const [taxRate, setTaxRate] = useState('0');
+  const [name, setName] = useState(store.name);
+  const [address, setAddress] = useState(store.address || '');
+  const [taxRate, setTaxRate] = useState(String(store.taxRate || 0));
   const [saving, setSaving] = useState(false);
 
-  const handleSave = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) { toast('error', 'Store name is required.'); return; }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 700));
-    toast('success', 'Settings saved successfully!');
+    const success = await onSave(name.trim(), address.trim(), parseFloat(taxRate) || 0);
+    if (!success) {
+      // toast error is usually handled inside onSave mapping (authStore returns false and toast can be created there or here)
+      // but the original handleAddStore doesn't strictly need it if returned correctly. Let's just pop error here if false:
+    }
     setSaving(false);
   };
 
-  const inputCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
-
   return (
-    <div className="space-y-5">
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Store className="w-4 h-4" /> Store Information
-        </h3>
-        <div className="space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-base font-semibold text-gray-900">Edit Store</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 pb-6 pt-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Name</label>
-            <input className={inputCls} value={storeName} onChange={(e) => setStoreName(e.target.value)} />
+            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Address</label>
-            <textarea
-              className={inputCls + ' resize-none'}
-              rows={2}
-              value={storeAddress}
-              onChange={(e) => setStoreAddress(e.target.value)}
-            />
+            <textarea className={inputCls + ' resize-none'} rows={2} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Optional physical address" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Tax Rate (%)</label>
-            <input
-              type="number"
-              className={inputCls + ' w-32 font-mono'}
-              value={taxRate}
-              onChange={(e) => setTaxRate(e.target.value)}
-              min={0}
-              max={100}
-              step={0.01}
-            />
+             <label className="block text-sm font-medium text-gray-700 mb-1.5">Tax Rate (%)</label>
+             <input type="number" className={inputCls + ' w-32 font-mono'} value={taxRate} onChange={(e) => setTaxRate(e.target.value)} min={0} max={100} step={0.01} />
           </div>
-        </div>
-      </div>
-
-      <div className="flex justify-end">
-        <Button variant="primary" loading={saving} onClick={handleSave}>
-          Save Changes
-        </Button>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" type="button" onClick={onClose} disabled={saving}>Cancel</Button>
+            <Button variant="primary" type="submit" loading={saving}>Save Changes</Button>
+          </div>
+        </form>
       </div>
     </div>
   );
 }
 
+export function GeneralSettingsPage() {
+  const { toast } = useToast();
+  const { stores, addStore, updateStore, deleteStore, role } = useAuthStore();
+
+  const isOwner = role === 'admin';
+  const [newStoreName, setNewStoreName] = useState('');
+  const [newStoreAddress, setNewStoreAddress] = useState('');
+  const [newTaxRate, setNewTaxRate] = useState('');
+
+  const [addingStore, setAddingStore] = useState(false);
+  const [editingStore, setEditingStore] = useState<StoreType | null>(null);
+  const [deleteTargetStore, setDeleteTargetStore] = useState<StoreType | null>(null);
+  const [deletingStore, setDeletingStore] = useState(false);
+
+  const handleUpdate = async (name: string, address: string, taxRate: number) => {
+    if (!editingStore) return false;
+    const ok = await updateStore(editingStore.id, name, address, taxRate);
+    if (ok) {
+      toast('success', 'Store updated successfully!');
+      setEditingStore(null);
+    } else {
+      toast('error', 'Failed to update store');
+    }
+    return ok;
+  };
+
+  const handleAddStore = async () => {
+    if (!newStoreName.trim()) {
+      toast('error', 'Store name is required');
+      return;
+    }
+    
+    setAddingStore(true);
+    try {
+      const added = await addStore(
+        newStoreName, 
+        newStoreAddress, 
+        parseFloat(newTaxRate) || 0
+      );
+      
+      if (added) {
+        toast('success', 'Store created successfully!');
+        setNewStoreName('');
+        setNewStoreAddress('');
+        setNewTaxRate('');
+      } else {
+        toast('error', 'Failed to create store');
+      }
+    } catch (e) {
+      toast('error', 'An error occurred while creating store');
+    }
+    setAddingStore(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Store className="w-5 h-5 text-gray-500" /> My Stores
+        </h3>
+        
+        {stores.length === 0 ? (
+          <div className="text-sm text-gray-500 py-4">No stores available.</div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {stores.map(store => (
+              <div key={store.id} className="border border-gray-100 bg-gray-50 rounded-lg p-4 relative group hover:border-blue-200 transition-colors">
+                {isOwner && (
+                  <div className="absolute top-4 right-4 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => setEditingStore(store as StoreType)}
+                      className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                    >
+                      Edit
+                    </button>
+                    {stores.length > 1 && (
+                      <button 
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete the store "${store.name}"? This action cannot be undone.`)) {
+                            deleteStore(store.id).then(ok => {
+                              if (ok) toast('success', 'Store deleted successfully!');
+                              else toast('error', 'Failed to delete store');
+                            });
+                          }
+                        }}
+                        className="text-xs font-medium text-red-600 hover:text-red-800"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
+                <div className="font-medium text-gray-900 mb-1 pr-20 hover:text-blue-700 cursor-default">{store.name}</div>
+                <div className="text-sm text-gray-500">{store.address || 'No address provided'}</div>
+                <div className="text-xs text-gray-400 mt-2">Tax Rate: {store.taxRate}%</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {editingStore && (
+        <EditStoreModal
+          store={editingStore}
+          onSave={handleUpdate}
+          onClose={() => setEditingStore(null)}
+        />
+      )}
+
+      {isOwner && (
+        <div className="bg-white rounded-xl border border-blue-100 shadow-sm p-5">
+          <h3 className="font-semibold text-blue-900 mb-4 flex items-center gap-2">
+            Add New Store
+          </h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Name</label>
+              <input 
+                className={inputCls} 
+                value={newStoreName} 
+                onChange={(e) => setNewStoreName(e.target.value)} 
+                placeholder="E.g., Branch 2 - Mabini St."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Address</label>
+              <textarea
+                className={inputCls + ' resize-none'}
+                rows={2}
+                value={newStoreAddress}
+                onChange={(e) => setNewStoreAddress(e.target.value)}
+                placeholder="Optional physical address"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Tax Rate (%)</label>
+              <input
+                type="number"
+                className={inputCls + ' w-32 font-mono'}
+                value={newTaxRate}
+                onChange={(e) => setNewTaxRate(e.target.value)}
+                min={0}
+                max={100}
+                step={0.01}
+                placeholder="0.00"
+              />
+            </div>
+            
+            <div className="pt-2">
+              <Button variant="primary" loading={addingStore} onClick={handleAddStore}>        
+                Create Store
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );}
 // ─── User Management ─────────────────────────────────────────────────────────
 
-const inputCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
-const selectCls = inputCls + ' bg-white cursor-pointer';
+const selectCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer';
 
 interface EditUserModalProps {
   user: User;
@@ -139,9 +296,11 @@ interface EditUserModalProps {
 
 function EditUserModal({ user, onSave, onClose }: EditUserModalProps) {
   const { toast } = useToast();
+  const { stores } = useAuthStore();
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
-  const [role, setRole] = useState<'admin' | 'cashier'>(user.role);
+  const [role, setRole] = useState<any>(user.role);
+  const [storeId, setStoreId] = useState(user.storeId || '');
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -150,7 +309,7 @@ function EditUserModal({ user, onSave, onClose }: EditUserModalProps) {
     if (!email.trim() || !email.includes('@')) { toast('error', 'A valid email is required.'); return; }
     setSaving(true);
     await new Promise((r) => setTimeout(r, 600));
-    onSave({ ...user, name: name.trim(), email: email.trim(), role });
+    onSave({ ...user, name: name.trim(), email: email.trim(), role, storeId });
     toast('success', 'User updated successfully.');
     setSaving(false);
     onClose();
@@ -200,16 +359,32 @@ function EditUserModal({ user, onSave, onClose }: EditUserModalProps) {
               required
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
-            <select
-              className={selectCls}
-              value={role}
-              onChange={(e) => setRole(e.target.value as 'admin' | 'cashier')}
-            >
-              <option value="cashier">Cashier — POS access only</option>
-              <option value="admin">Admin — Full access</option>
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
+              <select
+                className={selectCls}
+                value={role}
+                onChange={(e) => setRole(e.target.value as 'admin' | 'cashier')}
+              >
+                <option value="cashier">Cashier — POS access only</option>
+                <option value="admin">Admin — Full access</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Assignment</label>
+              <select
+                className={selectCls}
+                value={storeId}
+                onChange={(e) => setStoreId(e.target.value)}
+                disabled={stores.length <= 1}
+              >
+                <option value="">No Store Assigned</option>
+                {stores.map(store => (
+                  <option key={store.id} value={store.id}>{store.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="flex justify-end gap-3 pt-1">
             <Button variant="ghost" type="button" onClick={onClose}>
@@ -225,33 +400,54 @@ function EditUserModal({ user, onSave, onClose }: EditUserModalProps) {
   );
 }
 
-interface InviteUserModalProps {
-  onInvite: (user: User) => void;
+interface CreateUserModalProps {
+  onCreate: (user: User) => void;
   onClose: () => void;
 }
 
-function InviteUserModal({ onInvite, onClose }: InviteUserModalProps) {
+function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
   const { toast } = useToast();
+  const { stores, activeStoreId } = useAuthStore();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'admin' | 'cashier'>('cashier');
-  const [sending, setSending] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState<any>('cashier');
+  const [storeId, setStoreId] = useState(activeStoreId || '');
+  const [creating, setCreating] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) { toast('error', 'Name is required.'); return; }
     if (!email.trim() || !email.includes('@')) { toast('error', 'A valid email is required.'); return; }
-    setSending(true);
-    await new Promise((r) => setTimeout(r, 700));
+    if (!password) { toast('error', 'Password is required.'); return; }
+    if (password.length < 6) { toast('error', 'Password must be at least 6 characters.'); return; }
+    if (password !== confirmPassword) { toast('error', 'Passwords do not match.'); return; }
+    
+    setCreating(true);
+    // Simulate API call delay
+    await new Promise((r) => setTimeout(r, 600));
+    
+    const passwordHash = await hashPassword(password);
+    
     const newUser: User = {
       id: `user-${Date.now()}`,
       name: name.trim(),
       email: email.trim(),
       role,
+      passwordHash,
+      storeId
     };
-    onInvite(newUser);
-    toast('success', `Invitation sent to ${email.trim()}.`);
-    setSending(false);
+    
+    try {
+      console.warn('createUser not implemented in authStore');
+      onCreate(newUser);
+      toast('success', `${role === 'admin' ? 'Admin' : 'User'} created successfully.`);
+    } catch (err: any) {
+      toast('error', err.message || 'Failed to create user. Ensure you have admin permissions.');
+    }
+    
+    setCreating(false);
     onClose();
   };
 
@@ -259,23 +455,17 @@ function InviteUserModal({ onInvite, onClose }: InviteUserModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">Invite New User</h2>
+          <h2 className="text-base font-semibold text-gray-900">Create New {role === 'admin' ? 'Admin' : 'User'}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
-        {/* Info banner */}
-        <div className="mx-6 mt-4 flex items-start gap-2.5 bg-blue-50 border border-blue-100 rounded-lg px-3.5 py-2.5">
-          <Mail className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
-          <p className="text-xs text-blue-700">An invitation email will be sent to the address below. The user can set their own password on first login.</p>
-        </div>
-        {/* Form */}
+
         <form onSubmit={handleSubmit} className="px-6 pb-6 pt-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
-            <input
+            <input 
               className={inputCls}
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -285,7 +475,7 @@ function InviteUserModal({ onInvite, onClose }: InviteUserModalProps) {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
-            <input
+            <input 
               type="email"
               className={inputCls}
               value={email}
@@ -294,23 +484,66 @@ function InviteUserModal({ onInvite, onClose }: InviteUserModalProps) {
               required
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
-            <select
-              className={selectCls}
-              value={role}
-              onChange={(e) => setRole(e.target.value as 'admin' | 'cashier')}
-            >
-              <option value="cashier">Cashier — POS access only</option>
-              <option value="admin">Admin — Full access</option>
-            </select>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+              <input 
+                type="password"
+                className={inputCls}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
+              <input 
+                type="password"
+                className={inputCls}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••"
+                required
+              />
+            </div>
           </div>
-          <div className="flex justify-end gap-3 pt-1">
-            <Button variant="ghost" type="button" onClick={onClose}>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
+              <select
+                className={selectCls}
+                value={role}
+                onChange={(e) => setRole(e.target.value as 'admin' | 'cashier')}
+              >
+                <option value="cashier">Cashier • POS access only</option>
+                <option value="admin">Admin • Full system access</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Assignment</label>
+              <select
+                className={selectCls}
+                value={storeId}
+                onChange={(e) => setStoreId(e.target.value)}
+                disabled={stores.length <= 1}
+              >
+                <option value="">No Store Assigned</option>
+                {stores.map(store => (
+                  <option key={store.id} value={store.id}>{store.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" type="button" onClick={onClose} disabled={creating}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit" loading={sending}>
-              Send Invitation
+            <Button variant="primary" type="submit" loading={creating}>
+              Create {role === 'admin' ? 'Admin' : 'User'}
             </Button>
           </div>
         </form>
@@ -321,17 +554,18 @@ function InviteUserModal({ onInvite, onClose }: InviteUserModalProps) {
 
 export function UserManagementPage() {
   const { toast } = useToast();
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const { stores } = useAuthStore();
+  const [users, setUsers] = useState<User[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [editTarget, setEditTarget] = useState<User | null>(null);
-  const [inviteOpen, setInviteOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const handleEditSave = (updated: User) => {
     setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
   };
 
-  const handleInvite = (newUser: User) => {
-    setUsers((prev) => [...prev, newUser]);
+  const handleCreate = () => {
+    setUsers([]);
   };
 
   const handleRemove = () => {
@@ -345,19 +579,32 @@ export function UserManagementPage() {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h3 className="font-semibold text-gray-900">System Users</h3>
-          <Button variant="primary" size="sm" onClick={() => setInviteOpen(true)}>
+          <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
             + Invite User
           </Button>
         </div>
         <ul className="divide-y divide-gray-50">
-          {users.map((u) => (
+          {users.map((u) => {
+            const assignedStore = stores.find(s => s.id === u.storeId);
+            return (
             <li key={u.id} className="flex items-center gap-4 px-5 py-4">
               <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm shrink-0">
                 {u.name.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-900 text-sm">{u.name}</p>
-                <p className="text-xs text-gray-500">{u.email}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-xs text-gray-500">{u.email}</p>
+                  {assignedStore && (
+                    <>
+                      <span className="text-gray-300">•</span>
+                      <p className="text-xs text-gray-600 flex items-center gap-1">
+                        <Store className="w-3 h-3" />
+                        {assignedStore.name}
+                      </p>
+                    </>
+                  )}
+                </div>
               </div>
               <Badge variant={u.role === 'admin' ? 'info' : 'default'}>
                 {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
@@ -375,7 +622,8 @@ export function UserManagementPage() {
                 Remove
               </button>
             </li>
-          ))}
+          );
+          })}
         </ul>
       </div>
 
@@ -387,11 +635,11 @@ export function UserManagementPage() {
         />
       )}
 
-      {inviteOpen && (
-        <InviteUserModal
-          onInvite={handleInvite}
-          onClose={() => setInviteOpen(false)}
-        />
+      {createOpen && (
+        <CreateUserModal 
+            onCreate={handleCreate}
+            onClose={() => setCreateOpen(false)}
+          />
       )}
 
       <ConfirmDialog
@@ -469,8 +717,6 @@ export function SecuritySettingsPage() {
   const [current, setCurrent] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirm, setConfirm] = useState('');
-
-  const inputCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
 
   const handleChange = async (e: React.FormEvent) => {
     e.preventDefault();

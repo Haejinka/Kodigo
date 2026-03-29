@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { ProductForm } from '@/components/inventory/ProductForm';
 import { Button } from '@/components/shared/Button';
 import { useProductStore } from '@/stores/productStore';
+import { useSupplierStore } from '@/stores/supplierStore';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { PackageSearch } from 'lucide-react';
 import type { Product } from '@/types';
@@ -15,11 +16,13 @@ export function EditProductPage() {
   const navigate = useNavigate();
   const product = useProductStore((s) => s.products.find((p) => p.id === id));
   const updateProduct = useProductStore((s) => s.updateProduct);
+  const suppliers = useSupplierStore((s) => s.suppliers);
 
   const handleSubmit = async (data: ProductFormData) => {
     if (!id) return;
     await new Promise((r) => setTimeout(r, 600));
-    updateProduct(id, data);
+    const supplierName = suppliers.find((s) => s.id === data.supplierId)?.name;
+    await updateProduct(id, data, supplierName);
   };
 
   if (!product) {

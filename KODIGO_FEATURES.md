@@ -1,7 +1,7 @@
 # KodiGo — Feature Reference
 > **Document Type:** Research & Feature Overview
-> **Last Updated:** 2026-03-04
-> **System Version Referenced:** KodiGo v0.2.2
+> **Last Updated:** 2026-03-25
+> **System Version Referenced:** KodiGo v0.3.1
 
 ---
 
@@ -43,6 +43,7 @@ The POS is the core transaction interface used by cashiers. It runs as a full-sc
 
 ### 1.1 Product Search & Selection
 - **Barcode scanner support** — USB and Bluetooth scanners work out of the box via a hidden global `<input>` that captures rapid keystroke sequences and triggers product lookup on `Enter`.
+- **Keyboard navigation** — Press **[F2]** to instantly focus the main product search input. Pressing **[Enter]** automatically adds the top matching search result to the cart.
 - **Manual search** — Debounced text search by product name or SKU.
 - **Product grid** — Visual grid of product tiles showing image, name, and price for quick tap selection.
 
@@ -54,16 +55,18 @@ The POS is the core transaction interface used by cashiers. It runs as a full-sc
 - Cart resets automatically after a completed transaction or on **[New Transaction]**.
 
 ### 1.3 Payment Flow
-- **[Charge / Pay]** button initiates payment.
+- **[Charge / Pay]** button initiates payment (can also be triggered via **[F9]**).
 - `<PaymentModal>` displays the full itemised order and total.
 - Cashier enters cash amount tendered; change is calculated automatically.
 - Quick-amount buttons for common cash denominations speed up entry.
-- On **[Confirm Payment]**:
+- On **[Confirm Payment]** (or pressing **[Enter]**):
   - A complete `Sale` record is built, capturing `cashierId` and `cashierName` from the active session at the moment of confirmation.
+  - The cash drawer opens automatically via Web Serial API (`openCashDrawer()`).
   - Stock deduction is applied.
   - *(Supabase write pending — Phase 1 backend wiring)*
 - **Receipt / Success screen** shows: Cashier name, Transaction ID, timestamp, and change amount.
-- Option to **[Print Receipt]** or start a **[New Transaction]**.
+- Option to **[Print Receipt]** or start a **[New Transaction]** (or press **[Enter]** to clear).
+- Can soft-cancel or close the modal using **[Escape]**.
 
 ### 1.4 POS Session Management
 - Cashier **[Logout]** button in the POS topbar (top-right).
@@ -71,7 +74,8 @@ The POS is the core transaction interface used by cashiers. It runs as a full-sc
 - Confirms → session ends, redirected to `/login`.
 
 ### 1.5 Hardware Integration
-- Designed for integration with **receipt printers** and **cash drawers**.
+- **Web Serial API Integration:** Communicates directly with serial POS peripherals (typically receipt printers with RJ11 cash drawer interfaces) at `9600` baud rate using standard ESC/POS sequences.
+- Designed for immediate integration with **receipt printers** and automatic triggering of **cash drawers**.
 - Compatible with USB and Bluetooth barcode scanners — no driver installation required.
 
 ---
@@ -292,7 +296,7 @@ Four cards mirroring the dashboard but scoped to the selected date range:
 Accessible at `/settings/users`:
 - View all users with name, email, role, and avatar.
 - **Edit User** — modify full name, email, and role.
-- **Invite User** — send invite by email; user is added to the list immediately (pending real email integration).
+- **Create User** — securely create Admin or Cashier accounts with immediate password hashing; requires admin credentials.
 - **Remove User** — remove from the system (with confirmation dialog).
 
 ---
