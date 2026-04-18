@@ -19,6 +19,107 @@ import type { Column } from '@/components/shared/DataTable';
 
 type Tab = 'products' | 'log';
 
+// Category Management Modal (scaffold)
+import { useEffect } from 'react';
+import { useRef } from 'react';
+function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onClose: () => void; storeId: string }) {
+  const { categories, fetchCategories, addCategory, renameCategory, deleteCategory } = useProductStore();
+  const [newCat, setNewCat] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (open && storeId) fetchCategories(storeId);
+    setNewCat('');
+    setEditingId(null);
+    setEditingName('');
+  }, [open, storeId, fetchCategories]);
+
+  const handleAdd = async () => {
+    if (!newCat.trim()) return;
+    setLoading(true);
+    try {
+      await addCategory(storeId, newCat.trim());
+      setNewCat('');
+      if (inputRef.current) inputRef.current.focus();
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleRename = async (id: string) => {
+    if (!editingName.trim()) return;
+    setLoading(true);
+    try {
+      await renameCategory(id, editingName.trim());
+      setEditingId(null);
+      setEditingName('');
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this category? This cannot be undone.')) return;
+    setLoading(true);
+    try {
+      await deleteCategory(id);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return open ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+      <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+        <h2 className="text-lg font-bold mb-4">Manage Categories</h2>
+        <ul className="mb-4">
+          {categories.map((cat) => (
+            <li key={cat.id} className="flex items-center gap-2 py-1">
+              {editingId === cat.id ? (
+                <>
+                  <input
+                    className="border rounded px-2 py-1 text-sm flex-1"
+                    value={editingName}
+                    onChange={e => setEditingName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') handleRename(cat.id);
+                      if (e.key === 'Escape') { setEditingId(null); setEditingName(''); }
+                    }}
+                    autoFocus
+                  />
+                  <button className="text-blue-600 text-xs" onClick={() => handleRename(cat.id)} disabled={loading}>Save</button>
+                  <button className="text-gray-400 text-xs" onClick={() => { setEditingId(null); setEditingName(''); }}>Cancel</button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1 truncate">{cat.name}</span>
+                  <button className="text-xs text-blue-600" onClick={() => { setEditingId(cat.id); setEditingName(cat.name); }}>Rename</button>
+                  <button className="text-xs text-red-600" onClick={() => handleDelete(cat.id)} disabled={loading}>Delete</button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+        <div className="flex gap-2 mb-4">
+          <input
+            ref={inputRef}
+            className="border rounded px-2 py-1 text-sm flex-1"
+            placeholder="New category name"
+            value={newCat}
+            onChange={e => setNewCat(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
+            disabled={loading}
+          />
+          <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm" onClick={handleAdd} disabled={loading || !newCat.trim()}>Add</button>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button className="px-4 py-2 bg-gray-200 rounded" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+}
+
 export function InventoryPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -32,6 +133,8 @@ export function InventoryPage() {
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [adjustTarget, setAdjustTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Category modal state
+  const [catModalOpen, setCatModalOpen] = useState(false);
 
   const categories = [...new Set(products.map((p) => p.categoryName))].sort();
 
@@ -226,6 +329,12 @@ export function InventoryPage() {
           </Button>
         }
       />
+      <div className="flex justify-end mb-4">
+        <Button variant="secondary" onClick={() => setCatModalOpen(true)}>
+          Manage Categories
+        </Button>
+      </div>
+      <ManageCategoriesModal open={catModalOpen} onClose={() => setCatModalOpen(false)} storeId={activeStoreId} />
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-gray-200 mb-5">

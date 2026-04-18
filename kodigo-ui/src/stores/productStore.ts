@@ -30,7 +30,37 @@ const STATIC_CATEGORIES: Category[] = [
   { id: 'c8', name: 'Tobacco' },
 ];
 
-export const useProductStore = create<ProductStore>((set, get) => ({
+export const useProductStore = create<ProductStore & {
+  addCategory: (storeId: string, name: string) => Promise<void>;
+  renameCategory: (categoryId: string, name: string) => Promise<void>;
+  deleteCategory: (categoryId: string) => Promise<void>;
+}>((set, get) => ({
+    addCategory: async (storeId, name) => {
+      if (!storeId || !name.trim()) return;
+      const id = crypto.randomUUID();
+      const { error } = await supabase.from('categories').insert({ id, store_id: storeId, name });
+      if (error) throw error;
+      // Refresh categories
+      await get().fetchCategories(storeId);
+    },
+
+    renameCategory: async (categoryId, name) => {
+      if (!categoryId || !name.trim()) return;
+      const { error } = await supabase.from('categories').update({ name }).eq('id', categoryId);
+      if (error) throw error;
+      // Refresh categories
+      const storeId = useAuthStore.getState().activeStoreId;
+      if (storeId) await get().fetchCategories(storeId);
+    },
+
+    deleteCategory: async (categoryId) => {
+      if (!categoryId) return;
+      const { error } = await supabase.from('categories').delete().eq('id', categoryId);
+      if (error) throw error;
+      // Refresh categories
+      const storeId = useAuthStore.getState().activeStoreId;
+      if (storeId) await get().fetchCategories(storeId);
+    },
   categories: [],
   products: [],
   stockAdjustments: [],

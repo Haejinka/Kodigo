@@ -10,6 +10,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useProductStore } from '@/stores/productStore';
 import { useSupplierStore } from '@/stores/supplierStore';
 import { useAuthStore } from '@/stores/authStore';
+import { getStockStatus } from '@/types';
 import type { RestockItem } from '@/types';
 
 const urgencyVariant: Record<string, 'danger' | 'warning' | 'info'> = {
@@ -23,13 +24,20 @@ function useRestockItems(): RestockItem[] {
   const products = useProductStore((s) => s.products);
   return useMemo(() => {
     return products
-      .filter((p) => p.currentStock <= p.reorderLevel)
+      .filter((p) => {
+        const stockStatus = getStockStatus(p);
+        const hasAlertStatus = stockStatus === 'out-of-stock' || stockStatus === 'critical' || stockStatus === 'low';
+        const belowReorder = p.currentStock <= p.reorderLevel;
+        return hasAlertStatus || belowReorder;
+      })
       .map((p) => {
-        const suggestedQty = Math.max(p.reorderLevel * 2 - p.currentStock, p.reorderLevel);
+        const effectiveReorder = Math.max(p.reorderLevel, p.minStockLevel, p.safetyStock);
+        const suggestedQty = Math.max(effectiveReorder * 2 - p.currentStock, effectiveReorder);
+        const stockStatus = getStockStatus(p);
         const urgency: RestockItem['urgency'] =
-          p.currentStock === 0 || p.currentStock <= p.safetyStock
+          stockStatus === 'out-of-stock' || stockStatus === 'critical'
             ? 'high'
-            : p.currentStock <= p.minStockLevel
+            : stockStatus === 'low'
             ? 'medium'
             : 'low';
         return {
