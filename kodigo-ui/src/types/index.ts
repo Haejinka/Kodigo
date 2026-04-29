@@ -50,6 +50,26 @@ export interface Supplier {
   createdAt: string;
 }
 
+export type SellingOptionKind = 'unit' | 'kilo' | 'sack' | 'custom';
+
+export interface ProductSellingOption {
+  id: string;
+  productId: string;
+  storeId: string;
+  kind: SellingOptionKind;
+  label: string;
+  unitLabel: string;
+  quantityValue?: number;
+  quantityUnit?: string;
+  stockQuantity: number;
+  sellingPrice: number;
+  lowStockThreshold: number;
+  isDefault: boolean;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Product {
   id: string;
   storeId: string;
@@ -81,24 +101,85 @@ export interface Product {
   supplierId?: string;
   supplierName?: string;
   imageUrl?: string;
+  sellingOptions: ProductSellingOption[];
   createdAt: string;
   updatedAt: string;
 }
 
 export type StockStatus = 'in-stock' | 'low' | 'critical' | 'out-of-stock' | 'overstock';
 
-export function getStockStatus(product: Product): StockStatus {
-  if (product.currentStock === 0) return 'out-of-stock';
-  if (product.currentStock <= product.safetyStock) return 'critical';
-  if (product.currentStock <= product.minStockLevel) return 'low';
-  if (product.currentStock > product.minStockLevel * 3) return 'overstock';
+export function getStockStatus(product: Product, option?: ProductSellingOption): StockStatus {
+  const currentStock = option ? option.stockQuantity : product.currentStock;
+  const minStockLevel = option ? option.lowStockThreshold : product.minStockLevel;
+  const safetyStock = option ? Math.min(option.lowStockThreshold, product.safetyStock) : product.safetyStock;
+  if (currentStock === 0) return 'out-of-stock';
+  if (currentStock <= safetyStock) return 'critical';
+  if (currentStock <= minStockLevel) return 'low';
+  if (currentStock > minStockLevel * 3) return 'overstock';
   return 'in-stock';
+}
+
+const formatQty = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+
+export function buildLegacySellingOption(product: Product): ProductSellingOption {
+  return {
+    id: `legacy-${product.id}`,
+    productId: product.id,
+    storeId: product.storeId,
+    kind: product.unit === 'kg' ? 'kilo' : 'unit',
+    label: product.unit,
+    unitLabel: product.unit,
+    quantityValue: product.unit === 'kg' ? 1 : undefined,
+    quantityUnit: product.unit === 'kg' ? 'kg' : undefined,
+    stockQuantity: product.currentStock,
+    sellingPrice: product.sellingPrice,
+    lowStockThreshold: product.minStockLevel,
+    isDefault: true,
+    isActive: true,
+  };
+}
+
+export function getProductSellingOptions(product: Product): ProductSellingOption[] {
+  const activeOptions = (product.sellingOptions || []).filter((option) => option.isActive);
+  return activeOptions.length > 0 ? activeOptions : [buildLegacySellingOption(product)];
+}
+
+export function getDefaultSellingOption(product: Product): ProductSellingOption {
+  const options = getProductSellingOptions(product);
+  return options.find((option) => option.isDefault) ?? options[0];
+}
+
+export function isLegacySellingOption(option: ProductSellingOption): boolean {
+  return option.id.startsWith('legacy-');
+}
+
+export function getSellingOptionLabel(option: ProductSellingOption): string {
+  if (option.label.trim()) return option.label.trim();
+  if (option.kind === 'sack' && option.quantityValue) {
+    return `${formatQty(option.quantityValue)} ${option.quantityUnit || ''} ${option.unitLabel}`.trim();
+  }
+  return option.unitLabel;
+}
+
+export function getSellingOptionStockLabel(option: ProductSellingOption): string {
+  const qty = formatQty(option.stockQuantity);
+  if (option.kind === 'sack') return `${qty} ${option.unitLabel}${option.stockQuantity === 1 ? '' : 's'}`;
+  return `${qty} ${option.unitLabel}`;
+}
+
+export function getSaleItemUnitLabel(item: Pick<SaleItem, 'unitLabel' | 'packageSize' | 'packageUnit'>): string {
+  if (item.packageSize) {
+    return `${item.unitLabel}, ${formatQty(item.packageSize)} ${item.packageUnit || ''}`.trim();
+  }
+  return item.unitLabel || 'unit';
 }
 
 // ─── Cart ────────────────────────────────────────────────────────────────────
 
 export interface CartItem {
+  id: string;
   product: Product;
+  sellingOption: ProductSellingOption;
   quantity: number;
   lineTotal: number;
 }
@@ -109,6 +190,12 @@ export interface SaleItem {
   id?: string;
   productId: string;
   productName: string;
+  sellingOptionId?: string;
+  sellingOptionLabel?: string;
+  unitLabel?: string;
+  packageSize?: number;
+  packageUnit?: string;
+  stockSource?: string;
   quantity: number;
   unitPrice: number;
   lineTotal: number;
@@ -183,6 +270,11 @@ export interface StockAlert {
   storeId: string;
   productId: string;
   productName: string;
+  sellingOptionId?: string;
+  sellingOptionLabel?: string;
+  unitLabel?: string;
+  packageSize?: number;
+  packageUnit?: string;
   type: 'low' | 'critical' | 'out-of-stock';
   currentStock: number;
   minStockLevel: number;
@@ -257,13 +349,18 @@ export interface ProductRanking {
 
 // ─── Stock Adjustment ────────────────────────────────────────────────────────
 
-export type AdjustmentReason = 'damaged' | 'expired' | 'lost' | 'manual-count' | 'restock' | 'other';
+export type AdjustmentReason = 'damaged' | 'expired' | 'lost' | 'manual-count' | 'restock' | 'conversion' | 'other';
 
 export interface StockAdjustment {
   id: string;
   storeId: string;
   productId: string;
   productName: string;
+  sellingOptionId?: string;
+  sellingOptionLabel?: string;
+  unitLabel?: string;
+  packageSize?: number;
+  packageUnit?: string;
   reason: AdjustmentReason;
   quantityDelta: number;
   stockBefore: number;

@@ -6,10 +6,16 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { BarcodeInput } from './BarcodeInput';
 import { useProductStore } from '@/stores/productStore';
 import { cn, formatCurrency } from '@/lib/utils';
-import type { Product } from '@/types';
+import {
+  getDefaultSellingOption,
+  getProductSellingOptions,
+  getSellingOptionLabel,
+  getSellingOptionStockLabel,
+} from '@/types';
+import type { Product, ProductSellingOption } from '@/types';
 
 interface ProductSearchPanelProps {
-  onAddProduct: (product: Product) => void;
+  onAddProduct: (product: Product, option?: ProductSellingOption) => void;
   /** Current pending quantity (1 = none set) */
   pendingQty?: number;
   /** Raw string typed by the cashier, empty when none */
@@ -48,15 +54,19 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
   }, [products, query, activeCategory]);
 
   const quickLookupResults = useMemo(() => {
-    return query.trim() ? results.slice(0, 6) : [];
+    return query.trim()
+      ? results.flatMap((product) =>
+          getProductSellingOptions(product).map((option) => ({ product, option }))
+        ).slice(0, 8)
+      : [];
   }, [query, results]);
 
   const firstAvailableIndex = useMemo(() => {
-    return quickLookupResults.findIndex((p) => p.currentStock > 0);
+    return quickLookupResults.findIndex(({ option }) => option.stockQuantity > 0);
   }, [quickLookupResults]);
 
-  const highlightedProduct = highlightedIndex >= 0 ? quickLookupResults[highlightedIndex] : undefined;
-  const activeOptionId = highlightedProduct ? `pos-quick-lookup-${highlightedProduct.id}` : undefined;
+  const highlightedLookup = highlightedIndex >= 0 ? quickLookupResults[highlightedIndex] : undefined;
+  const activeOptionId = highlightedLookup ? `pos-quick-lookup-${highlightedLookup.product.id}-${highlightedLookup.option.id}` : undefined;
 
   useEffect(() => {
     if (quickLookupResults.length === 0) {
@@ -66,19 +76,25 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
 
     setHighlightedIndex((current) => {
       const currentProduct = quickLookupResults[current];
-      if (currentProduct?.currentStock > 0) return current;
+      if (currentProduct?.option.stockQuantity > 0) return current;
       return firstAvailableIndex;
     });
   }, [quickLookupResults, firstAvailableIndex]);
 
   const handleScan = (barcode: string) => {
     const found = products.find((p) => p.barcode === barcode);
-    if (found) onAddProduct(found);
+    if (!found) return;
+    const options = getProductSellingOptions(found).filter((option) => option.stockQuantity > 0);
+    if (options.length === 1) {
+      onAddProduct(found, options[0]);
+      return;
+    }
+    setQuery(found.name);
   };
 
-  const addLookupProduct = useCallback((product: Product) => {
-    if (product.currentStock <= 0) return;
-    onAddProduct(product);
+  const addLookupProduct = useCallback((product: Product, option: ProductSellingOption) => {
+    if (option.stockQuantity <= 0) return;
+    onAddProduct(product, option);
     setQuery('');
     setHighlightedIndex(-1);
     window.requestAnimationFrame(() => searchRef.current?.focus());
@@ -90,7 +106,7 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
     let next = highlightedIndex;
     for (let i = 0; i < quickLookupResults.length; i += 1) {
       next = (next + step + quickLookupResults.length) % quickLookupResults.length;
-      if (quickLookupResults[next]?.currentStock > 0) {
+      if (quickLookupResults[next]?.option.stockQuantity > 0) {
         setHighlightedIndex(next);
         return;
       }
@@ -120,7 +136,7 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
       e.preventDefault();
       let lastAvailableIndex = -1;
       for (let i = quickLookupResults.length - 1; i >= 0; i -= 1) {
-        if (quickLookupResults[i].currentStock > 0) {
+        if (quickLookupResults[i].option.stockQuantity > 0) {
           lastAvailableIndex = i;
           break;
         }
@@ -137,10 +153,16 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
     }
 
     if (e.key === 'Enter') {
-      const product = highlightedProduct ?? quickLookupResults[firstAvailableIndex] ?? results.find((p) => p.currentStock > 0);
+      const lookup = highlightedLookup ?? quickLookupResults[firstAvailableIndex];
+      if (lookup) {
+        e.preventDefault();
+        addLookupProduct(lookup.product, lookup.option);
+        return;
+      }
+      const product = results.find((p) => getDefaultSellingOption(p).stockQuantity > 0);
       if (product) {
         e.preventDefault();
-        addLookupProduct(product);
+        addLookupProduct(product, getDefaultSellingOption(product));
       }
     }
   };
@@ -178,21 +200,21 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
             </span>
           </div>
           <div id="pos-quick-lookup-list" role="listbox" aria-label="Quick lookup results" className="grid gap-2 pb-3">
-            {quickLookupResults.map((product, index) => {
-              const outOfStock = product.currentStock <= 0;
+            {quickLookupResults.map(({ product, option }, index) => {
+              const outOfStock = option.stockQuantity <= 0;
               const isActive = index === highlightedIndex;
 
               return (
                 <button
-                  key={product.id}
-                  id={`pos-quick-lookup-${product.id}`}
+                  key={`${product.id}-${option.id}`}
+                  id={`pos-quick-lookup-${product.id}-${option.id}`}
                   type="button"
                   role="option"
                   aria-selected={isActive}
                   aria-disabled={outOfStock}
                   disabled={outOfStock}
                   onMouseEnter={() => !outOfStock && setHighlightedIndex(index)}
-                  onClick={() => addLookupProduct(product)}
+                  onClick={() => addLookupProduct(product, option)}
                   className={cn(
                     'flex items-center justify-between gap-3 rounded-lg border bg-white px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
                     isActive && !outOfStock
@@ -204,13 +226,13 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
                   <span className="min-w-0">
                     <span className="block truncate font-semibold text-gray-900">{product.name}</span>
                     <span className="block truncate text-xs text-gray-500">
-                      {product.sku} {product.barcode ? `- ${product.barcode}` : ''}
+                      {getSellingOptionLabel(option)} - {product.sku} {product.barcode ? `- ${product.barcode}` : ''}
                     </span>
                   </span>
                   <span className="shrink-0 text-right">
-                    <span className="block font-mono font-semibold text-blue-700">{formatCurrency(product.sellingPrice)}</span>
+                    <span className="block font-mono font-semibold text-blue-700">{formatCurrency(option.sellingPrice)}</span>
                     <span className="block text-xs text-gray-500">
-                      {outOfStock ? 'Out of stock' : `${product.currentStock} ${product.unit} left`}
+                      {outOfStock ? 'Out of stock' : `${getSellingOptionStockLabel(option)} left`}
                     </span>
                   </span>
                 </button>

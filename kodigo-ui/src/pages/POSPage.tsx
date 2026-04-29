@@ -8,7 +8,7 @@ import { TransactionLifecyclePanel } from '@/components/pos/TransactionLifecycle
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
-import type { Product } from '@/types';
+import type { Product, ProductSellingOption } from '@/types';
 
 function useClock() {
   const [time, setTime] = useState(new Date());
@@ -99,11 +99,11 @@ export function POSPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [paymentOpen]);
 
-  const handleAddProduct = (product: Product) => {
+  const handleAddProduct = (product: Product, option?: ProductSellingOption) => {
     // Read the safe value from the synchronous ref directly in the event this is called
     // fast due to a barcode scan ending, avoiding stale state issues.
     const safeQty = Math.max(1, parseInt(pendingQtyRef.current) || 1);
-    addItem(product, safeQty);
+    addItem(product, option, safeQty);
     resetPendingQty();
   };
 

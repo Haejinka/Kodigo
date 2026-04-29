@@ -22,7 +22,7 @@ export const useAlertStore = create<AlertState>((set) => ({
     const { data, error } = await supabase
       .from('stock_alerts')
       .select(`
-        id, product_id, type, current_stock, min_stock_level, is_read, created_at,
+        id, product_id, selling_option_id, selling_option_label, unit_label, package_size, package_unit, type, current_stock, min_stock_level, is_read, created_at,
         products!inner (name)
       `)
       .eq('store_id', storeId)
@@ -34,6 +34,11 @@ export const useAlertStore = create<AlertState>((set) => ({
         storeId,
         productId: a.product_id,
         productName: a.products?.name || 'Unknown',
+        sellingOptionId: a.selling_option_id || undefined,
+        sellingOptionLabel: a.selling_option_label || undefined,
+        unitLabel: a.unit_label || undefined,
+        packageSize: a.package_size == null ? undefined : Number(a.package_size),
+        packageUnit: a.package_unit || undefined,
         type: a.type as 'low' | 'critical' | 'out-of-stock',
         currentStock: a.current_stock,
         minStockLevel: a.min_stock_level,

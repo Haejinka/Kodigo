@@ -4,19 +4,20 @@ import { useCartStore } from '@/stores/cartStore';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/shared/Button';
 import { useState } from 'react';
+import { getSaleItemUnitLabel, getSellingOptionLabel } from '@/types';
 
 interface CartProps {
   onCharge: () => void;
 }
 
-function QtyCell({ productId, quantity, maxStock }: { productId: string; quantity: number; maxStock: number }) {
+function QtyCell({ lineId, quantity, maxStock }: { lineId: string; quantity: number; maxStock: number }) {
   const { updateQty } = useCartStore();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
 
   const commit = (raw: string) => {
     const n = parseInt(raw);
-    if (!Number.isNaN(n) && n > 0) updateQty(productId, Math.min(n, maxStock));
+    if (!Number.isNaN(n) && n > 0) updateQty(lineId, Math.min(n, maxStock));
     setEditing(false);
     setDraft('');
   };
@@ -101,7 +102,7 @@ export function Cart({ onCharge }: CartProps) {
         ) : (
           <ul className="divide-y divide-gray-50">
             {items.map((item) => (
-              <li key={item.product.id} className="px-4 py-3 flex items-start gap-3">
+              <li key={item.id} className="px-4 py-3 flex items-start gap-3">
                 <div className="w-9 h-9 rounded-lg border border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center shrink-0 mt-0.5">
                   {item.product.imageUrl ? (
                     <img src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-cover" />
@@ -111,31 +112,40 @@ export function Cart({ onCharge }: CartProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{item.product.name}</p>
-                  <p className="text-xs text-gray-400 font-mono">{formatCurrency(item.product.sellingPrice)} each</p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {getSellingOptionLabel(item.sellingOption)}
+                  </p>
+                  <p className="text-xs text-gray-400 font-mono">
+                    {formatCurrency(item.sellingOption.sellingPrice)} / {getSaleItemUnitLabel({
+                      unitLabel: item.sellingOption.unitLabel,
+                      packageSize: item.sellingOption.quantityValue,
+                      packageUnit: item.sellingOption.quantityUnit,
+                    })}
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
                   <button
-                    onClick={() => updateQty(item.product.id, item.quantity - 1)}
+                    onClick={() => updateQty(item.id, item.quantity - 1)}
                     className="w-6 h-6 rounded-md bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
                     aria-label="Decrease quantity"
                   >
                     <Minus className="w-3 h-3 text-gray-600" />
                   </button>
                   <QtyCell
-                    productId={item.product.id}
+                    lineId={item.id}
                     quantity={item.quantity}
-                    maxStock={item.product.currentStock}
+                    maxStock={item.sellingOption.stockQuantity}
                   />
                   <button
-                    onClick={() => updateQty(item.product.id, item.quantity + 1)}
+                    onClick={() => updateQty(item.id, item.quantity + 1)}
                     className={cn(
                       'w-6 h-6 rounded-md flex items-center justify-center transition-colors',
-                      item.quantity >= item.product.currentStock
+                      item.quantity >= item.sellingOption.stockQuantity
                         ? 'bg-gray-50 cursor-not-allowed opacity-40'
                         : 'bg-gray-100 hover:bg-gray-200'
                     )}
-                    disabled={item.quantity >= item.product.currentStock}
+                    disabled={item.quantity >= item.sellingOption.stockQuantity}
                     aria-label="Increase quantity"
                   >
                     <Plus className="w-3 h-3 text-gray-600" />
@@ -147,7 +157,7 @@ export function Cart({ onCharge }: CartProps) {
                     {formatCurrency(item.lineTotal)}
                   </p>
                   <button
-                    onClick={() => removeItem(item.product.id)}
+                    onClick={() => removeItem(item.id)}
                     className="mt-1 text-gray-300 hover:text-red-500 transition-colors"
                     aria-label="Remove item"
                   >

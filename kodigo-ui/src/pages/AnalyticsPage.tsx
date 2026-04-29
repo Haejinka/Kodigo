@@ -10,6 +10,7 @@ import { CategorySalesChart } from '@/components/analytics/CategorySalesChart';
 import type { RevenueDataPoint, HourlySalesPoint, CategorySalesPoint } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
 import type { DashboardStats } from '@/types';
+import { getSaleItemUnitLabel } from '@/types';
 
 const periods = ['Today', '7 days', '30 days', '90 days'] as const;
 type Period = typeof periods[number];
@@ -32,6 +33,7 @@ export function AnalyticsPage() {
   const [revenueData, setRevenueData] = useState<RevenueDataPoint[]>([]);
   const [hourlyData, setHourlyData] = useState<HourlySalesPoint[]>([]);
   const [categoryData, setCategoryData] = useState<CategorySalesPoint[]>([]);
+  const [optionSales, setOptionSales] = useState<Array<{ label: string; unitLabel: string; packageSize?: number; packageUnit?: string; quantity: number; revenue: number }>>([]);
   
 
   // Clear local UI state when switching stores
@@ -157,13 +159,14 @@ export function AnalyticsPage() {
 
         // Category chart: reliably fetch sale_items for the sales in this period, then resolve product -> category names.
         let categoryList: CategorySalesPoint[] = [];
+        let optionSalesList: Array<{ label: string; unitLabel: string; packageSize?: number; packageUnit?: string; quantity: number; revenue: number }> = [];
         try {
           if (saleIds.length > 0) {
             // fetch sale_items by sale_id (safe and simple)
-            const { data: items, error: itemsErr } = await supabase
-              .from('sale_items')
-              .select('sale_id,product_id,line_total,product_name')
-              .in('sale_id', saleIds);
+              const { data: items, error: itemsErr } = await supabase
+                .from('sale_items')
+                .select('sale_id,product_id,line_total,product_name,quantity,selling_option_id,selling_option_label,unit_label,package_size,package_unit')
+                .in('sale_id', saleIds);
             if (itemsErr) {
               console.warn('Failed to fetch sale_items for categories:', itemsErr);
             } else {
@@ -201,6 +204,20 @@ export function AnalyticsPage() {
 
               const total = Array.from(map.values()).reduce((a,b) => a + b, 0) || 1;
               categoryList = Array.from(map.entries()).map(([category, revenue]) => ({ category, revenue, percentage: Math.round((revenue / total) * 100) }));
+
+              const optionMap = new Map<string, { label: string; unitLabel: string; packageSize?: number; packageUnit?: string; quantity: number; revenue: number }>();
+              for (const it of (items || []) as any[]) {
+                const label = `${it.product_name || 'Unknown'} - ${it.selling_option_label || it.unit_label || 'unit'}`;
+                const unitLabel = it.unit_label || 'unit';
+                const packageSize = it.package_size == null ? undefined : Number(it.package_size);
+                const packageUnit = it.package_unit || undefined;
+                const key = `${it.product_id || label}:${it.selling_option_id || unitLabel}:${packageSize || ''}:${packageUnit || ''}`;
+                const cur = optionMap.get(key) || { label, unitLabel, packageSize, packageUnit, quantity: 0, revenue: 0 };
+                cur.quantity += Number(it.quantity || 0);
+                cur.revenue += Number(it.line_total || 0);
+                optionMap.set(key, cur);
+              }
+              optionSalesList = Array.from(optionMap.values()).sort((a, b) => b.revenue - a.revenue);
             }
           } else {
             categoryList = [];
@@ -214,6 +231,7 @@ export function AnalyticsPage() {
         setRevenueData(revList);
         setHourlyData(hourlyList);
         setCategoryData(categoryList.slice(0,8));
+        setOptionSales(optionSalesList.slice(0, 10));
       } catch (err) {
         console.error('Error building charts:', err);
       }
@@ -262,6 +280,27 @@ export function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <HourlySalesChart data={hourlyData} />
         <CategorySalesChart data={categoryData} />
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
+        <h2 className="text-base font-semibold text-gray-900 mb-3">Sales by Selling Option</h2>
+        {optionSales.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-6">No option-level sales recorded for this period.</p>
+        ) : (
+          <div className="space-y-3">
+            {optionSales.map((row) => (
+              <div key={`${row.label}-${row.unitLabel}-${row.packageSize ?? ''}`} className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{row.label}</p>
+                  <p className="text-xs text-gray-400">
+                    {row.quantity} sold - {getSaleItemUnitLabel(row)}
+                  </p>
+                </div>
+                <div className="font-mono text-sm font-semibold text-gray-900">{formatCurrency(row.revenue)}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Transactions Table */}

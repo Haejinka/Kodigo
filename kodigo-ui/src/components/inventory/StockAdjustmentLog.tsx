@@ -3,6 +3,7 @@ import { History, TrendingUp, TrendingDown, Search, X } from 'lucide-react';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { cn, formatDateTime } from '@/lib/utils';
 import type { StockAdjustment, AdjustmentReason } from '@/types';
+import { getSaleItemUnitLabel } from '@/types';
 
 interface StockAdjustmentLogProps {
   adjustments: StockAdjustment[];
@@ -14,6 +15,7 @@ const reasonLabels: Record<AdjustmentReason, string> = {
   lost:          'Lost / Missing',
   'manual-count':'Manual Count',
   restock:       'Restock',
+  conversion:    'Conversion',
   other:         'Other',
 };
 
@@ -23,6 +25,7 @@ const reasonVariants: Record<AdjustmentReason, string> = {
   lost:          'bg-yellow-50 text-yellow-700 border-yellow-100',
   'manual-count':'bg-blue-50 text-blue-700 border-blue-100',
   restock:       'bg-green-50 text-green-700 border-green-100',
+  conversion:    'bg-purple-50 text-purple-700 border-purple-100',
   other:         'bg-gray-100 text-gray-600 border-gray-200',
 };
 
@@ -37,6 +40,7 @@ export function StockAdjustmentLog({ adjustments }: StockAdjustmentLogProps) {
       const matchesSearch =
         !search ||
         a.productName.toLowerCase().includes(q) ||
+        (a.sellingOptionLabel ?? '').toLowerCase().includes(q) ||
         a.note.toLowerCase().includes(q);
       const matchesReason = reasonFilter === 'all' || a.reason === reasonFilter;
       const matchesDir =
@@ -164,6 +168,15 @@ export function StockAdjustmentLog({ adjustments }: StockAdjustmentLogProps) {
                       {/* Product */}
                       <td className="px-4 py-3">
                         <span className="font-medium text-gray-900">{adj.productName}</span>
+                        {adj.sellingOptionLabel && (
+                          <span className="block text-xs text-gray-400 mt-0.5">
+                            {adj.sellingOptionLabel} - {getSaleItemUnitLabel({
+                              unitLabel: adj.unitLabel || 'unit',
+                              packageSize: adj.packageSize,
+                              packageUnit: adj.packageUnit,
+                            })}
+                          </span>
+                        )}
                       </td>
 
                       {/* Reason */}

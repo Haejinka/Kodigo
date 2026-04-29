@@ -6,7 +6,13 @@ import { openCashDrawer } from '@/lib/hardware';
 import { Button } from '@/components/shared/Button';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useProductStore } from '@/stores/productStore';
 import { processSale } from '@/lib/offline-sync';
+import {
+  getSaleItemUnitLabel,
+  getSellingOptionLabel,
+  isLegacySellingOption,
+} from '@/types';
 import type { PaymentMethod, Sale } from '@/types';
 
 interface PaymentModalProps {
@@ -33,7 +39,7 @@ function printReceipt(sale: Sale) {
 
   const itemRows = sale.items.map((item) => `
     <tr>
-      <td>${escapeHtml(item.productName)} x${item.quantity}</td>
+      <td>${escapeHtml(item.productName)} - ${escapeHtml(getSaleItemUnitLabel(item))} x${item.quantity}</td>
       <td style="text-align:right">${formatCurrency(item.lineTotal)}</td>
     </tr>
   `).join('');
@@ -107,7 +113,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const isCash = paymentMethod === 'cash';
   const tendered = isCash ? cashAmount : orderTotal;
   const change = isCash ? Math.max(0, cashAmount - orderTotal) : 0;
-  const stockIssue = items.find((i) => i.quantity > i.product.currentStock);
+  const stockIssue = items.find((i) => i.quantity > i.sellingOption.stockQuantity);
   const canConfirm = items.length > 0 && (isCash ? cashAmount >= orderTotal : true) && !stockIssue;
 
   const quickAmounts = [
@@ -127,9 +133,9 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       return;
     }
 
-    const currentStockIssue = items.find((i) => i.quantity > i.product.currentStock);
+    const currentStockIssue = items.find((i) => i.quantity > i.sellingOption.stockQuantity);
     if (currentStockIssue) {
-      alert(`${currentStockIssue.product.name} only has ${currentStockIssue.product.currentStock} in stock.`);
+      alert(`${currentStockIssue.product.name} - ${getSellingOptionLabel(currentStockIssue.sellingOption)} only has ${currentStockIssue.sellingOption.stockQuantity} in stock.`);
       setProcessing(false);
       return;
     }
@@ -140,8 +146,14 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       items: items.map((i) => ({
         productId: i.product.id,
         productName: i.product.name,
+        sellingOptionId: isLegacySellingOption(i.sellingOption) ? undefined : i.sellingOption.id,
+        sellingOptionLabel: getSellingOptionLabel(i.sellingOption),
+        unitLabel: i.sellingOption.unitLabel,
+        packageSize: i.sellingOption.quantityValue,
+        packageUnit: i.sellingOption.quantityUnit,
+        stockSource: isLegacySellingOption(i.sellingOption) ? 'product' : 'selling_option',
         quantity: i.quantity,
-        unitPrice: i.product.sellingPrice,
+        unitPrice: i.sellingOption.sellingPrice,
         lineTotal: i.lineTotal,
       })),
       subtotal: orderSubtotal,
@@ -162,6 +174,24 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
 
     try {
       const recordedSale = await processSale(sale);
+      useProductStore.setState((state) => ({
+        products: state.products.map((product) => {
+          const soldLines = items.filter((line) => line.product.id === product.id);
+          if (soldLines.length === 0) return product;
+          const sellingOptions = product.sellingOptions.map((option) => {
+            const soldForOption = soldLines
+              .filter((line) => line.sellingOption.id === option.id)
+              .reduce((sum, line) => sum + line.quantity, 0);
+            return soldForOption > 0 ? { ...option, stockQuantity: Math.max(0, option.stockQuantity - soldForOption) } : option;
+          });
+          const defaultOption = sellingOptions.find((option) => option.isDefault);
+          return {
+            ...product,
+            sellingOptions,
+            currentStock: defaultOption ? Math.round(defaultOption.stockQuantity) : product.currentStock,
+          };
+        }),
+      }));
       if (paymentMethod === 'cash') await openCashDrawer();
       setCompletedSale(recordedSale);
       setStep('confirmed');
@@ -207,7 +237,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
               {items.map((item) => (
                 <div key={item.product.id} className="flex justify-between text-sm">
                   <span className="text-gray-600 truncate flex-1 mr-2">
-                    {item.product.name} x{item.quantity}
+                    {item.product.name} - {getSellingOptionLabel(item.sellingOption)} x{item.quantity}
                   </span>
                   <span className="font-mono text-gray-900 font-medium">{formatCurrency(item.lineTotal)}</span>
                 </div>

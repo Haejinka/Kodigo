@@ -1,14 +1,15 @@
 import { create } from 'zustand';
-import type { CartItem, DiscountType, Product } from '@/types';
+import { getDefaultSellingOption, isLegacySellingOption } from '@/types';
+import type { CartItem, DiscountType, Product, ProductSellingOption } from '@/types';
 import { useAuthStore } from './authStore';
 
 interface CartState {
   items: CartItem[];
   discountType: DiscountType;
   discountValue: number;
-  addItem: (product: Product, qty?: number) => void;
-  removeItem: (productId: string) => void;
-  updateQty: (productId: string, qty: number) => void;
+  addItem: (product: Product, option?: ProductSellingOption, qty?: number) => void;
+  removeItem: (lineId: string) => void;
+  updateQty: (lineId: string, qty: number) => void;
   setDiscount: (type: DiscountType, value: number) => void;
   clearCart: () => void;
   total: () => number;
@@ -27,24 +28,30 @@ const getActiveStoreTaxRate = () => {
   return stores.find((store) => store.id === activeStoreId)?.taxRate ?? 0;
 };
 
+const getLineId = (product: Product, option: ProductSellingOption) => {
+  const optionId = isLegacySellingOption(option) ? 'legacy' : option.id;
+  return `${product.id}:${optionId}`;
+};
+
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   discountType: 'amount',
   discountValue: 0,
 
-  addItem: (product: Product, qty = 1) => {
-    const maxStock = Math.max(0, product.currentStock);
+  addItem: (product: Product, option = getDefaultSellingOption(product), qty = 1) => {
+    const maxStock = Math.max(0, option.stockQuantity);
     if (maxStock === 0) return;
     const safeQty = Math.min(Math.max(1, qty), maxStock);
+    const lineId = getLineId(product, option);
 
     set((state) => {
-      const existing = state.items.find((i) => i.product.id === product.id);
+      const existing = state.items.find((i) => i.id === lineId);
       if (existing) {
         const newQty = Math.min(existing.quantity + safeQty, maxStock);
         return {
           items: state.items.map((i) =>
-            i.product.id === product.id
-              ? { ...i, quantity: newQty, lineTotal: newQty * i.product.sellingPrice }
+            i.id === lineId
+              ? { ...i, quantity: newQty, lineTotal: newQty * i.sellingOption.sellingPrice }
               : i
           ),
         };
@@ -52,33 +59,33 @@ export const useCartStore = create<CartState>((set, get) => ({
       return {
         items: [
           ...state.items,
-          { product, quantity: safeQty, lineTotal: safeQty * product.sellingPrice },
+          { id: lineId, product, sellingOption: option, quantity: safeQty, lineTotal: safeQty * option.sellingPrice },
         ],
       };
     });
   },
 
-  removeItem: (productId: string) => {
-    set((state) => ({ items: state.items.filter((i) => i.product.id !== productId) }));
+  removeItem: (lineId: string) => {
+    set((state) => ({ items: state.items.filter((i) => i.id !== lineId) }));
   },
 
-  updateQty: (productId: string, qty: number) => {
+  updateQty: (lineId: string, qty: number) => {
     if (qty <= 0) {
-      get().removeItem(productId);
+      get().removeItem(lineId);
       return;
     }
-    const existing = get().items.find((i) => i.product.id === productId);
+    const existing = get().items.find((i) => i.id === lineId);
     if (!existing) return;
-    const maxStock = Math.max(0, existing.product.currentStock);
+    const maxStock = Math.max(0, existing.sellingOption.stockQuantity);
     if (maxStock === 0) {
-      get().removeItem(productId);
+      get().removeItem(lineId);
       return;
     }
     const safeQty = Math.min(qty, maxStock);
     set((state) => ({
       items: state.items.map((i) =>
-        i.product.id === productId
-          ? { ...i, quantity: safeQty, lineTotal: safeQty * i.product.sellingPrice }
+        i.id === lineId
+          ? { ...i, quantity: safeQty, lineTotal: safeQty * i.sellingOption.sellingPrice }
           : i
       ),
     }));

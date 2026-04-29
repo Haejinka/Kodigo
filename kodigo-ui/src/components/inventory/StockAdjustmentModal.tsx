@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Package } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { useToast } from '@/components/shared/Toast';
-import type { AdjustmentReason } from '@/types';
+import type { AdjustmentReason, ProductSellingOption } from '@/types';
+import { getSellingOptionLabel, getSellingOptionStockLabel } from '@/types';
 
 interface StockAdjustmentModalProps {
   open: boolean;
@@ -15,8 +16,9 @@ interface StockAdjustmentModalProps {
   purchaseUnit?: string;
   /** How many selling units are in one purchase unit */
   conversionFactor?: number;
+  sellingOptions?: ProductSellingOption[];
   onClose: () => void;
-  onSubmit: (delta: number, reason: AdjustmentReason, note: string) => Promise<void>;
+  onSubmit: (sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string) => Promise<void>;
 }
 
 const reasons: { value: AdjustmentReason; label: string }[] = [
@@ -35,6 +37,7 @@ export function StockAdjustmentModal({
   unit = 'piece',
   purchaseUnit,
   conversionFactor = 1,
+  sellingOptions = [],
   onClose,
   onSubmit,
 }: StockAdjustmentModalProps) {
@@ -43,8 +46,25 @@ export function StockAdjustmentModal({
   const [delta, setDelta] = useState('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
+  const [selectedOptionId, setSelectedOptionId] = useState<string | undefined>(undefined);
   /** When true and reason===restock, the user enters qty in purchase units (packs/boxes) */
   const [bulkMode, setBulkMode] = useState(false);
+
+  const options = sellingOptions.length > 0
+    ? sellingOptions.filter((option) => option.isActive)
+    : [];
+  const selectedOption = options.find((option) => option.id === selectedOptionId)
+    ?? options.find((option) => option.isDefault)
+    ?? options[0];
+  const effectiveStock = selectedOption?.stockQuantity ?? currentStock;
+  const effectiveUnit = selectedOption?.unitLabel ?? unit;
+
+  useEffect(() => {
+    if (!open) return;
+    const activeOptions = sellingOptions.filter((option) => option.isActive);
+    const fallback = activeOptions.find((option) => option.isDefault) ?? activeOptions[0];
+    setSelectedOptionId(fallback?.id);
+  }, [open, sellingOptions]);
 
   const hasBulkUnit = !!purchaseUnit && conversionFactor > 1;
   const isRestock = reason === 'restock';
@@ -52,7 +72,7 @@ export function StockAdjustmentModal({
   // Final delta always in selling units (pieces)
   const rawNum = parseInt(delta) || 0;
   const deltaNum = bulkMode && isRestock ? rawNum * conversionFactor : rawNum;
-  const newStock = currentStock + deltaNum;
+  const newStock = effectiveStock + deltaNum;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,10 +80,10 @@ export function StockAdjustmentModal({
     if (newStock < 0) { toast('error', 'Resulting stock cannot be negative.'); return; }
     setLoading(true);
     try {
-      await onSubmit(deltaNum, reason, note);
+      await onSubmit(selectedOption?.id, deltaNum, reason, note);
       const label = bulkMode && isRestock
         ? `+${rawNum} ${purchaseUnit}${rawNum !== 1 ? 's' : ''} (${deltaNum} ${unit}s)`
-        : `${deltaNum > 0 ? '+' : ''}${deltaNum} ${unit}s`;
+        : `${deltaNum > 0 ? '+' : ''}${deltaNum} ${effectiveUnit}`;
       toast('success', `Stock adjusted: ${label}.`);
       onClose();
       setDelta('');
@@ -94,10 +114,31 @@ export function StockAdjustmentModal({
           <div className="bg-gray-50 rounded-xl px-4 py-3">
             <p className="font-medium text-gray-900 text-sm">{productName}</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              Current stock: <span className="font-bold font-mono">{currentStock}</span>
-              <span className="ml-1 text-gray-400">{unit}s</span>
+              Current stock: <span className="font-bold font-mono">{effectiveStock}</span>
+              <span className="ml-1 text-gray-400">{effectiveUnit}</span>
             </p>
           </div>
+
+          {options.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Selling Option</label>
+              <select
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={selectedOption?.id ?? ''}
+                onChange={(e) => {
+                  setSelectedOptionId(e.target.value || undefined);
+                  setDelta('');
+                  setBulkMode(false);
+                }}
+              >
+                {options.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {getSellingOptionLabel(option)} - {getSellingOptionStockLabel(option)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Reason */}
           <div>
@@ -137,7 +178,7 @@ export function StockAdjustmentModal({
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               {bulkMode && isRestock
                 ? <>{purchaseUnit}s received <span className="text-red-500">*</span><span className="text-xs font-normal text-gray-400 ml-2">(will be converted to {unit}s)</span></>
-                : <>{unit}s change <span className="text-red-500">*</span><span className="text-xs font-normal text-gray-400 ml-2">(use negative for removal)</span></>}
+                : <>{effectiveUnit} change <span className="text-red-500">*</span><span className="text-xs font-normal text-gray-400 ml-2">(use negative for removal)</span></>}
             </label>
             <input
               type="number"
@@ -157,7 +198,7 @@ export function StockAdjustmentModal({
             )}
             {deltaNum !== 0 && (
               <p className={`text-xs mt-1 font-medium ${newStock < 0 ? 'text-red-500' : 'text-gray-500'}`}>
-                New stock: <span className="font-mono font-bold">{newStock}</span> {unit}s
+                New stock: <span className="font-mono font-bold">{newStock}</span> {effectiveUnit}
               </p>
             )}
           </div>

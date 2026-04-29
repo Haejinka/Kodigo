@@ -148,9 +148,14 @@ export function InventoryPage() {
     setDeleting(false);
   };
 
-  const handleAdjust = async (delta: number, reason: AdjustmentReason, note: string) => {
+  const handleAdjust = async (
+    sellingOptionId: string | undefined,
+    delta: number,
+    reason: AdjustmentReason,
+    note: string
+  ) => {
     await new Promise((r) => setTimeout(r, 600));
-    if (adjustTarget) adjustStock(adjustTarget.id, delta, reason, note);
+    if (adjustTarget) adjustStock(adjustTarget.id, sellingOptionId, delta, reason, note);
   };
 
   const toolbar = (
@@ -269,6 +274,7 @@ export function InventoryPage() {
         unit={adjustTarget?.unit}
         purchaseUnit={adjustTarget?.purchaseUnit}
         conversionFactor={adjustTarget?.conversionFactor}
+        sellingOptions={adjustTarget?.sellingOptions ?? []}
         onClose={() => setAdjustTarget(null)}
         onSubmit={handleAdjust}
       />

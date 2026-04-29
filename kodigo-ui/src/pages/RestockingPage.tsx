@@ -10,7 +10,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useProductStore } from '@/stores/productStore';
 import { useSupplierStore } from '@/stores/supplierStore';
 import { useAuthStore } from '@/stores/authStore';
-import { getStockStatus } from '@/types';
+import { getDefaultSellingOption, getStockStatus } from '@/types';
 import type { RestockItem } from '@/types';
 
 const urgencyVariant: Record<string, 'danger' | 'warning' | 'info'> = {
@@ -25,15 +25,17 @@ function useRestockItems(): RestockItem[] {
   return useMemo(() => {
     return products
       .filter((p) => {
-        const stockStatus = getStockStatus(p);
+        const defaultOption = getDefaultSellingOption(p);
+        const stockStatus = getStockStatus(p, defaultOption);
         const hasAlertStatus = stockStatus === 'out-of-stock' || stockStatus === 'critical' || stockStatus === 'low';
-        const belowReorder = p.currentStock <= p.reorderLevel;
+        const belowReorder = defaultOption.stockQuantity <= p.reorderLevel;
         return hasAlertStatus || belowReorder;
       })
       .map((p) => {
-        const effectiveReorder = Math.max(p.reorderLevel, p.minStockLevel, p.safetyStock);
-        const suggestedQty = Math.max(effectiveReorder * 2 - p.currentStock, effectiveReorder);
-        const stockStatus = getStockStatus(p);
+        const defaultOption = getDefaultSellingOption(p);
+        const effectiveReorder = Math.max(p.reorderLevel, defaultOption.lowStockThreshold, p.safetyStock);
+        const suggestedQty = Math.max(effectiveReorder * 2 - defaultOption.stockQuantity, effectiveReorder);
+        const stockStatus = getStockStatus(p, defaultOption);
         const urgency: RestockItem['urgency'] =
           stockStatus === 'out-of-stock' || stockStatus === 'critical'
             ? 'high'
@@ -44,13 +46,13 @@ function useRestockItems(): RestockItem[] {
           productId: p.id,
           storeId: p.storeId,
           productName: p.name,
-          currentStock: p.currentStock,
+          currentStock: defaultOption.stockQuantity,
           suggestedQty,
           suggestedSupplierId: p.supplierId ?? '',
           suggestedSupplierName: p.supplierName ?? 'No supplier assigned',
           estimatedCost: suggestedQty * (p.costPrice / (p.conversionFactor ?? 1)),
           urgency,
-          unit: p.unit,
+          unit: defaultOption.unitLabel,
           purchaseUnit: p.purchaseUnit,
           conversionFactor: p.conversionFactor,
         };

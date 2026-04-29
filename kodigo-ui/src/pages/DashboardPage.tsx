@@ -7,6 +7,7 @@ import { useAlertStore } from '@/stores/alertStore';
 import { useProductStore } from '@/stores/productStore';
 import { useAuthStore } from '@/stores/authStore';
 import type { DashboardStats } from '@/types';
+import { getDefaultSellingOption } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
 
@@ -126,7 +127,7 @@ export function DashboardPage() {
 
   // Derive top products by currentStock as a placeholder until real sales data is available
   const topProducts = [...products]
-    .sort((a, b) => b.currentStock - a.currentStock)
+    .sort((a, b) => getDefaultSellingOption(b).stockQuantity - getDefaultSellingOption(a).stockQuantity)
     .slice(0, 5);
 
   return (
@@ -203,10 +204,12 @@ export function DashboardPage() {
                           </span>
                         )}
                       </div>
-                    <p className="text-xs text-gray-400">{p.currentStock} {p.unit}s in stock</p>
+                    <p className="text-xs text-gray-400">
+                      {getDefaultSellingOption(p).stockQuantity} {getDefaultSellingOption(p).unitLabel} in stock
+                    </p>
                   </div>
                   <span className="text-sm font-semibold font-mono text-gray-900">
-                    {formatCurrency(p.sellingPrice)}
+                    {formatCurrency(getDefaultSellingOption(p).sellingPrice)}
                   </span>
                 </div>
               ))
@@ -229,8 +232,11 @@ export function DashboardPage() {
                   <AlertBadge type={alert.type} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{alert.productName}</p>
+                    {alert.sellingOptionLabel && (
+                      <p className="text-xs text-gray-400 truncate">{alert.sellingOptionLabel}</p>
+                    )}
                     <p className="text-xs text-gray-400">
-                      Stock: {alert.currentStock} / Min: {alert.minStockLevel}
+                      Stock: {alert.currentStock}{alert.unitLabel ? ` ${alert.unitLabel}` : ''} / Min: {alert.minStockLevel}
                     </p>
                   </div>
                 </div>
