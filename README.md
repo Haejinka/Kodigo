@@ -1,133 +1,97 @@
 # KodiGo
 
-**KodiGo** is a cloud-based Point-of-Sale (POS) and Inventory Management System designed specifically for high-volume *sari-sari* stores (small retail stores common in the Philippines). It focuses on rapid transaction processing, real-time inventory visibility, and accessible remote monitoring for store owners.
+KodiGo is a cloud-first Point-of-Sale (POS), inventory, supplier, and analytics system for high-volume sari-sari stores and small retail branches. The active application lives in `kodigo-ui/` and uses Supabase for authentication, tenancy, operational data, and row-level security.
 
----
+## Current Status
 
-## Table of Contents
+- Frontend: React 19, Vite 7, TypeScript, Tailwind CSS v4, Zustand, Recharts, Radix primitives, and Supabase JS.
+- Backend: Supabase Postgres/Auth with SQL migrations at the repository root. `supabase_schema.sql` is a baseline snapshot; the ordered `migration_01_*.sql` through `migration_17_*.sql` files contain the current policy and schema deltas.
+- Persistence: Product, supplier, purchase order, alert, sale, store, and auth flows are wired to Supabase in the current UI.
+- Offline support: POS sales and selected product/supplier/category/store mutations use IndexedDB queues in `kodigo-ui/src/lib/offline-sync.ts` and replay when the browser returns online.
+- Hardware: `kodigo-ui/src/lib/hardware.ts` sends an ESC/POS cash-drawer command through the Web Serial API when the browser and device permit it.
+- Remaining scaffolds: Admin user management and password-change screens still use local placeholder behavior. Treat them as UI scaffolds until Supabase Auth admin/Edge Function support is added.
 
-1. [Overview of the Application](#overview-of-the-application)
-2. [Features and Functionality](#features-and-functionality)
-3. [Setup and Installation Instructions](#setup-and-installation-instructions)
-4. [System Architecture](#system-architecture)
-5. [Usage Guidelines](#usage-guidelines)
-6. [Known Issues or Limitations](#known-issues-or-limitations)
+## Repository Layout
 
----
+| Path | Purpose |
+| --- | --- |
+| `kodigo-ui/` | React/Vite frontend application. |
+| `kodigo-ui/src/stores/` | Zustand stores for auth, products, suppliers, cart, and alerts. |
+| `kodigo-ui/src/lib/supabase.ts` | Browser Supabase client using `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. |
+| `kodigo-ui/src/lib/offline-sync.ts` | IndexedDB product cache, offline sale queue, and generic mutation queue. |
+| `supabase/functions/generate-invite/` | Deno Edge Function for server-side invite-code generation. The current UI also supports direct client insert under RLS. |
+| `supabase_schema.sql` | Baseline schema snapshot. Do not read it as the final state without applying migrations. |
+| `migration_*.sql` | Ordered Supabase schema, trigger, RLS, and bug-fix migrations. |
+| `KODIGO_SYSTEM_RBAC_UML_CFD_DFD_GUIDE.md` | Current architecture/RBAC guide and diagram reference. |
+| `FOR TECHNICAL VALIDATORS.md` | Validation checklist for reviewers and testers. |
 
-## Overview of the Application
+## Setup
 
-KodiGo provides two main pillars of functionality based on user roles:
-- **Cashier Mode:** Provides a clean, touch-and-scanner optimized POS interface operating at high speed. It avoids visual clutter, offering single-key transactions and hardware integrations like opening the cash drawer.
-- **Admin / Owner Mode:** A full dashboard offering real-time data on daily revenue, transaction volume, low stock alerts, supplier metrics, and sales forecasting. 
+1. Install frontend dependencies:
 
-The application is built to be resilient, lightning-fast on desktop/tablet interfaces, and seamlessly handles custom behaviors unique to sari-sari stores, such as buying products in bulk and selling them per-piece (e.g., cigarette packs vs. sticks).
-
----
-
-## Features and Functionality
-
-### Core Features
-- **Point of Sale (POS):** Full-screen terminal featuring barcode scanner support (via USB/Bluetooth sequential keystrokes), cart management, adjustable quantities, auto-calculating tax and discount fields, and payment modal integration.
-- **Hardware Integration:** Connects directly with EPS/POS receipt printers and RJ11 cash drawers explicitly from the browser using the Web Serial API.
-- **Keyboard Optimization:** Keyboard-first transactional flow (e.g. `F2` for search, `Enter` to select product, `F9` for quick charge).
-- **Inventory Management:** Full product catalog supporting SKUs, categorizations, minimal stock levels, and bulk unit conversion logic (e.g., buying in packs, tracking and selling in pieces).
-- **Stock Auditing & Logs:** Logs for every stock adjustment categorized by reason (Restock, Damaged, Expired, Lost, Manual Count).
-- **Dashboard & Analytics:** Real-time summary stat cards, daily revenue curves, top-ranked products, and pending restock alerts.
-- **Restocking & Forecasting:** Intelligent algorithm suggesting restock quantities based on `reorderLevel * 2 - currentStock`. 
-- **Supplier Scoring System:** Automatically grades suppliers on reliability (on-time deliveries) and pricing variations vs. market average.
-- **Role-based Authentication & Admin Control:** Secure admin portal allowing users to create fully managed user accounts equipped with on-device (mocked) or database-supported password hashing out-the-gate. Admins manage all system settings, while cashiers face POS boundaries.
-
----
-
-## Setup and Installation Instructions
-
-The current build operates primarily on mock data stored within Zustand, preparing the grounds for full Supabase integration.
-
-### Prerequisites
-- Node.js (v18 or higher)
-- npm or pnpm
-- (Optional) A Supabase project for future deployment using `supabase_schema.sql`.
-
-### Local Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone <repository_url>
-   cd "Kodigo v0.1.0"
-   ```
-
-2. **Navigate to the UI directory:**
    ```bash
    cd kodigo-ui
-   ```
-
-3. **Install dependencies:**
-   ```bash
    npm install
    ```
 
-4. **Run the development server:**
+2. Create `kodigo-ui/.env.local`:
+
+   ```bash
+   VITE_SUPABASE_URL=<your-supabase-project-url>
+   VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
+   ```
+
+3. Prepare the database:
+
+   - Start from `supabase_schema.sql` only for a clean baseline.
+   - Apply root migrations in numeric order from `migration_01_invite_codes.sql` through `migration_17_add_suppliers_updated_at.sql`.
+   - Confirm the final migration state before validating RLS; later migrations intentionally override earlier policies.
+
+4. Start the app:
+
    ```bash
    npm run dev
    ```
 
-5. **Open your browser:** Visit `http://localhost:5173` to view the application.
+5. Open the Vite URL shown in the terminal, usually `http://localhost:5173`.
 
----
+## Scripts
 
-## System Architecture
+Run from `kodigo-ui/`:
 
-The application is structured into a modern Single-Page Application (SPA) architecture utilizing an external real-time Database Layer. 
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Vite dev server. |
+| `npm run build` | Type-check and create a production build. |
+| `npm run lint` | Run ESLint. |
+| `npm run preview` | Preview the production build locally. |
 
-### Tech Stack
-- **Frontend Framework:** React 19 operating on Vite 7.
-- **Styling:** Tailwind CSS v4, utilizing `@tailwindcss/vite` without additional PostCSS configurations.
-- **UI & Icons:** Custom components styled leveraging `Radix UI` primitives. Icons by `Lucide React`.
-- **State Management:** 
-  - `Zustand v5` for global application state (currently housing the frontend mock databases).
-  - `TanStack Query v5` prepared for handling asynchronous server states.
-- **Routing:** React Router v7 for client-side navigation.
-- **Backend (Target):** Supabase (PostgreSQL, Supabase Auth, and Supabase Realtime).
+## Roles and Routes
 
-### Data Flow (Conceptual Framework)
-The system receives inputs (`Sales Transactions`, `Inventory Adjustments`, `Supplier Data`) which are channeled through six Core System Engines:
-1. **POS Engine** (Handles cart, cash drawer signals, stock requests)
-2. **Inventory Engine** (Manages bulk conversions, thresholds)
-3. **Analytics Engine** (Aggregates periods, calculates AOV, margin predictions)
-4. **Supplier Scoring Engine** (Averages reliability index vs price index)
-5. **Forecasting Engine** (Yields restock suggestions)
-6. **Alert Engine** (Issues low-stock and out-of-stock notices)
+| Role | Runtime Scope |
+| --- | --- |
+| `admin` | Store owner/operator. Can manage assigned stores, inventory, suppliers, purchase orders, analytics, and settings. |
+| `cashier` | POS-focused role for assigned store operations. |
+| `super_admin` | System invite governance. Redirected to `/super-admin`; final migrations keep this role out of normal store CRUD. |
 
-These processes store records persistently in the **Supabase Data Layer** and project final summaries onto output nodes (Receipts, Dashboards, PO sheets).
+Important route behavior:
 
----
+- `/login` and `/register` are public.
+- `/pos` requires an authenticated user and a specific active store, not the `all` store view.
+- Admin pages use `AppShell` and are guarded by `RequireAdmin`.
+- `/super-admin` is guarded by `RequireSuperAdmin`.
 
-## Usage Guidelines
+## Operational Notes
 
-### As an Admin
-- Navigate through `/dashboard` to monitor overall sales in real-time.
-- Go to **Inventory** to add new products correctly selecting whether they are bulk items (and declaring the correct conversion factors).
-- Visit **Restocking** to view items that have triggered safe-minimum thresholds. You can spawn a Purchase Order (PO) natively from this screen.
-- Manage **Suppliers** to keep track of their auto-computed grading, allowing you to favor higher-scoring suppliers.
+- Keep service-role keys out of all frontend environments. Only Edge Functions or other server-side contexts may use `SUPABASE_SERVICE_ROLE_KEY`.
+- The migration chain is authoritative for tenancy and RBAC. When a policy looks wrong in `supabase_schema.sql`, check the latest migration first.
+- POS sale insertion currently writes the sale header and line items in separate Supabase calls; migration 09 adds stock deduction after `sale_items` inserts.
+- Offline replay distinguishes network failures from database/RLS errors. Database rejections are surfaced instead of queued.
+- Web Serial cash-drawer support requires a secure context (`localhost` or HTTPS), a compatible browser, and a user gesture.
 
-### As a Cashier
-- The default screen upon login is `/pos`. 
-- **Selling flow:** Ensure focus is active (or use `F2`), type or scan barcode. The corresponding products enter the cart.
-- You can change quantities inside the cart manually before checking out.
-- Press `F9` or the `Charge` button, enter the cash sum given by the customer, then press `Enter` to confirm payment and visually spawn receipt tracking.
-- Important: To successfully switch from Cashier to Admin, you must `Log Out` (top-right button) to terminate the current session context.
+## Documentation Map
 
----
-
-## Known Issues or Limitations
-
-1. **Backend Integration (Phase 1 Incomplete):**
-   - The UI is currently relying on Zustand-driven mock data mechanisms.
-   - Live Supabase database wiring (writes, deletes, syncs) has deferred completion. Real writes are substituted by mock timeouts. Changes will not persist upon a full browser hard refresh.
-2. **TypeScript Compilation Warnings:**
-   - Minor structural warnings exist regarding unused imports in React Components under the `kodigo-ui/src/components` directory (e.g., `Topbar.tsx`, `Sidebar.tsx`).
-3. **Hardware Constraints limitations:**
-   - Web Serial API interactions for opening the cash drawer are restricted natively by modern browsers to secure local contexts (`localhost`) or HTTPS environments. It requires explicit user interaction gesture (a click) to trigger `navigator.serial`.
-4. **Multi-Session Isolation:**
-   - As data relies on Local/Memory state currently, simultaneous user usage across different devices will not synchronize. Realtime subscriptions via Supabase are required to solve this. 
+- Use `KODIGO_SYSTEM_RBAC_UML_CFD_DFD_GUIDE.md` for the current architecture, RBAC, UML/CFD/DFD, and risk overview.
+- Use `KODIGO_FEATURES.md` for product capabilities and business rules.
+- Use `FOR TECHNICAL VALIDATORS.md` for manual validation steps.
+- `FULL_AUDIT.md` and `KODIGO_AUDIT_ACTION_PLAN.md` are retained as historical audit follow-up records; they now summarize what was fixed and what remains.

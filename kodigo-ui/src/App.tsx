@@ -58,9 +58,9 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col items-center justify-center space-y-4 text-red-600 font-medium">
       <p>Error: User role could not be verified. Please contact system administrator.</p>
       
-      {/* TEMPORARY DEBUG INFO */}
+      {/* Diagnostic details for profile/role resolution failures. */}
       <div className="bg-gray-100 text-black p-4 rounded text-xs text-left w-full max-w-xl overflow-auto mt-4">
-        <strong>DEBUG INFO:</strong><br />
+        <strong>Role resolution diagnostics:</strong><br />
         UserId: {user?.id}<br />
         UserRole (DB): {profile?.role || "NOT FOUND"}<br />
         Profile Object Found: {profile ? "YES" : "NO"}<br />
@@ -211,7 +211,7 @@ function AppRoutes() {
         }
       />
 
-      {/* Admin pages â€” wrapped in AppShell */}
+      {/* Admin pages wrapped in AppShell */}
       <Route
         path="/*"
         element={
@@ -258,4 +258,3 @@ function App() {
 }
 
 export default App;
-

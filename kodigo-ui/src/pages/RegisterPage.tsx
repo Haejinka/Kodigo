@@ -37,7 +37,7 @@ export function RegisterPage() {
       
       if (signUpError) throw signUpError;
       
-      // Simulate success
+      // Show confirmation, then return the new admin to the login flow.
       setSuccess(true);
       setTimeout(() => navigate('/login'), 3000);
       

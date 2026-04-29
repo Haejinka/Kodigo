@@ -1,167 +1,152 @@
-# Mock-ups and Prototypes — Required Screenshots for KodiGo
+# Mockups and Prototype Screenshot Guide
 
-This document lists the exact screenshots to capture for the "Mock-ups and Prototypes" section of the KodiGo research paper. Each screenshot entry includes: Title, Procedure, Visual Elements to Highlight, Validation Logic, and User Flow Placement. The list is organized by User Journeys and includes an Edge Cases / Error Handling section.
+Updated: 2026-04-29
 
-Summary: Capture 16 primary screenshots (one per page) plus error-case screenshots as needed. Sixteen pages provide comprehensive coverage and falls within the 10–20 page requirement.
+This guide lists the screenshots that match the current KodiGo implementation. It is intended for research-paper or validation documentation, not as a future-feature wishlist.
 
-**System Details (inferred from repository)**
+## Capture Preconditions
 
-- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS, Radix UI components, Zustand (local state), TanStack React Query (data fetching), Recharts (charts), `idb` (IndexedDB) for offline persistence.
-- **Backend / Services:** Supabase (Postgres) for auth, database, storage and real-time subscriptions. Server-side constraints and RLS enforce data integrity and RBAC.
-- **Core Features:** Real-time stock updates, Receipt generation and printing, User roles and RBAC, Offline sync and conflict resolution, Multi-store support, Audit logging.
+- Run the frontend from `kodigo-ui/` with `npm run dev`.
+- Use a Supabase project with migrations applied through `migration_17_add_suppliers_updated_at.sql`.
+- Prepare one `admin`, one `cashier`, and one `super_admin` account.
+- Prepare at least one store with products, categories, suppliers, and sample sales if analytics screenshots need populated states.
+- Use desktop viewport for admin screens and POS unless specifically capturing responsive behavior.
 
----
+## Primary Screenshots
 
-## User Journeys
+### 1. Login
 
-### **Sales Clerk Journey**
+- Route: `/login`
+- Capture: email field, password field, sign-in action, error area, registration link.
+- Validate: invalid credentials display an error; valid users redirect by role.
 
-1) Title: Login Page
+### 2. Registration With Invite Code
 
-- Procedure: Navigate to the application root (open `/login` or start the app). Enter credentials and submit the login form.
-- Visual Elements to Highlight: username/email field, password field, "Log in" button, brand/logo, "Forgot password" link, error banner area.
-- Validation Logic: Client-side required-field checks; password minimum length enforced client-side; authentication performed via Supabase auth — server returns specific error codes (invalid credentials, disabled account) and the UI maps these to human-readable banners. Button disabled while authentication request is pending.
-- User Flow Placement: On success redirect to Dashboard; on failure remain on Login showing error and suggestions.
+- Route: `/register`
+- Capture: full name, email, password, invite-code field, success state.
+- Validate: invite code is required for owner/admin registration.
 
-2) Title: Dashboard — Sales Overview
+### 3. Super Admin Portal
 
-- Procedure: After login the app lands on the Dashboard (default route). Alternatively, select "Dashboard" from the navigation.
-- Visual Elements to Highlight: Sales summary cards (Today, MTD), quick-actions (Start New Sale), recent transactions table, low-stock alerts, realtime indicator, store selector.
-- Validation Logic: Dashboard queries are fetched via React Query; empty states and loading spinners handled client-side. Protected route checks redirect unauthenticated users back to Login. Realtime updates via Supabase subscriptions update the cards and listings.
-- User Flow Placement: Click "Start New Sale" or the POS tile to open the POS Terminal; click chart cards to jump to Reports.
+- Route: `/super-admin`
+- Capture: invite-code generator, generated-code panel, generated-code table.
+- Validate: only `super_admin` reaches this route.
 
-3) Title: POS Terminal — Main Screen
+### 4. Dashboard
 
-- Procedure: From Dashboard click "POS" or use main navigation to open the POS Terminal.
-- Visual Elements to Highlight: Product search bar (or barcode input), cart table (line items, qty, price), quantity increment/decrement controls, subtotal/tax/total panel, payment/checkout button, customer lookup, active discounts badge.
-- Validation Logic: Adding items validates quantity > 0. When adding an item, the client checks cached stock and shows warnings if requested quantity exceeds stock. Offline mode allows local cart persistence to IndexedDB and displays an offline indicator. Price fields are validated for numeric values and ranges.
-- User Flow Placement: Add items → modify cart → proceed to Checkout/Payment modal.
+- Route: `/dashboard`
+- Capture: revenue, transactions, average order value, profit cards, stock alerts, top products by stock, recent transactions.
+- Validate: data changes with active store selection.
 
-4) Title: POS — Product Search / SKU / Scanner Result
+### 5. POS Main Screen
 
-- Procedure: In the POS search bar type a SKU, product name, or scan a barcode. Select a result from the autocomplete list.
-- Visual Elements to Highlight: Search input, autosuggest list, product cards with stock badges, category/supplier filters, no-results state.
-- Validation Logic: Search performs client-side debouncing and server-side queries; minimum character threshold for suggestions; results prioritized by in-stock status. No-results displays a CTA to create a new product (admin-only).
-- User Flow Placement: Selecting a product adds it to the cart (stays in POS) or opens the product detail modal for adjustments.
+- Route: `/pos`
+- Capture: POS topbar, active store, cashier name, search/product area, cart panel, charge button.
+- Validate: route requires a specific active store; `all` store view shows a blocking message.
 
-5) Title: POS — Checkout / Payment Modal
+### 6. POS Scanner/Search Result
 
-- Procedure: Click the Checkout/Pay button on the POS main screen to open the payment modal.
-- Visual Elements to Highlight: Payment method selector (Cash/Card/Account), amount tendered input, change due display, receipt preview area, apply discount controls, confirm payment button.
-- Validation Logic: For cash payments, `tendered >= total` validation unless store supports IOUs; card payments require successful tokenization and gateway confirmation; required payment method selected; duplicate transaction prevention (idempotency token). UI shows inline errors and disables confirm while processing.
-- User Flow Placement: On successful payment show Receipt Preview; on failure show payment error modal with retry options.
+- Route: `/pos`
+- Capture: product search results after typing name, SKU, or scanning barcode.
+- Validate: selecting or scanning a product adds it to the cart.
 
-6) Title: Receipt Preview & Print / Email
+### 7. POS Pending Quantity
 
-- Procedure: After a successful payment the receipt panel opens. Optionally click Print or Email receipt.
-- Visual Elements to Highlight: Store header, line items, totals, tax breakdown, payment method, transaction id, timestamp, print/email buttons, QR/digital receipt indicator.
-- Validation Logic: Receipt rendering is deterministic from cart data; totals are computed client-side and verified by backend. Printing triggers browser print; email triggers server dispatch and presents success/failure toast.
-- User Flow Placement: After printing/emailing, return to POS main or start a new sale.
+- Route: `/pos`
+- Capture: numeric pre-entry indicator in the topbar and item added with multiplier.
+- Validate: typed digits set the pending quantity; scanner input clears leaked digits.
 
-7) Title: Cart Management — Discounts, Price Overrides
+### 8. POS Payment Modal
 
-- Procedure: Select a cart line item and open options (discount, price override, remove).
-- Visual Elements to Highlight: Discount input (percent or fixed), price override input, reason field, manager approval prompt for overrides, confirm/cancel buttons.
-- Validation Logic: Discounts limited to <=100% and not negative; price override checks threshold — overrides above configured threshold require manager authentication (prompted via modal). All changes update totals immediately and are reconciled by backend on save.
-- User Flow Placement: After adjustment, totals update and user proceeds to Checkout.
+- Route: `/pos`
+- Capture: order summary, cash received field, quick cash amounts, change display, confirm button.
+- Validate: confirm is disabled until cash received covers the total.
 
----
+### 9. POS Payment Success
 
-### **Admin / Manager Journey**
+- Route: `/pos`
+- Capture: successful payment screen, transaction ID, cashier, timestamp, change, new transaction action.
+- Validate: cart clears when starting a new transaction.
 
-8) Title: Inventory — Product List (Table View)
+### 10. Inventory List
 
-- Procedure: From navigation select Inventory → Products.
-- Visual Elements to Highlight: Table columns (SKU, Product Name, Category, Supplier, Stock on Hand, Reorder Level), search and filters, bulk action checkboxes, pagination controls, "Add Product" button, low-stock badges.
-- Validation Logic: Table queries accept filters and pagination parameters; RBAC enforced (only users with inventory permissions can access). Bulk delete or update confirmations require explicit confirmation.
-- User Flow Placement: Click "Add Product" to open Add Product form; click a row to edit product details.
+- Route: `/inventory`
+- Capture: product table, search/filter controls, stock status badges, action buttons.
+- Validate: products are scoped to the active store or shown in admin aggregation view.
 
-9) Title: Inventory — Add Product Form
+### 11. Add or Edit Product
 
-- Procedure: Click "Add Product" from the Inventory page.
-- Visual Elements to Highlight: Fields: Name, SKU, Category, Supplier dropdown, Cost, Price, Tax, Reorder Threshold, Image upload, Save/Cancel buttons, inline validation messages.
-- Validation Logic: Required fields: Name, SKU, Price. Price must be > 0; Cost must be >= 0 and typically <= Price (business rule enforced server-side). SKU uniqueness validated server-side (Supabase unique index) and surfaced to UI. Image file type and size validated on client; server-side storage errors handled and displayed.
-- User Flow Placement: On successful save, redirect to product detail or return to Product List with success toast and updated stock badge.
+- Routes: `/inventory/products/new`, `/inventory/products/:id`
+- Capture: product fields, category selection, pricing, stock thresholds, supplier selection, margin preview.
+- Validate: required fields and store/category IDs are enforced.
 
-10) Title: Inventory — Edit Product & Conflict Detection
+### 12. Stock Adjustment
 
-- Procedure: From Product List open an existing product for editing.
-- Visual Elements to Highlight: Pre-populated form, `updated_at` or version indicator (if visible), change-history link, Save and Cancel, Delete action.
-- Validation Logic: Same business rules as Add Product. On save, if `updated_at` differs from server value (concurrent edit), show conflict modal with options: keep local, accept remote, or merge. Server rejects conflicting updates if optimistic locking used.
-- User Flow Placement: Resolve conflict -> save -> invalidate caches so inventory list reflects latest state.
+- Route: product edit or inventory action that opens the adjustment modal.
+- Capture: reason selector, quantity delta, note field, before/after preview.
+- Validate: stock cannot become negative; adjustment log records the change.
 
-11) Title: Suppliers — Supplier Detail
+### 13. Restocking
 
-- Procedure: Navigate to Suppliers and select a supplier from the list.
-- Visual Elements to Highlight: Contact information, list of supplied products, performance metrics (lead time, fill rate), recent purchase orders, "Create Purchase Order" button.
-- Validation Logic: Supplier contact fields validated for format; deletion blocked if active products exist; create-PO flow validates product availability and supplier terms.
-- User Flow Placement: Click "Create Purchase Order" to open PO workflow (noted in Inventory).
+- Route: `/restocking`
+- Capture: products below reorder thresholds, suggested quantity, selected restock items, create PO action.
+- Validate: generated POs group items by supplier/store.
 
-12) Title: Reports — Sales Analytics Dashboard
+### 14. Suppliers
 
-- Procedure: Select Reports → Sales Analytics.
-- Visual Elements to Highlight: Time-range selector, sales-by-day chart, top-selling products chart, filters (store, user, category), export CSV button, comparison toggle (period over period).
-- Validation Logic: Date range constraints (max interval), RBAC checks for report access, charts gracefully render empty data. Backend aggregates compute totals; cache keys include filter parameters.
-- User Flow Placement: Drill down on a product to open Product Sales Detail and link back to Inventory.
+- Route: `/suppliers`
+- Capture: supplier table, scores, contact info, add/edit/delete actions.
+- Validate: supplier CRUD is scoped to active store.
 
-13) Title: Settings — User Management & Roles
+### 15. Supplier Detail and Purchase Orders
 
-- Procedure: Settings → Users / Access Control.
-- Visual Elements to Highlight: User list, role badges, invite button, role-edit modal, last-login timestamp, active sessions indicator.
-- Validation Logic: Role assignment validated server-side and enforced by RLS. Cannot remove last super-admin; changes recorded in audit log. Invitation links expire and are validated on use.
-- User Flow Placement: After role change the affected user's available navigation is updated on next session or via token invalidation.
+- Route: `/suppliers/:id`
+- Capture: supplier profile, score cards, purchase order history, receive/cancel actions.
+- Validate: marking a PO received refreshes supplier score data after backend triggers run.
 
-14) Title: Settings — Store Configuration / Multi-store
+### 16. Analytics
 
-- Procedure: Settings → Stores.
-- Visual Elements to Highlight: Store list with address, timezone, currency, default tax rates, active toggle, "Switch Store" control, add/edit store modal.
-- Validation Logic: Currency and timezone inputs validated against allowed values; only permitted roles can add or modify stores; changing default store updates POS and Dashboard context.
-- User Flow Placement: Switch store -> Dashboard and POS context refresh to reflect selected store.
+- Route: `/analytics`
+- Capture: period selector, revenue chart, hourly sales chart, category chart, transaction list.
+- Validate: changing period updates charts and stats.
 
-15) Title: Audit Log / Transaction History
+### 17. Product Rankings
 
-- Procedure: Reports → Audit Log (or Settings → Audit).
-- Visual Elements to Highlight: Chronological table with actor, action, resource, timestamp, search and filter controls, export option.
-- Validation Logic: Audit events are immutable; server-side enforces append-only semantics; UI paginates results. Access restricted by role.
-- User Flow Placement: Click entry -> open modal with full payload and links to associated resources.
+- Route: `/rankings`
+- Capture: ranked products by units sold/revenue and period controls.
+- Validate: rankings are derived from sale items.
 
-16) Title: Offline Sync Status & Conflict Resolution
+### 18. Settings - Stores
 
-- Procedure: Work offline (disable network), perform operations (sales, product edits) then re-enable network and inspect Sync UI / status indicator.
-- Visual Elements to Highlight: Offline indicator (banner or icon), queued operations list, sync progress, conflict dialog showing local vs remote values, resolution actions (Accept Local/Accept Remote/Merge), retry/backoff indicator.
-- Validation Logic: Sync engine uses timestamps/operation logs to detect conflicts; conflict detection algorithm compares `updated_at` and operation type. Retried operations use exponential backoff. UI blocks destructive resolution actions to authorized roles only.
-- User Flow Placement: Resolve conflicts -> operations replay to server -> inventory and reports updated on success.
+- Route: `/settings`
+- Capture: assigned stores, edit/delete controls, add-store form.
+- Validate: `admin` can create/update/delete assigned stores; final policies should keep `super_admin` out of store CRUD.
 
----
+### 19. Settings - User Management Scaffold
 
-## Edge Cases & Error Handling (screenshots)
+- Route: `/settings/users`
+- Capture: empty or local user list, invite/create user modal.
+- Validate: document this as a UI scaffold only; it is not wired to Supabase Auth admin APIs.
 
-Capture these additional images to document error handling and validation behavior. These can be presented as a short sequence or appended as supplementary pages.
+### 20. Settings - Security Scaffold
 
-- A) Login Failure — Invalid credentials banner and suggested remedial actions.
-- B) Add Product Validation Error — Inline validation under Price or SKU (price <= 0 or missing SKU).
-- C) POS Add-to-Cart — Out-of-stock warning modal when attempting to add beyond stock.
-- D) Payment Failure — Card declined modal showing gateway code and retry options.
-- E) Permission Denied — Attempt to access Settings as Clerk shows restricted access screen.
-- F) Sync Conflict — Conflict resolution modal showing differing stock quantities and resolution controls.
-- G) Concurrent Edit Conflict — Save attempt returns conflict; show merge/resolution UI.
+- Route: `/settings/security`
+- Capture: current password, new password, confirm password fields.
+- Validate: document this as placeholder UI until Supabase password update is wired.
 
----
+## Edge Case Screenshots
 
-## Appendix — Capture & annotation guidelines
+- Unauthenticated route redirect to login.
+- Cashier blocked from admin page.
+- Super admin blocked from normal admin shell.
+- POS with active store set to `all`.
+- Offline POS sale queued, if browser devtools can show IndexedDB state.
+- Empty inventory/suppliers/analytics states.
+- RLS or permission error toast during a forbidden write.
 
-- Capture resolution: prefer 1920×1080 (desktop) — crop only when focusing on component-level screenshots.
-- Use numbered callouts (1–6) per screenshot to reference elements listed under "Visual Elements to Highlight" in the figure caption.
-- Use consistent file naming: `01_Login.png`, `02_Dashboard.png`, …, `16_Offline_Sync.png` and `Error_A_LoginFailure.png`, etc.
-- Each screenshot page in the paper should include: full screenshot, 3–6 annotations, 1-paragraph caption explaining validation and a short note describing the prototype transition (what user does next).
+## Annotation Notes
 
----
-
-## Notes and assumptions
-
-- Tech stack and features inferred from `kodigo-ui/package.json` and project layout; adjust validation specifics if your backend rules differ.
-- The Validation Logic entries differentiate client-side form checks from authoritative server-side checks (Supabase/Postgres). Mention in the paper that server-side RLS and constraints provide the final validation layer.
-
----
-
-If you want, I can also generate a PowerPoint (PPTX) or PDF with placeholders for each screenshot (annotated callouts and captions). Tell me which format you prefer.
+- Label screenshots by role and active store.
+- Do not annotate future features that are not present in the current UI.
+- Call out scaffolds honestly: user management and password changes are placeholders.
+- If screenshots are used in academic documentation, state that Supabase migrations must be applied for backend behavior to match the UI.

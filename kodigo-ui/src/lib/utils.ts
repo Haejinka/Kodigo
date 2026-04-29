@@ -53,9 +53,9 @@ export function truncate(str: string, maxLen: number): string {
   return str.slice(0, maxLen - 1) + '…';
 }
 
-// Simple deterministic hash simulation for mocking purposes
+// Deterministic placeholder used only by scaffolded local user-management UI.
 export async function hashPassword(password: string): Promise<string> {
-  // In a real app, use bcrypt or Web Crypto API
+  // Production user creation should happen through Supabase Auth or a server-side function.
   const msgUint8 = new TextEncoder().encode(password);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
   const hashArray = Array.from(new Uint8Array(hashBuffer));

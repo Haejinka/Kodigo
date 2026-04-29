@@ -6,7 +6,7 @@
 
 ## System Description (Context for the AI)
 
-**KodiGo** is a cloud-based Point-of-Sale (POS) and Inventory Management System for small Philippine retail stores (sari-sari stores). It is a fully operational web application with a React/TypeScript frontend and a Supabase (PostgreSQL + Realtime) backend. It serves two user roles — Admin (store owner) and Cashier — through a role-based access system.
+**KodiGo** is a cloud-based Point-of-Sale (POS) and Inventory Management System for small Philippine retail stores (sari-sari stores). It is a React/TypeScript web application backed by Supabase PostgreSQL and Auth. The primary operating roles are Admin (store owner/operator) and Cashier; a separate Super Admin role governs invite-code onboarding.
 
 The conceptual framework shows **how data flows through the system** — from real-world inputs, through processing modules, to actionable outputs — with feedback loops that close the business cycle.
 
@@ -26,12 +26,14 @@ Two distinct user role boxes positioned at the top center, separated from the ma
 
 | Box Label | Description |
 |-----------|-------------|
-| **Admin (Store Owner)** | Full access — all modules |
-| **Cashier** | POS access only |
+| **Admin (Store Owner)** | Full access to assigned-store operational modules |
+| **Cashier** | POS access for assigned store |
+| **Super Admin** | Invite-code governance, shown separately if the diagram includes onboarding |
 
 - Style: Rounded rectangles with a person/role icon.
-- The Admin box has arrows pointing to ALL processing modules.
+- The Admin box has arrows pointing to operational modules.
 - The Cashier box has an arrow pointing ONLY to the POS Engine module.
+- If included, the Super Admin box should connect only to Authentication / Invite Governance.
 
 ---
 
@@ -44,7 +46,7 @@ A vertical stack of input source boxes on the **left side**. Each box has an arr
 | **Sales Transactions** — Barcode scan, manual product search, quantity selection | Shopping cart / barcode icon |
 | **Inventory Adjustments** — Restock, damaged, expired, lost, manual count | Box / clipboard icon |
 | **Supplier Data** — Lead times, cost prices, purchase order outcomes (on-time / late) | Truck / handshake icon |
-| **Authentication Events** — Login credentials, role assignment | Lock / key icon |
+| **Authentication Events** — Login credentials, invite codes, role assignment | Lock / key icon |
 
 - Style: Rounded rectangles with a soft yellow or warm amber fill (#FFF3CD or similar).
 - Label each with bold title and a 1-line description below it in smaller text.
@@ -80,10 +82,10 @@ Inside it, show three sub-components in a horizontal row:
 |---------------|-------------|
 | **PostgreSQL Database** | Products, Sales, Suppliers, Users, POs, Adjustments, Alerts |
 | **Supabase Auth** | JWT-based session management; stores roles (admin / cashier) |
-| **Supabase Realtime** | Pushes live updates to dashboard and alert surfaces (<1s latency) |
+| **Supabase Sync / Revalidation** | Supports backend reads, reconnect sync, and future live dashboard updates |
 
 - Style: Dark slate or navy background with white text (#0F172A fill, white labels).
-- Use a cylinder icon for the database, a shield icon for Auth, and a lightning bolt for Realtime.
+- Use a cylinder icon for the database, a shield icon for Auth, and a sync/cloud icon for revalidation.
 
 ---
 
@@ -137,7 +139,7 @@ Draw **three dashed curved arrows** in a distinct contrast color (orange or ambe
 Use this as a direct prompt for AI image generation:
 
 ```
-A clean, professional conceptual framework diagram for a cloud-based POS and inventory management system called KodiGo. The diagram uses a horizontal Input-Process-Output layout on a white background. On the far left, a vertical stack of four yellow rounded boxes labeled: "Sales Transactions", "Inventory Adjustments", "Supplier Data", and "Authentication Events", each with a small icon and a brief description. In the center, a large rounded system block with a dark slate blue header labeled "KodiGo System" containing six internal white module boxes in a 2x3 grid: "POS Engine", "Inventory Engine", "Analytics Engine", "Supplier Scoring Engine", "Forecasting Engine", and "Alert Engine". Below the system block, a dark navy horizontal bar labeled "Supabase Data Layer" with three sub-components: "PostgreSQL Database", "Supabase Auth", and "Supabase Realtime". On the far right, a vertical stack of six green rounded boxes labeled: "Sales Receipts", "Dashboard Metrics", "Stock Alerts", "Purchase Orders", "Supplier Scorecards", and "Analytics Reports". At the top center, two user role boxes labeled "Admin (Store Owner)" and "Cashier" connected by downward arrows into the system. Three dashed amber curved arrows show feedback loops connecting output boxes back to input boxes, labeled "Triggers restocking decision", "Informs future PO assignment", and "Guides pricing and promotions". The title at the top reads "KodiGo Conceptual Framework" in bold dark text. Clean, minimal, sans-serif font, flat design with soft shadows, light and professional color scheme.
+A clean, professional conceptual framework diagram for a cloud-based POS and inventory management system called KodiGo. The diagram uses a horizontal Input-Process-Output layout on a white background. On the far left, a vertical stack of four yellow rounded boxes labeled: "Sales Transactions", "Inventory Adjustments", "Supplier Data", and "Authentication Events", each with a small icon and a brief description. In the center, a large rounded system block with a dark slate blue header labeled "KodiGo System" containing six internal white module boxes in a 2x3 grid: "POS Engine", "Inventory Engine", "Analytics Engine", "Supplier Scoring Engine", "Forecasting Engine", and "Alert Engine". Below the system block, a dark navy horizontal bar labeled "Supabase Data Layer" with three sub-components: "PostgreSQL Database", "Supabase Auth", and "Sync / Revalidation". On the far right, a vertical stack of six green rounded boxes labeled: "Sales Receipts", "Dashboard Metrics", "Stock Alerts", "Purchase Orders", "Supplier Scorecards", and "Analytics Reports". At the top center, user role boxes labeled "Admin (Store Owner)", "Cashier", and optional "Super Admin (Invite Governance)" connect to their allowed parts of the system. Three dashed amber curved arrows show feedback loops connecting output boxes back to input boxes, labeled "Triggers restocking decision", "Informs future PO assignment", and "Guides pricing and promotions". The title at the top reads "KodiGo Conceptual Framework" in bold dark text. Clean, minimal, sans-serif font, flat design with soft shadows, light and professional color scheme.
 ```
 
 ---

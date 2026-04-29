@@ -425,7 +425,7 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
     if (password !== confirmPassword) { toast('error', 'Passwords do not match.'); return; }
     
     setCreating(true);
-    // Simulate API call delay
+    // Placeholder until user creation is wired to a server-side Supabase Auth admin flow.
     await new Promise((r) => setTimeout(r, 600));
     
     const passwordHash = await hashPassword(password);
