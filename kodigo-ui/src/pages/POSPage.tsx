@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Store, Hash, LogOut, ReceiptText } from 'lucide-react';
+import { Clock, Store, Hash, LogOut, ReceiptText, LayoutDashboard } from 'lucide-react';
 import { ProductSearchPanel } from '@/components/pos/ProductSearchPanel';
 import { Cart } from '@/components/pos/Cart';
 import { PaymentModal } from '@/components/pos/PaymentModal';
@@ -21,7 +21,7 @@ function useClock() {
 
 export function POSPage() {
   const { addItem } = useCartStore();
-  const { user, logout, activeStoreId, stores } = useAuthStore();
+  const { user, role, logout, activeStoreId, stores } = useAuthStore();
   const activeStoreName = stores.find(s => s.id === activeStoreId)?.name || 'Unknown Store';
   const navigate = useNavigate();
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -159,6 +159,21 @@ export function POSPage() {
         </div>
 
         <div className="w-px h-5 bg-gray-200" />
+
+        {role === 'admin' && (
+          <>
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-blue-700 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg transition-colors"
+              title="Backoffice"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              <span className="hidden sm:inline">Backoffice</span>
+            </button>
+
+            <div className="w-px h-5 bg-gray-200" />
+          </>
+        )}
 
         <button
           onClick={() => setLifecycleOpen(true)}

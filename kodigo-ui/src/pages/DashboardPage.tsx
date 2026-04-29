@@ -6,7 +6,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useAlertStore } from '@/stores/alertStore';
 import { useAuthStore } from '@/stores/authStore';
 import type { DashboardStats } from '@/types';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   fetchSalesReport,
   getDateRangeForDays,
@@ -31,44 +31,46 @@ export function DashboardPage() {
   const [bestSellers, setBestSellers] = useState<SalesGroupReportRow[]>([]);
   const [trend, setTrend] = useState<DateSalesReportRow[]>([]);
   const [recent, setRecent] = useState<SalesTransactionReportRow[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      if (!activeStoreId) return;
+      setLoading(true);
+      const today = toDateInput(new Date());
+      const todayReport = await fetchSalesReport(
+        { startDate: today, endDate: today, paymentMethod: 'all', status: 'all' },
+        activeStoreId,
+      );
+      const trendRange = getDateRangeForDays(7);
+      const trendReport = await fetchSalesReport(
+        { ...trendRange, paymentMethod: 'all', status: 'all' },
+        activeStoreId,
+      );
+
+      setS({
+        todayRevenue: todayReport.summary.netSales,
+        todayTransactions: todayReport.summary.totalTransactions,
+        avgOrderValue: todayReport.summary.averageTransactionValue,
+        todayProfit: todayReport.summary.grossProfit,
+        revenueChange: 0,
+        transactionsChange: 0,
+        avgOrderChange: 0,
+        profitChange: 0,
+      });
+      setBestSellers(trendReport.salesByProduct.slice(0, 5));
+      setTrend(trendReport.salesByDate);
+      setRecent(trendReport.transactions.slice(0, 8));
+    } catch (err) {
+      console.error('Error computing dashboard stats:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeStoreId]);
 
   useEffect(() => {
-    let mounted = true;
-    const fetchStats = async () => {
-      try {
-        if (!activeStoreId) return;
-        const today = toDateInput(new Date());
-        const todayReport = await fetchSalesReport(
-          { startDate: today, endDate: today, paymentMethod: 'all', status: 'all' },
-          activeStoreId,
-        );
-        const trendRange = getDateRangeForDays(7);
-        const trendReport = await fetchSalesReport(
-          { ...trendRange, paymentMethod: 'all', status: 'all' },
-          activeStoreId,
-        );
-
-        if (!mounted) return;
-        setS({
-          todayRevenue: todayReport.summary.netSales,
-          todayTransactions: todayReport.summary.totalTransactions,
-          avgOrderValue: todayReport.summary.averageTransactionValue,
-          todayProfit: todayReport.summary.grossProfit,
-          revenueChange: 0,
-          transactionsChange: 0,
-          avgOrderChange: 0,
-          profitChange: 0,
-        });
-        setBestSellers(trendReport.salesByProduct.slice(0, 5));
-        setTrend(trendReport.salesByDate);
-        setRecent(trendReport.transactions.slice(0, 8));
-      } catch (err) {
-        console.error('Error computing dashboard stats:', err);
-      }
-    };
     void fetchStats();
-    return () => { mounted = false; };
-  }, [activeStoreId]);
+  }, [fetchStats]);
   const alerts = useAlertStore((state) => state.alerts);
   const today = new Date().toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -79,8 +81,13 @@ export function DashboardPage() {
         subtitle={today}
         actions={
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors px-3 py-1.5 border border-gray-200 rounded-lg bg-white hover:bg-gray-50">
-              <RefreshCw className="w-3.5 h-3.5" />
+            <button
+              type="button"
+              onClick={() => void fetchStats()}
+              disabled={loading}
+              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors px-3 py-1.5 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
           </div>
