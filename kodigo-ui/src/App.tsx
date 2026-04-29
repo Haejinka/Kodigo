@@ -25,6 +25,7 @@ import { SuppliersPage } from '@/pages/SuppliersPage';
 import { SupplierDetailPage } from '@/pages/SupplierDetailPage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { RankingsPage } from '@/pages/RankingsPage';
+import { ReportsPage } from '@/pages/ReportsPage';
 import { AddSupplierPage } from '@/pages/AddSupplierPage';
 import { EditSupplierPage } from '@/pages/EditSupplierPage';
 import {
@@ -216,6 +217,7 @@ function AppRoutes() {
                   <Route path="/suppliers/:id/edit" element={<EditSupplierPage />} />
                   <Route path="/analytics" element={<AnalyticsPage />} />
                   <Route path="/rankings" element={<RankingsPage />} />
+                  <Route path="/reports" element={<ReportsPage />} />
                   <Route path="/settings" element={<SettingsLayout />}>
                     <Route index element={<GeneralSettingsPage />} />
                     <Route path="users" element={<UserManagementPage />} />

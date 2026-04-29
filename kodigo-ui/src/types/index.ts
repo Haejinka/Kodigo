@@ -190,6 +190,7 @@ export interface SaleItem {
   id?: string;
   productId: string;
   productName: string;
+  categoryName?: string;
   sellingOptionId?: string;
   sellingOptionLabel?: string;
   unitLabel?: string;
@@ -198,6 +199,7 @@ export interface SaleItem {
   stockSource?: string;
   quantity: number;
   unitPrice: number;
+  costPrice?: number;
   lineTotal: number;
 }
 

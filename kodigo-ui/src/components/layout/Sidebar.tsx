@@ -4,6 +4,7 @@ import {
   LayoutDashboard, ShoppingCart, Package, RefreshCw,
   Truck, BarChart2, Trophy, Settings, LogOut, ChevronLeft,
   ChevronRight, Store,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
@@ -28,6 +29,7 @@ const navItems: NavItem[] = [
   { label: 'Suppliers', path: '/suppliers', icon: Truck, roles: ['admin'] },
   { label: 'Analytics', path: '/analytics', icon: BarChart2, roles: ['admin'] },
   { label: 'Rankings', path: '/rankings', icon: Trophy, roles: ['admin'] },
+  { label: 'Reports', path: '/reports', icon: FileSpreadsheet, roles: ['admin'] },
   { label: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
 ];
 

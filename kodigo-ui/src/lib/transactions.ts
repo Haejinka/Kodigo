@@ -79,7 +79,7 @@ export async function refundSale(
 export async function fetchSaleItems(saleId: string): Promise<SaleItem[]> {
   const { data, error } = await supabase
     .from('sale_items')
-    .select('id, product_id, product_name, selling_option_id, selling_option_label, unit_label, package_size, package_unit, stock_source, quantity, unit_price, line_total')
+    .select('id, product_id, product_name, category_name, selling_option_id, selling_option_label, unit_label, package_size, package_unit, stock_source, quantity, unit_price, cost_price, line_total')
     .eq('sale_id', saleId)
     .order('product_name', { ascending: true });
 
@@ -89,6 +89,7 @@ export async function fetchSaleItems(saleId: string): Promise<SaleItem[]> {
     id: row.id,
     productId: row.product_id,
     productName: row.product_name,
+    categoryName: row.category_name ?? undefined,
     sellingOptionId: row.selling_option_id ?? undefined,
     sellingOptionLabel: row.selling_option_label ?? undefined,
     unitLabel: row.unit_label ?? 'unit',
@@ -97,6 +98,7 @@ export async function fetchSaleItems(saleId: string): Promise<SaleItem[]> {
     stockSource: row.stock_source ?? undefined,
     quantity: Number(row.quantity ?? 0),
     unitPrice: Number(row.unit_price ?? 0),
+    costPrice: Number(row.cost_price ?? 0),
     lineTotal: Number(row.line_total ?? 0),
   }));
 }

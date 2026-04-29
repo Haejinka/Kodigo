@@ -4,12 +4,15 @@ import { StatCard } from '@/components/shared/StatCard';
 import { AlertBadge } from '@/components/shared/AlertBadge';
 import { formatCurrency } from '@/lib/utils';
 import { useAlertStore } from '@/stores/alertStore';
-import { useProductStore } from '@/stores/productStore';
 import { useAuthStore } from '@/stores/authStore';
 import type { DashboardStats } from '@/types';
-import { getDefaultSellingOption } from '@/types';
-import { supabase } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
+import {
+  fetchSalesReport,
+  getDateRangeForDays,
+  toDateInput,
+} from '@/lib/reporting';
+import type { DateSalesReportRow, SalesGroupReportRow, SalesTransactionReportRow } from '@/lib/reporting';
 
 const emptyStats: DashboardStats = {
   todayRevenue: 0,
@@ -25,70 +28,40 @@ const emptyStats: DashboardStats = {
 export function DashboardPage() {
   const [s, setS] = useState<DashboardStats>(emptyStats);
   const activeStoreId = useAuthStore((st) => st.activeStoreId);
+  const [bestSellers, setBestSellers] = useState<SalesGroupReportRow[]>([]);
+  const [trend, setTrend] = useState<DateSalesReportRow[]>([]);
+  const [recent, setRecent] = useState<SalesTransactionReportRow[]>([]);
 
   useEffect(() => {
     let mounted = true;
     const fetchStats = async () => {
       try {
-        const start = new Date();
-        start.setHours(0,0,0,0);
-        const end = new Date(start);
-        end.setDate(start.getDate() + 1);
-
-        let query = supabase.from('sales').select('id,total,store_id,created_at').gte('created_at', start.toISOString()).lt('created_at', end.toISOString());
-        if (activeStoreId && activeStoreId !== 'all') query = query.eq('store_id', activeStoreId);
-        const { data, error } = await query;
-        if (error) {
-          console.error('Failed to fetch dashboard sales:', error);
-          return;
-        }
-
-        const salesRows = data || [];
-        const totals = salesRows.map((r: any) => Number(r.total || 0));
-        const todayRevenue = totals.reduce((a,b) => a + b, 0);
-        const todayTransactions = totals.length;
-        const avgOrderValue = todayTransactions ? todayRevenue / todayTransactions : 0;
-
-        // Compute profit for today's sales using sale_items and product cost_price when available.
-        let todayProfit = 0;
-        try {
-          const saleIds = salesRows.map((r: any) => r.id).filter(Boolean);
-          if (saleIds.length > 0) {
-            const { data: items, error: itemsErr } = await supabase.from('sale_items').select('product_id,quantity,line_total,sale_id').in('sale_id', saleIds);
-            if (!itemsErr && items && items.length > 0) {
-              const productIds = Array.from(new Set(items.map((it: any) => it.product_id).filter(Boolean)));
-              const costMap: Record<string, number> = {};
-              if (productIds.length > 0) {
-                const { data: prods, error: prodsErr } = await supabase.from('products').select('id,cost_price').in('id', productIds);
-                if (!prodsErr && prods) {
-                  prods.forEach((p: any) => { costMap[p.id] = Number(p.cost_price || 0); });
-                }
-              }
-
-              todayProfit = items.reduce((acc: number, it: any) => {
-                const line = Number(it.line_total || 0);
-                const qty = Number(it.quantity || 0);
-                const cost = Number(costMap[it.product_id] || 0) * qty;
-                return acc + (line - cost);
-              }, 0);
-            }
-          }
-        } catch (err) {
-          console.warn('Error computing todayProfit:', err);
-          todayProfit = 0;
-        }
+        if (!activeStoreId) return;
+        const today = toDateInput(new Date());
+        const todayReport = await fetchSalesReport(
+          { startDate: today, endDate: today, paymentMethod: 'all', status: 'all' },
+          activeStoreId,
+        );
+        const trendRange = getDateRangeForDays(7);
+        const trendReport = await fetchSalesReport(
+          { ...trendRange, paymentMethod: 'all', status: 'all' },
+          activeStoreId,
+        );
 
         if (!mounted) return;
         setS({
-          todayRevenue,
-          todayTransactions,
-          avgOrderValue,
-          todayProfit,
+          todayRevenue: todayReport.summary.netSales,
+          todayTransactions: todayReport.summary.totalTransactions,
+          avgOrderValue: todayReport.summary.averageTransactionValue,
+          todayProfit: todayReport.summary.grossProfit,
           revenueChange: 0,
           transactionsChange: 0,
           avgOrderChange: 0,
           profitChange: 0,
         });
+        setBestSellers(trendReport.salesByProduct.slice(0, 5));
+        setTrend(trendReport.salesByDate);
+        setRecent(trendReport.transactions.slice(0, 8));
       } catch (err) {
         console.error('Error computing dashboard stats:', err);
       }
@@ -97,38 +70,7 @@ export function DashboardPage() {
     return () => { mounted = false; };
   }, [activeStoreId]);
   const alerts = useAlertStore((state) => state.alerts);
-  const products = useProductStore((state) => state.products);
-  const stores = useAuthStore((st) => st.stores);
-  const getStoreName = (id: string) => stores.find(s => s.id === id)?.name || 'Unknown Store';
   const today = new Date().toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const [recent, setRecent] = useState<any[]>([]);
-
-  useEffect(() => {
-    let mounted = true;
-    const fetchRecent = async () => {
-      try {
-        let q = supabase.from('sales').select('id,total,store_id,created_at').order('created_at', { ascending: false }).limit(12);
-        if (activeStoreId && activeStoreId !== 'all') q = q.eq('store_id', activeStoreId);
-        const { data, error } = await q;
-        if (error) {
-          console.error('Failed to fetch recent transactions:', error);
-          return;
-        }
-
-        if (!mounted) return;
-        setRecent(data || []);
-      } catch (err) {
-        console.error('Error fetching recent transactions:', err);
-      }
-    };
-    void fetchRecent();
-    return () => { mounted = false; };
-  }, [activeStoreId]);
-
-  // Derive top products by currentStock as a placeholder until real sales data is available
-  const topProducts = [...products]
-    .sort((a, b) => getDefaultSellingOption(b).stockQuantity - getDefaultSellingOption(a).stockQuantity)
-    .slice(0, 5);
 
   return (
     <div>
@@ -180,36 +122,31 @@ export function DashboardPage() {
       {/* Bottom row */}
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Products */}
+        {/* Best-selling products */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Top Products by Stock</h3>
+            <h3 className="font-semibold text-gray-900">Best-selling Products</h3>
             <a href="/rankings" className="text-xs text-blue-600 hover:underline font-medium">View all</a>
           </div>
           <div className="space-y-3">
-            {topProducts.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-6">No products yet</p>
+            {bestSellers.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-6">No completed sales in the last 7 days</p>
             ) : (
-              topProducts.map((p, i) => (
-                <div key={p.id} className="flex items-center gap-3">
+              bestSellers.map((row, i) => (
+                <div key={row.key} className="flex items-center gap-3">
                   <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
                     {i + 1}
                   </span>
                     <div className="flex-1 min-w-0 flex flex-col justify-center">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
-                        {activeStoreId === 'all' && (
-                          <span className="text-[10px] uppercase font-bold tracking-wider text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
-                            {getStoreName(p.storeId)}
-                          </span>
-                        )}
+                        <p className="text-sm font-medium text-gray-900 truncate">{row.productName}</p>
                       </div>
                     <p className="text-xs text-gray-400">
-                      {getDefaultSellingOption(p).stockQuantity} {getDefaultSellingOption(p).unitLabel} in stock
+                      {row.netQuantity} sold - {row.sellingOptionLabel || row.unitLabel}
                     </p>
                   </div>
                   <span className="text-sm font-semibold font-mono text-gray-900">
-                    {formatCurrency(getDefaultSellingOption(p).sellingPrice)}
+                    {formatCurrency(row.netRevenue)}
                   </span>
                 </div>
               ))
@@ -246,6 +183,27 @@ export function DashboardPage() {
         </div>
       </div>
 
+      {/* Sales Trend */}
+      <div className="mt-6 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-900">7-Day Sales Trend</h3>
+          <a href="/reports" className="text-xs text-blue-600 hover:underline font-medium">Open reports</a>
+        </div>
+        {trend.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-6">No sales trend available yet</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+            {trend.map((row) => (
+              <div key={row.date} className="rounded-lg border border-gray-100 px-3 py-2">
+                <p className="text-xs text-gray-400">{new Date(row.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}</p>
+                <p className="font-mono text-sm font-bold text-gray-900 mt-1">{formatCurrency(row.netSales)}</p>
+                <p className="text-[11px] text-gray-400">{row.transactions} txns</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Recent Transactions */}
       <div className="mt-6 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
@@ -260,12 +218,12 @@ export function DashboardPage() {
         ) : (
           <div className="space-y-3">
             {recent.map((r) => (
-              <div key={r.id} className="flex items-center justify-between">
+              <div key={r.saleId} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="text-sm text-gray-700">{new Date(r.created_at).toLocaleString()}</div>
-                  <div className="text-sm text-gray-500">{getStoreName(r.store_id)}</div>
+                  <div className="text-sm text-gray-700">{new Date(r.dateTime).toLocaleString()}</div>
+                  <div className="text-sm text-gray-500">{r.cashierName}</div>
                 </div>
-                <div className="text-sm font-mono text-gray-900">{formatCurrency(Number(r.total || 0))}</div>
+                <div className="text-sm font-mono text-gray-900">{formatCurrency(r.netSales)}</div>
               </div>
             ))}
           </div>

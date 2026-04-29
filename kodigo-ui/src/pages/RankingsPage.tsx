@@ -1,11 +1,15 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useEffect, useState } from 'react';
 import { Trophy } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useAuthStore } from '@/stores/authStore';
 import { formatCurrency } from '@/lib/utils';
-import { getSaleItemUnitLabel } from '@/types';
+import {
+  describeSellingUnit,
+  fetchSalesReport,
+  getDateRangeForDays,
+} from '@/lib/reporting';
+import type { SalesGroupReportRow } from '@/lib/reporting';
 
 const periods = ['Daily', 'Weekly', 'Monthly'] as const;
 type Period = typeof periods[number];
@@ -13,113 +17,32 @@ type Period = typeof periods[number];
 export function RankingsPage() {
   const [period, setPeriod] = useState<Period>('Weekly');
   const { activeStoreId } = useAuthStore();
-  const [rankings, setRankings] = useState<Array<{ product_id: string; product_name: string; selling_option_id?: string; selling_option_label?: string; unit_label: string; package_size?: number; package_unit?: string; category?: string; units: number; revenue: number }>>([]);
+  const [rankings, setRankings] = useState<SalesGroupReportRow[]>([]);
 
-  // Clear local UI state when switching stores
   useEffect(() => {
     setPeriod('Weekly');
   }, [activeStoreId]);
 
-  
-
-  // Fetch aggregated rankings from sale_items joined with sale (applies RLS via sale relation)
   useEffect(() => {
     let mounted = true;
     const fetchRankings = async () => {
       try {
-        const now = new Date();
+        if (!activeStoreId) return;
         const days = period === 'Daily' ? 1 : period === 'Weekly' ? 7 : 30;
-        const start = new Date(now);
-        start.setDate(now.getDate() - (days - 1));
-        start.setHours(0,0,0,0);
-
-        let q = supabase.from('sale_items').select('product_id,product_name,selling_option_id,selling_option_label,unit_label,package_size,package_unit,quantity,line_total,sale(created_at,store_id)').gte('sale.created_at', start.toISOString()).order('sale.created_at', { ascending: false }).limit(1000);
-        if (activeStoreId && activeStoreId !== 'all') q = q.eq('sale.store_id', activeStoreId);
-        const { data, error } = await q;
-        let items: any[] = (data || []) as any[];
-        if (error) {
-          console.error('Failed to fetch sale_items for rankings (joined query):', error);
-          // Attempt fallback: fetch sale ids for the period (scoped) and then fetch sale_items by sale_id
-          try {
-            let saleIdsQuery = supabase.from('sales').select('id').gte('created_at', start.toISOString()).limit(500);
-            if (activeStoreId && activeStoreId !== 'all') saleIdsQuery = saleIdsQuery.eq('store_id', activeStoreId);
-            const { data: saleIdsData, error: saleIdsErr } = await saleIdsQuery;
-            if (saleIdsErr) {
-              console.warn('Failed to fetch sale ids for fallback:', saleIdsErr);
-              if (mounted) setRankings([]);
-              return;
-            }
-            const ids = (saleIdsData || []).map((s: any) => s.id);
-            if (ids.length === 0) {
-              console.info('No sale ids found for fallback (scoped).');
-              if (mounted) setRankings([]);
-              return;
-            }
-            const { data: itemsBySale, error: itemsBySaleErr } = await supabase.from('sale_items').select('product_id,product_name,selling_option_id,selling_option_label,unit_label,package_size,package_unit,quantity,line_total').in('sale_id', ids).limit(2000);
-            if (itemsBySaleErr) {
-              console.warn('Fallback fetch of sale_items by sale_id failed:', itemsBySaleErr);
-              if (mounted) setRankings([]);
-              return;
-            }
-            console.info('Fallback fetched sale_items by sale_id, count=', (itemsBySale || []).length);
-            items = itemsBySale || [];
-          } catch (fbErr) {
-            console.warn('Error during rankings fallback:', fbErr);
-            if (mounted) setRankings([]);
-            return;
-          }
-        }
-        console.info('Fetched sale_items for rankings, count=', (items || []).length);
-        const map = new Map<string, { product_id: string; product_name: string; selling_option_id?: string; selling_option_label?: string; unit_label: string; package_size?: number; package_unit?: string; units: number; revenue: number }>();
-        for (const it of items as any[]) {
-          const pid = it.product_id || 'unknown';
-          const pname = it.product_name || 'Unknown';
-          const optionId = it.selling_option_id || undefined;
-          const optionLabel = it.selling_option_label || it.unit_label || 'unit';
-          const unitLabel = it.unit_label || 'unit';
-          const packageSize = it.package_size == null ? undefined : Number(it.package_size);
-          const packageUnit = it.package_unit || undefined;
-          const qty = Number(it.quantity || 0);
-          const rev = Number(it.line_total || 0);
-          const key = `${pid}:${optionId || unitLabel}:${packageSize || ''}:${packageUnit || ''}`;
-          const cur = map.get(key) || { product_id: pid, product_name: pname, selling_option_id: optionId, selling_option_label: optionLabel, unit_label: unitLabel, package_size: packageSize, package_unit: packageUnit, units: 0, revenue: 0 };
-          cur.units += qty;
-          cur.revenue += rev;
-          map.set(key, cur);
-        }
-        let list = Array.from(map.values());
-        list.sort((a,b) => b.revenue - a.revenue);
-        // Enrich with product category via products + categories lookup
-        try {
-          const productIds = list.map(l => l.product_id).filter(Boolean);
-          if (productIds.length > 0) {
-            const { data: prods } = await supabase.from('products').select('id,name,category_id').in('id', productIds).limit(1000);
-            const prodMap = new Map((prods || []).map((p: any) => [p.id, p]));
-            const categoryIds = Array.from(new Set((prods || []).map((p: any) => p.category_id).filter(Boolean)));
-            let catMap = new Map();
-            if (categoryIds.length > 0) {
-              const { data: cats } = await supabase.from('categories').select('id,name').in('id', categoryIds).limit(1000);
-              catMap = new Map((cats || []).map((c: any) => [c.id, c.name]));
-            }
-            list = list.map((it) => {
-              const p = prodMap.get(it.product_id);
-              return { ...it, product_name: p?.name || it.product_name, category: p?.category_id ? (catMap.get(p.category_id) || 'Unknown') : 'Unknown' };
-            });
-          }
-        } catch (enrichErr) {
-          console.warn('Failed to enrich rankings with product/category:', enrichErr);
-        }
-        if (mounted) setRankings(list);
+        const report = await fetchSalesReport(
+          { ...getDateRangeForDays(days), paymentMethod: 'all', status: 'all' },
+          activeStoreId,
+        );
+        if (mounted) setRankings(report.salesByProduct);
       } catch (err) {
         console.error('Error computing rankings:', err);
         if (mounted) setRankings([]);
       }
     };
+
     void fetchRankings();
     return () => { mounted = false; };
   }, [period, activeStoreId]);
-
-  
 
   return (
     <div>
@@ -143,49 +66,34 @@ export function RankingsPage() {
         }
       />
 
-      {/* Podium: top 3 separate from the rankings card */}
-      {rankings.length > 0 && (() => {
-        const top3 = rankings.slice(0, 3);
-        return (
-          <div className="mb-6 grid grid-cols-3 gap-6">
-            <div className="flex flex-col">
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 text-center h-28 flex flex-col justify-center">
-                <div className="text-xs text-blue-600">🥈</div>
-                <div className="font-medium text-sm truncate mt-1">{top3[1] ? `${top3[1].product_name} - ${top3[1].selling_option_label || top3[1].unit_label}` : '-'}</div>
-                <div className="text-sm font-mono mt-1">{top3[1] ? formatCurrency(top3[1].revenue) : ''}</div>
+      {rankings.length > 0 && (
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[rankings[1], rankings[0], rankings[2]].map((row, index) => {
+            const place = index === 0 ? 2 : index === 1 ? 1 : 3;
+            const color = place === 1 ? 'bg-amber-500' : place === 2 ? 'bg-gray-500' : 'bg-amber-900';
+            return (
+              <div key={row?.key ?? place} className="flex flex-col">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 text-center h-28 flex flex-col justify-center">
+                  <div className="font-medium text-sm truncate mt-1">
+                    {row ? `${row.productName} - ${describeSellingUnit(row)}` : '-'}
+                  </div>
+                  <div className="text-sm font-mono mt-1">{row ? formatCurrency(row.netRevenue) : ''}</div>
+                </div>
+                <div className={`mt-3 rounded-b-lg h-10 flex items-center justify-center text-sm font-semibold text-white ${color}`}>
+                  #{place}
+                </div>
               </div>
-              <div className="mt-3 rounded-b-lg h-10 flex items-center justify-center text-sm font-semibold text-white bg-gray-500">#2</div>
-            </div>
+            );
+          })}
+        </div>
+      )}
 
-            <div className="flex flex-col">
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 text-center h-36 flex flex-col justify-center transform -translate-y-6 z-10">
-                <div className="text-xs text-amber-500">🥇</div>
-                <div className="font-semibold text-base truncate mt-2">{top3[0] ? `${top3[0].product_name} - ${top3[0].selling_option_label || top3[0].unit_label}` : '-'}</div>
-                <div className="text-sm font-mono mt-1 text-amber-700">{top3[0] ? formatCurrency(top3[0].revenue) : ''}</div>
-              </div>
-              <div className="mt-3 rounded-b-xl h-12 flex items-center justify-center text-sm font-semibold text-white bg-amber-500 transform -translate-y-6">#1</div>
-            </div>
-
-            <div className="flex flex-col">
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 text-center h-28 flex flex-col justify-center">
-                <div className="text-xs text-yellow-700">🥉</div>
-                <div className="font-medium text-sm truncate mt-1">{top3[2] ? `${top3[2].product_name} - ${top3[2].selling_option_label || top3[2].unit_label}` : '-'}</div>
-                <div className="text-sm font-mono mt-1">{top3[2] ? formatCurrency(top3[2].revenue) : ''}</div>
-              </div>
-              <div className="mt-3 rounded-b-lg h-10 flex items-center justify-center text-sm font-semibold text-white bg-amber-900">#3</div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Full Rankings Card */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
           <Trophy className="w-4 h-4 text-amber-500" />
-          <h3 className="font-semibold text-gray-900">Full Rankings — {period}</h3>
-          <div className="ml-auto" />
+          <h3 className="font-semibold text-gray-900">Full Rankings - {period}</h3>
         </div>
-        
+
         {rankings.length === 0 ? (
           <EmptyState
             icon={Trophy}
@@ -201,28 +109,27 @@ export function RankingsPage() {
               <div className="col-span-2 text-right">Units Sold</div>
               <div className="col-span-2 text-right">Revenue</div>
             </div>
-            <div className="space-y-2 mt-3">
+            <div className="space-y-3 mt-3">
               {(() => {
-                const totalRevenue = rankings.reduce((s, it) => s + (it.revenue || 0), 0) || 0.000001;
-                return rankings.map((r, i) => (
-                  <div key={`${r.product_id}-${r.selling_option_id || r.unit_label}-${r.package_size ?? ''}`} className="grid grid-cols-12 gap-3 items-center text-sm">
-                    <div className="col-span-1 text-gray-600">{i < 3 ? (i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉') : i+1}</div>
+                const totalRevenue = rankings.reduce((sum, row) => sum + row.netRevenue, 0) || 0.000001;
+                return rankings.map((row, index) => (
+                  <div key={row.key} className="grid grid-cols-12 gap-3 items-center text-sm">
+                    <div className="col-span-1 text-gray-600">{index + 1}</div>
                     <div className="col-span-5 truncate">
-                      <div>{r.product_name}</div>
+                      <div>{row.productName}</div>
                       <div className="text-xs text-gray-400">
-                        {r.selling_option_label || r.unit_label} - {getSaleItemUnitLabel({
-                          unitLabel: r.unit_label,
-                          packageSize: r.package_size,
-                          packageUnit: r.package_unit,
-                        })}
+                        {row.sellingOptionLabel || row.unitLabel} - {describeSellingUnit(row)}
                       </div>
                     </div>
-                    <div className="col-span-2 text-gray-500">{r.category || '—'}</div>
-                    <div className="col-span-2 text-right">{r.units}</div>
-                    <div className="col-span-2 text-right font-mono">{formatCurrency(r.revenue)}</div>
-                    <div className="col-span-12 md:col-span-12 mt-1">
+                    <div className="col-span-2 text-gray-500">{row.categoryName || '-'}</div>
+                    <div className="col-span-2 text-right">{row.netQuantity}</div>
+                    <div className="col-span-2 text-right font-mono">{formatCurrency(row.netRevenue)}</div>
+                    <div className="col-span-12 mt-1">
                       <div className="w-full bg-gray-100 rounded-full h-2">
-                        <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.round((r.revenue / totalRevenue) * 100)}%` }} />
+                        <div
+                          className="bg-blue-500 h-2 rounded-full"
+                          style={{ width: `${Math.round((row.netRevenue / totalRevenue) * 100)}%` }}
+                        />
                       </div>
                     </div>
                   </div>
@@ -232,7 +139,6 @@ export function RankingsPage() {
           </div>
         )}
       </div>
-
     </div>
   );
 }

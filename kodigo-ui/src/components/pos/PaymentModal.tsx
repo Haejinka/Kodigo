@@ -146,6 +146,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       items: items.map((i) => ({
         productId: i.product.id,
         productName: i.product.name,
+        categoryName: i.product.categoryName,
         sellingOptionId: isLegacySellingOption(i.sellingOption) ? undefined : i.sellingOption.id,
         sellingOptionLabel: getSellingOptionLabel(i.sellingOption),
         unitLabel: i.sellingOption.unitLabel,
@@ -154,6 +155,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         stockSource: isLegacySellingOption(i.sellingOption) ? 'product' : 'selling_option',
         quantity: i.quantity,
         unitPrice: i.sellingOption.sellingPrice,
+        costPrice: i.product.costPrice,
         lineTotal: i.lineTotal,
       })),
       subtotal: orderSubtotal,
