@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { CheckCircle, X, Printer, User } from 'lucide-react';
+import type { ComponentType } from 'react';
+import { CheckCircle, X, Printer, User, CreditCard, Smartphone, Banknote, Landmark } from 'lucide-react';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { openCashDrawer } from '@/lib/hardware';
 import { Button } from '@/components/shared/Button';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
 import { processSale } from '@/lib/offline-sync';
-import type { Sale } from '@/types';
+import type { PaymentMethod, Sale } from '@/types';
 
 interface PaymentModalProps {
   open: boolean;
@@ -16,20 +17,98 @@ interface PaymentModalProps {
 
 type Step = 'payment' | 'confirmed';
 
+const paymentMethods: Array<{ value: PaymentMethod; label: string; icon: ComponentType<{ className?: string }> }> = [
+  { value: 'cash', label: 'Cash', icon: Banknote },
+  { value: 'gcash', label: 'GCash', icon: Smartphone },
+  { value: 'card', label: 'Card', icon: CreditCard },
+  { value: 'bank_transfer', label: 'Bank', icon: Landmark },
+];
+
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char] ?? char));
+
+function printReceipt(sale: Sale) {
+  const receipt = window.open('', '_blank', 'width=380,height=640');
+  if (!receipt) return;
+
+  const itemRows = sale.items.map((item) => `
+    <tr>
+      <td>${escapeHtml(item.productName)} x${item.quantity}</td>
+      <td style="text-align:right">${formatCurrency(item.lineTotal)}</td>
+    </tr>
+  `).join('');
+
+  receipt.document.write(`
+    <html>
+      <head>
+        <title>${escapeHtml(sale.receiptNumber ?? sale.id)}</title>
+        <style>
+          body { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; width: 320px; padding: 12px; color: #111827; }
+          h1 { font-size: 18px; margin: 0 0 8px; text-align: center; }
+          p { margin: 2px 0; font-size: 12px; }
+          table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 12px; }
+          td { padding: 3px 0; vertical-align: top; }
+          .line { border-top: 1px dashed #9ca3af; margin: 8px 0; }
+          .total { font-weight: 700; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <h1>KodiGo POS</h1>
+        <p>Receipt: ${escapeHtml(sale.receiptNumber ?? sale.id)}</p>
+        <p>Cashier: ${escapeHtml(sale.cashierName)}</p>
+        <p>Time: ${escapeHtml(formatDateTime(sale.createdAt))}</p>
+        <div class="line"></div>
+        <table>${itemRows}</table>
+        <div class="line"></div>
+        <table>
+          <tr><td>Subtotal</td><td style="text-align:right">${formatCurrency(sale.subtotal)}</td></tr>
+          <tr><td>Discount</td><td style="text-align:right">-${formatCurrency(sale.discount)}</td></tr>
+          <tr><td>Tax (${sale.taxRate}%)</td><td style="text-align:right">${formatCurrency(sale.tax)}</td></tr>
+          <tr class="total"><td>Total</td><td style="text-align:right">${formatCurrency(sale.total)}</td></tr>
+          <tr><td>Payment</td><td style="text-align:right">${escapeHtml(sale.paymentMethod)}</td></tr>
+          <tr><td>Tendered</td><td style="text-align:right">${formatCurrency(sale.cashReceived)}</td></tr>
+          <tr><td>Change</td><td style="text-align:right">${formatCurrency(sale.change)}</td></tr>
+        </table>
+      </body>
+    </html>
+  `);
+  receipt.document.close();
+  receipt.focus();
+  receipt.print();
+}
+
 export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
-  const { items, total, clearCart } = useCartStore();
+  const {
+    items,
+    total,
+    subtotal,
+    taxAmount,
+    taxRate,
+    discountAmount,
+    discountType,
+    discountValue,
+    clearCart,
+  } = useCartStore();
   const { user, profile } = useAuthStore();
+  const orderSubtotal = subtotal();
+  const orderDiscount = discountAmount();
+  const orderTaxRate = taxRate();
+  const orderTax = taxAmount();
   const orderTotal = total();
 
   const [cashInput, setCashInput] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [paymentReference, setPaymentReference] = useState('');
   const [step, setStep] = useState<Step>('payment');
   const [processing, setProcessing] = useState(false);
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
 
   const cashAmount = parseFloat(cashInput) || 0;
-  const change = Math.max(0, cashAmount - orderTotal);
+  const isCash = paymentMethod === 'cash';
+  const tendered = isCash ? cashAmount : orderTotal;
+  const change = isCash ? Math.max(0, cashAmount - orderTotal) : 0;
   const stockIssue = items.find((i) => i.quantity > i.product.currentStock);
-  const canConfirm = items.length > 0 && cashAmount >= orderTotal && !stockIssue;
+  const canConfirm = items.length > 0 && (isCash ? cashAmount >= orderTotal : true) && !stockIssue;
 
   const quickAmounts = [
     Math.ceil(orderTotal / 50) * 50,
@@ -37,13 +116,13 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     Math.ceil(orderTotal / 500) * 500,
   ].filter((v, i, arr) => arr.indexOf(v) === i && v >= orderTotal);
 
-    const handleConfirm = async () => {
+  const handleConfirm = async () => {
     if (!canConfirm) return;
     setProcessing(true);
 
     const storeId = useAuthStore.getState().activeStoreId;
     if (!storeId || storeId === 'all') {
-      alert("Please select a specific store to process sales.");
+      alert('Please select a specific store to process sales.');
       setProcessing(false);
       return;
     }
@@ -65,25 +144,30 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         unitPrice: i.product.sellingPrice,
         lineTotal: i.lineTotal,
       })),
-      subtotal: orderTotal,
-      tax: 0,
-      discount: 0,
+      subtotal: orderSubtotal,
+      tax: orderTax,
+      taxRate: orderTaxRate,
+      discount: orderDiscount,
+      discountType,
+      discountValue,
       total: orderTotal,
-      cashReceived: cashAmount,
+      cashReceived: tendered,
       change,
+      paymentMethod,
+      paymentReference: paymentReference.trim() || undefined,
       cashierId: user?.id || null,
-      cashierName: profile?.name || user?.user_metadata?.name || user?.email || "Unknown Cashier",
+      cashierName: profile?.name || user?.user_metadata?.name || user?.email || 'Unknown Cashier',
       createdAt: new Date().toISOString(),
     };
 
     try {
-      await processSale(sale);
-      await openCashDrawer();
-      setCompletedSale(sale);
-      setStep("confirmed");
+      const recordedSale = await processSale(sale);
+      if (paymentMethod === 'cash') await openCashDrawer();
+      setCompletedSale(recordedSale);
+      setStep('confirmed');
     } catch (err) {
       console.error(err);
-      alert(err instanceof Error ? err.message : "Failed to process transaction.");
+      alert(err instanceof Error ? err.message : 'Failed to process transaction.');
     } finally {
       setProcessing(false);
     }
@@ -92,6 +176,8 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const handleDone = () => {
     clearCart();
     setCashInput('');
+    setPaymentMethod('cash');
+    setPaymentReference('');
     setStep('payment');
     setCompletedSale(null);
     onSuccess();
@@ -104,7 +190,6 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/60" onClick={step === 'payment' ? onClose : undefined} />
       <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-bold text-gray-900">
             {step === 'payment' ? 'Process Payment' : 'Payment Successful'}
@@ -118,63 +203,103 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
 
         {step === 'payment' ? (
           <div className="p-6 space-y-5">
-            {/* Order summary */}
             <div className="bg-gray-50 rounded-xl p-4 space-y-2">
               {items.map((item) => (
                 <div key={item.product.id} className="flex justify-between text-sm">
                   <span className="text-gray-600 truncate flex-1 mr-2">
-                    {item.product.name} ×{item.quantity}
+                    {item.product.name} x{item.quantity}
                   </span>
                   <span className="font-mono text-gray-900 font-medium">{formatCurrency(item.lineTotal)}</span>
                 </div>
               ))}
-              <div className="pt-2 border-t border-gray-200 flex justify-between font-bold text-gray-900">
-                <span>Total</span>
-                <span className="font-mono text-blue-600 text-xl">{formatCurrency(orderTotal)}</span>
+              <div className="pt-2 border-t border-gray-200 space-y-1">
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Discount</span>
+                  <span className="font-mono">-{formatCurrency(orderDiscount)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Tax ({orderTaxRate}%)</span>
+                  <span className="font-mono">{formatCurrency(orderTax)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-gray-900">
+                  <span>Total</span>
+                  <span className="font-mono text-blue-600 text-xl">{formatCurrency(orderTotal)}</span>
+                </div>
               </div>
             </div>
 
-            {/* Cash input */}
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1.5 block">Cash Received</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">₱</span>
+            <div className="grid grid-cols-4 gap-2">
+              {paymentMethods.map((method) => {
+                const Icon = method.icon;
+                const active = paymentMethod === method.value;
+                return (
+                  <button
+                    key={method.value}
+                    type="button"
+                    onClick={() => setPaymentMethod(method.value)}
+                    className={[
+                      'h-16 rounded-xl border text-xs font-semibold flex flex-col items-center justify-center gap-1 transition',
+                      active ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50',
+                    ].join(' ')}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {method.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {isCash ? (
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1.5 block">Cash Received</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">PHP</span>
+                  <input
+                    type="number"
+                    value={cashInput}
+                    onChange={(e) => setCashInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && canConfirm) {
+                        e.preventDefault();
+                        handleConfirm();
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        onClose();
+                      }
+                    }}
+                    placeholder="0.00"
+                    className="w-full pl-12 pr-4 py-3 text-xl font-mono font-bold border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-gray-900"
+                    autoFocus
+                    min={0}
+                  />
+                </div>
+
+                <div className="flex gap-2 mt-2">
+                  {quickAmounts.slice(0, 3).map((amt) => (
+                    <button
+                      key={amt}
+                      onClick={() => setCashInput(String(amt))}
+                      className="flex-1 py-2 text-sm font-semibold font-mono bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    >
+                      {formatCurrency(amt)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1.5 block">Reference Number</label>
                 <input
-                  type="number"
-                  value={cashInput}
-                  onChange={(e) => setCashInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && canConfirm) {
-                      e.preventDefault();
-                      handleConfirm();
-                    } else if (e.key === 'Escape') {
-                      e.preventDefault();
-                      onClose();
-                    }
-                  }}
-                  placeholder="0.00"
-                  className="w-full pl-8 pr-4 py-3 text-xl font-mono font-bold border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-gray-900"
+                  value={paymentReference}
+                  onChange={(e) => setPaymentReference(e.target.value)}
+                  placeholder="Optional"
+                  className="w-full px-3 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-gray-900"
                   autoFocus
-                  min={0}
                 />
               </div>
+            )}
 
-              {/* Quick amounts */}
-              <div className="flex gap-2 mt-2">
-                {quickAmounts.slice(0, 3).map((amt) => (
-                  <button
-                    key={amt}
-                    onClick={() => setCashInput(String(amt))}
-                    className="flex-1 py-2 text-sm font-semibold font-mono bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                  >
-                    ₱{amt}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Change display */}
-            {cashAmount >= orderTotal && (
+            {isCash && cashAmount >= orderTotal && (
               <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex justify-between items-center">
                 <span className="text-sm font-medium text-green-700">Change</span>
                 <span className="text-xl font-bold font-mono text-green-700">{formatCurrency(change)}</span>
@@ -193,19 +318,17 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
             </Button>
           </div>
         ) : (
-          /* Success screen */
           <div className="p-8 flex flex-col items-center text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
             <h3 className="text-xl font-bold text-gray-900 mb-1">Payment Complete</h3>
             <p className="text-gray-500 text-sm mb-2">Transaction recorded successfully</p>
-            <p className="text-2xl font-bold font-mono text-gray-900 mb-1">{formatCurrency(orderTotal)}</p>
+            <p className="text-2xl font-bold font-mono text-gray-900 mb-1">{formatCurrency(completedSale?.total ?? orderTotal)}</p>
             <p className="text-sm text-green-600 font-semibold font-mono mb-4">
-              Change: {formatCurrency(change)}
+              Change: {formatCurrency(completedSale?.change ?? change)}
             </p>
 
-            {/* Transaction metadata */}
             <div className="w-full bg-gray-50 rounded-xl px-4 py-3 mb-6 space-y-1.5 text-left">
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <span className="flex items-center gap-1.5">
@@ -215,30 +338,30 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                 <span className="font-medium text-gray-700">{completedSale?.cashierName ?? profile?.name ?? user?.email}</span>
               </div>
               <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>Transaction ID</span>
-                <span className="font-mono text-gray-600">{completedSale?.id ?? '—'}</span>
+                <span>Receipt</span>
+                <span className="font-mono text-gray-600">{completedSale?.receiptNumber ?? completedSale?.id ?? '-'}</span>
               </div>
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <span>Time</span>
                 <span className="font-mono text-gray-600">
-                  {completedSale ? formatDateTime(completedSale.createdAt) : '—'}
+                  {completedSale ? formatDateTime(completedSale.createdAt) : '-'}
                 </span>
               </div>
             </div>
 
             <div className="flex gap-3 w-full">
               <button
-                onClick={handleDone}
+                onClick={() => completedSale && printReceipt(completedSale)}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
               >
                 <Printer className="w-4 h-4" />
                 Print Receipt
               </button>
             </div>
-            
+
             <div className="mt-3 w-full">
               <Button autoFocus variant="primary" size="md" onClick={handleDone} className="w-full text-base py-3">
-                New Transaction (Enter)
+                New Transaction
               </Button>
             </div>
           </div>
@@ -247,4 +370,3 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     </div>
   );
 }
-

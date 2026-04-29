@@ -5,6 +5,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { useAuthStore } from '@/stores/authStore';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { syncPendingMutations, syncPendingSales } from '@/lib/offline-sync';
+import { installGlobalErrorLogging } from '@/lib/error-logging';
 
 import { useProductStore } from '@/stores/productStore';
 import { useSupplierStore } from '@/stores/supplierStore';
@@ -125,6 +126,13 @@ function AppRoutes() {
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  useEffect(() => {
+    return installGlobalErrorLogging(() => {
+      const storeId = useAuthStore.getState().activeStoreId;
+      return storeId && storeId !== 'all' ? storeId : null;
+    });
+  }, []);
 
   useEffect(() => {
     void revalidateData();

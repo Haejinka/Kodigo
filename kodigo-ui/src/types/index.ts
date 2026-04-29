@@ -106,6 +106,7 @@ export interface CartItem {
 // ─── Sales ───────────────────────────────────────────────────────────────────
 
 export interface SaleItem {
+  id?: string;
   productId: string;
   productName: string;
   quantity: number;
@@ -113,18 +114,65 @@ export interface SaleItem {
   lineTotal: number;
 }
 
+export type PaymentMethod = 'cash' | 'gcash' | 'card' | 'bank_transfer' | 'other';
+export type DiscountType = 'amount' | 'percent';
+export type SaleStatus = 'completed' | 'voided' | 'partially_refunded' | 'refunded';
+
 export interface Sale {
   id: string;
   storeId: string;
   items: SaleItem[];
   subtotal: number;
   tax: number;
+  taxRate: number;
+  discount: number;
+  discountType: DiscountType;
+  discountValue: number;
+  total: number;
+  cashReceived: number;
+  change: number;
+  paymentMethod: PaymentMethod;
+  paymentReference?: string;
+  receiptNumber?: string;
+  status?: SaleStatus;
+  cashierId: string | null;
+  cashierName: string;
+  createdAt: string;
+}
+
+export interface SaleRecord {
+  id: string;
+  storeId: string;
+  cashierId: string | null;
+  subtotal: number;
+  tax: number;
   discount: number;
   total: number;
   cashReceived: number;
   change: number;
-  cashierId: string | null;
-  cashierName: string;
+  paymentMethod: PaymentMethod;
+  paymentReference?: string;
+  discountType: DiscountType;
+  discountValue: number;
+  taxRate: number;
+  receiptNumber?: string;
+  status: SaleStatus;
+  createdAt: string;
+}
+
+export interface CashierCloseout {
+  id: string;
+  storeId: string;
+  cashierId: string;
+  periodStart: string;
+  periodEnd: string;
+  openingCash: number;
+  cashSales: number;
+  cashRefunds: number;
+  expectedCash: number;
+  countedCash: number;
+  variance: number;
+  notes: string;
   createdAt: string;
 }
 

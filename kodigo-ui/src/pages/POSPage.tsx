@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Store, Hash, LogOut } from 'lucide-react';
+import { Clock, Store, Hash, LogOut, ReceiptText } from 'lucide-react';
 import { ProductSearchPanel } from '@/components/pos/ProductSearchPanel';
 import { Cart } from '@/components/pos/Cart';
 import { PaymentModal } from '@/components/pos/PaymentModal';
+import { TransactionLifecyclePanel } from '@/components/pos/TransactionLifecyclePanel';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -24,6 +25,7 @@ export function POSPage() {
   const activeStoreName = stores.find(s => s.id === activeStoreId)?.name || 'Unknown Store';
   const navigate = useNavigate();
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [lifecycleOpen, setLifecycleOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const clock = useClock();
 
@@ -159,6 +161,17 @@ export function POSPage() {
         <div className="w-px h-5 bg-gray-200" />
 
         <button
+          onClick={() => setLifecycleOpen(true)}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-blue-700 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg transition-colors"
+          title="Transactions and closeout"
+        >
+          <ReceiptText className="w-4 h-4" />
+          <span className="hidden sm:inline">Transactions</span>
+        </button>
+
+        <div className="w-px h-5 bg-gray-200" />
+
+        <button
           onClick={() => setLogoutOpen(true)}
           className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors"
           title="Logout"
@@ -193,6 +206,14 @@ export function POSPage() {
         onClose={() => setPaymentOpen(false)}
         onSuccess={() => setPaymentOpen(false)}
       />
+
+      {activeStoreId && activeStoreId !== 'all' && (
+        <TransactionLifecyclePanel
+          open={lifecycleOpen}
+          storeId={activeStoreId}
+          onClose={() => setLifecycleOpen(false)}
+        />
+      )}
 
       {/* Logout Confirm */}
       <ConfirmDialog

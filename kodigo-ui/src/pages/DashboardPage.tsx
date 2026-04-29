@@ -56,7 +56,7 @@ export function DashboardPage() {
             const { data: items, error: itemsErr } = await supabase.from('sale_items').select('product_id,quantity,line_total,sale_id').in('sale_id', saleIds);
             if (!itemsErr && items && items.length > 0) {
               const productIds = Array.from(new Set(items.map((it: any) => it.product_id).filter(Boolean)));
-              let costMap: Record<string, number> = {};
+              const costMap: Record<string, number> = {};
               if (productIds.length > 0) {
                 const { data: prods, error: prodsErr } = await supabase.from('products').select('id,cost_price').in('id', productIds);
                 if (!prodsErr && prods) {

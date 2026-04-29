@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   Settings, Users, Store, Bell, Shield, X,
@@ -9,8 +9,9 @@ import { useToast } from '@/components/shared/Toast';
 import type { User, Store as StoreType } from '@/types';
 import { Badge } from '@/components/shared/Badge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { cn, hashPassword } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
+import { createManagedUser, listManagedUsers, removeManagedUser, updateManagedUser } from '@/lib/admin-users';
 
 const inputCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
 
@@ -288,7 +289,7 @@ const selectCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg 
 
 interface EditUserModalProps {
   user: User;
-  onSave: (updated: User) => void;
+  onSave: (updated: User) => Promise<void>;
   onClose: () => void;
 }
 
@@ -297,7 +298,7 @@ function EditUserModal({ user, onSave, onClose }: EditUserModalProps) {
   const { stores } = useAuthStore();
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
-  const [role, setRole] = useState<any>(user.role);
+  const [role, setRole] = useState<'admin' | 'cashier'>(user.role === 'admin' ? 'admin' : 'cashier');
   const [storeId, setStoreId] = useState(user.storeId || '');
   const [saving, setSaving] = useState(false);
 
@@ -305,12 +306,16 @@ function EditUserModal({ user, onSave, onClose }: EditUserModalProps) {
     e.preventDefault();
     if (!name.trim()) { toast('error', 'Name is required.'); return; }
     if (!email.trim() || !email.includes('@')) { toast('error', 'A valid email is required.'); return; }
+    if (!storeId) { toast('error', 'Store assignment is required.'); return; }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    onSave({ ...user, name: name.trim(), email: email.trim(), role, storeId });
-    toast('success', 'User updated successfully.');
-    setSaving(false);
-    onClose();
+    try {
+      await onSave({ ...user, name: name.trim(), email: email.trim(), role, storeId });
+      onClose();
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Failed to update user.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -399,7 +404,7 @@ function EditUserModal({ user, onSave, onClose }: EditUserModalProps) {
 }
 
 interface CreateUserModalProps {
-  onCreate: (user: User) => void;
+  onCreate: (input: { name: string; email: string; password: string; role: 'admin' | 'cashier'; storeId: string }) => Promise<void>;
   onClose: () => void;
 }
 
@@ -410,8 +415,8 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<any>('cashier');
-  const [storeId, setStoreId] = useState(activeStoreId || '');
+  const [role, setRole] = useState<'admin' | 'cashier'>('cashier');
+  const [storeId, setStoreId] = useState(activeStoreId && activeStoreId !== 'all' ? activeStoreId : stores[0]?.id ?? '');
   const [creating, setCreating] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -421,32 +426,23 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
     if (!password) { toast('error', 'Password is required.'); return; }
     if (password.length < 6) { toast('error', 'Password must be at least 6 characters.'); return; }
     if (password !== confirmPassword) { toast('error', 'Passwords do not match.'); return; }
+    if (!storeId || storeId === 'all') { toast('error', 'Store assignment is required.'); return; }
     
     setCreating(true);
-    // Placeholder until user creation is wired to a server-side Supabase Auth admin flow.
-    await new Promise((r) => setTimeout(r, 600));
-    
-    const passwordHash = await hashPassword(password);
-    
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      name: name.trim(),
-      email: email.trim(),
-      role,
-      passwordHash,
-      storeId
-    };
-    
     try {
-      console.warn('createUser not implemented in authStore');
-      onCreate(newUser);
-      toast('success', `${role === 'admin' ? 'Admin' : 'User'} created successfully.`);
-    } catch (err: any) {
-      toast('error', err.message || 'Failed to create user. Ensure you have admin permissions.');
+      await onCreate({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        role,
+        storeId,
+      });
+      onClose();
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Failed to create user. Ensure you have admin permissions.');
+    } finally {
+      setCreating(false);
     }
-    
-    setCreating(false);
-    onClose();
   };
 
   return (
@@ -552,24 +548,59 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
 
 export function UserManagementPage() {
   const { toast } = useToast();
-  const { stores } = useAuthStore();
+  const { stores, activeStoreId } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [editTarget, setEditTarget] = useState<User | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
-  const handleEditSave = (updated: User) => {
-    setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+  const scopedStoreId = activeStoreId && activeStoreId !== 'all' ? activeStoreId : undefined;
+
+  const refreshUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      setUsers(await listManagedUsers(scopedStoreId));
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Failed to load users.');
+    } finally {
+      setLoadingUsers(false);
+    }
   };
 
-  const handleCreate = () => {
-    setUsers([]);
+  useEffect(() => {
+    void refreshUsers();
+  }, [scopedStoreId]);
+
+  const handleEditSave = async (updated: User) => {
+    if (updated.role !== 'admin' && updated.role !== 'cashier') return;
+    const saved = await updateManagedUser({
+      userId: updated.id,
+      name: updated.name,
+      email: updated.email,
+      role: updated.role,
+      storeId: updated.storeId || '',
+    });
+    setUsers((prev) => prev.map((u) => (u.id === saved.id ? saved : u)));
+    toast('success', 'User updated successfully.');
   };
 
-  const handleRemove = () => {
-    setUsers((prev) => prev.filter((u) => u.id !== deleteTarget?.id));
-    toast('success', `${deleteTarget?.name} has been removed.`);
-    setDeleteTarget(null);
+  const handleCreate = async (input: { name: string; email: string; password: string; role: 'admin' | 'cashier'; storeId: string }) => {
+    const created = await createManagedUser(input);
+    setUsers((prev) => [created, ...prev]);
+    toast('success', `${created.role === 'admin' ? 'Admin' : 'User'} created successfully.`);
+  };
+
+  const handleRemove = async () => {
+    if (!deleteTarget) return;
+    try {
+      await removeManagedUser(deleteTarget.id);
+      setUsers((prev) => prev.filter((u) => u.id !== deleteTarget.id));
+      toast('success', `${deleteTarget.name} has been removed.`);
+      setDeleteTarget(null);
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Failed to remove user.');
+    }
   };
 
   return (
@@ -582,7 +613,11 @@ export function UserManagementPage() {
           </Button>
         </div>
         <ul className="divide-y divide-gray-50">
-          {users.map((u) => {
+          {loadingUsers ? (
+            <li className="px-5 py-8 text-center text-sm text-gray-500">Loading users...</li>
+          ) : users.length === 0 ? (
+            <li className="px-5 py-8 text-center text-sm text-gray-500">No users found for your assigned stores.</li>
+          ) : users.map((u) => {
             const assignedStore = stores.find(s => s.id === u.storeId);
             return (
             <li key={u.id} className="flex items-center gap-4 px-5 py-4">

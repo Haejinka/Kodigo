@@ -104,11 +104,48 @@ export async function queueSaleOffline(sale: Sale) {
   }));
 }
 
-/** Attempt to push a single sale to Supabase */
-async function pushSaleToSupabase(sale: Sale): Promise<void> {
-  const { id, storeId, cashierId, subtotal, tax, discount, total, cashReceived, change, items } = sale;
+function mapSaleResponse(sale: Sale, row: any | null): Sale {
+  if (!row) return sale;
+  return {
+    ...sale,
+    subtotal: Number(row.subtotal ?? sale.subtotal),
+    tax: Number(row.tax ?? sale.tax),
+    taxRate: Number(row.tax_rate ?? sale.taxRate),
+    discount: Number(row.discount ?? sale.discount),
+    discountType: row.discount_type ?? sale.discountType,
+    discountValue: Number(row.discount_value ?? sale.discountValue),
+    total: Number(row.total ?? sale.total),
+    cashReceived: Number(row.cash_received ?? sale.cashReceived),
+    change: Number(row.change ?? sale.change),
+    paymentMethod: row.payment_method ?? sale.paymentMethod,
+    paymentReference: row.payment_reference ?? sale.paymentReference,
+    receiptNumber: row.receipt_number ?? sale.receiptNumber,
+    status: row.status ?? sale.status,
+    createdAt: row.created_at ?? sale.createdAt,
+  };
+}
 
-  const { error } = await supabase.rpc('process_pos_sale', {
+/** Attempt to push a single sale to Supabase */
+async function pushSaleToSupabase(sale: Sale): Promise<Sale> {
+  const {
+    id,
+    storeId,
+    cashierId,
+    subtotal,
+    tax,
+    taxRate,
+    discount,
+    discountType,
+    discountValue,
+    total,
+    cashReceived,
+    change,
+    items,
+    paymentMethod,
+    paymentReference,
+  } = sale;
+
+  const { data, error } = await supabase.rpc('process_pos_sale_v2', {
     p_id: id,
     p_store_id: storeId,
     p_cashier_id: cashierId,
@@ -119,9 +156,15 @@ async function pushSaleToSupabase(sale: Sale): Promise<void> {
     p_cash_received: cashReceived,
     p_change: change,
     p_items: items,
+    p_payment_method: paymentMethod,
+    p_payment_reference: paymentReference ?? null,
+    p_discount_type: discountType,
+    p_discount_value: discountValue,
+    p_tax_rate: taxRate,
   });
 
   if (error) throw error;
+  return mapSaleResponse(sale, data);
 }
 
 /** Push all pending sales when connection is restored */
@@ -152,20 +195,21 @@ export async function syncPendingSales() {
 }
 
 /** Process a sale. Tries to push to Supabase immediately; if it fails or offline, it queues locally. */
-export async function processSale(sale: Sale) {
+export async function processSale(sale: Sale): Promise<Sale> {
   if (typeof window !== 'undefined' && !navigator.onLine) {
     console.log('[Sync] Offline, queueing sale locally:', sale.id);
     await queueSaleOffline(sale);
-    return;
+    return sale;
   }
   try {
-    await pushSaleToSupabase(sale);
+    return await pushSaleToSupabase(sale);
   } catch (err: any) {
     if (isDatabaseRejection(err)) {
       throw err;
     }
     console.error('[Sync] Failed to push to Supabase, queueing locally:', err);
     await queueSaleOffline(sale);
+    return sale;
   }
 }
 

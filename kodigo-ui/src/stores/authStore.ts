@@ -15,15 +15,13 @@ const resolveRole = (user: any, profile: any): UserRole | null => {
 
   const explicitlySet = 
     checkRole(profile?.role) ||
-    checkRole(user?.user_metadata?.role) ||
-    checkRole(user?.app_metadata?.role) ||
-    (user?.role && user.role !== 'authenticated' && user.role !== 'anon' ? checkRole(user.role) : null);
+    checkRole(user?.app_metadata?.role);
 
   if (explicitlySet) return explicitlySet;
 
-  // Rescue checks for common manual DB modifications
-  if (user?.app_metadata?.is_super_admin === true || user?.user_metadata?.is_super_admin === true) return 'super_admin';
-  if (user?.app_metadata?.is_admin === true || user?.user_metadata?.is_admin === true) return 'admin';
+  // App metadata is server-controlled in Supabase Auth; user metadata is intentionally ignored.
+  if (user?.app_metadata?.is_super_admin === true) return 'super_admin';
+  if (user?.app_metadata?.is_admin === true) return 'admin';
   
   // If the user literally has no row in `public.profiles` due to a DB trigger bug during creation,
   // we must refuse entry to prevent corrupted state instead of defaulting to cashier.

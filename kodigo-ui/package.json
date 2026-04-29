@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
+    "typecheck": "tsc -b",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test:integration": "node scripts/integration-checkout-stock-rls.mjs",
+    "ci": "npm run typecheck && npm run lint && npm run build && npm run test:integration",
     "preview": "vite preview"
   },
   "dependencies": {

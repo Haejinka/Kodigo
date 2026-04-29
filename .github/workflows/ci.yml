@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kodigo-ui
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: kodigo-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Integration tests
+        run: npm run test:integration
+        env:
+          RUN_INTEGRATION_TESTS: ${{ secrets.KODIGO_RUN_INTEGRATION_TESTS }}
+          KODIGO_TEST_SUPABASE_URL: ${{ secrets.KODIGO_TEST_SUPABASE_URL }}
+          KODIGO_TEST_SUPABASE_ANON_KEY: ${{ secrets.KODIGO_TEST_SUPABASE_ANON_KEY }}
+          KODIGO_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.KODIGO_TEST_SUPABASE_SERVICE_ROLE_KEY }}
