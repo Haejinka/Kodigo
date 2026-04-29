@@ -28,7 +28,7 @@ export function EditSupplierPage() {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-7xl">
       <PageHeader
         title={`Edit: ${supplier.name}`}
         subtitle={`Contact: ${supplier.contact}`}

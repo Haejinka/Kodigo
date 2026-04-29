@@ -34,7 +34,7 @@ export function EditProductPage() {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-7xl">
       <PageHeader
         title={`Edit: ${product.name}`}
         subtitle={`SKU: ${product.sku}`}

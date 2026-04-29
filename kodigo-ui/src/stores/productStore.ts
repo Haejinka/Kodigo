@@ -13,6 +13,10 @@ interface ProductStore {
   stockAdjustments: StockAdjustment[];
   isLoading: boolean;
   fetchCategories: (storeId: string) => Promise<void>;
+  seedDefaultCategories: (storeId: string) => Promise<Category[]>;
+  addCategory: (storeId: string, name: string) => Promise<Category | undefined>;
+  renameCategory: (categoryId: string, name: string, storeId?: string) => Promise<void>;
+  deleteCategory: (categoryId: string, storeId?: string) => Promise<void>;
   fetchProducts: () => Promise<void>;
   fetchStockAdjustments: () => Promise<void>;
   addProduct: (data: ProductFormData, supplierName?: string) => Promise<Product | undefined>;
@@ -22,16 +26,48 @@ interface ProductStore {
   openSackToKilo: (id: string, sackOptionId: string, kiloOptionId: string, sacks: number, note: string) => Promise<void>;
 }
 
-const STATIC_CATEGORIES: Category[] = [
-  { id: 'c1', name: 'Beverages' },
-  { id: 'c2', name: 'Snacks' },
-  { id: 'c3', name: 'Personal Care' },
-  { id: 'c4', name: 'Canned Goods' },
-  { id: 'c5', name: 'Condiments' },
-  { id: 'c6', name: 'Dairy' },
-  { id: 'c7', name: 'Household' },
-  { id: 'c8', name: 'Tobacco' },
+export const DEFAULT_CATEGORY_NAMES = [
+  'Beverages',
+  'Snacks',
+  'Personal Care',
+  'Canned Goods',
+  'Condiments',
+  'Dairy',
+  'Household',
+  'Tobacco',
 ];
+
+const DEFAULT_CATEGORY_NAME_SET = new Set(DEFAULT_CATEGORY_NAMES.map((name) => name.toLowerCase()));
+
+export const isDefaultCategoryName = (name: string) => DEFAULT_CATEGORY_NAME_SET.has(name.trim().toLowerCase());
+
+const STATIC_CATEGORIES: Category[] = DEFAULT_CATEGORY_NAMES.map((name, index) => ({
+  id: `default-${index + 1}`,
+  name,
+}));
+
+const normalizeCategoryName = (name: string) => name.trim().replace(/\s+/g, ' ');
+
+const mapCategoryRows = (rows: any[] = []): Category[] => {
+  return rows
+    .map((row) => ({ id: row.id, name: row.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+};
+
+const getActiveCategoryStoreId = (fallback?: string) => {
+  const storeId = fallback || useAuthStore.getState().activeStoreId;
+  return storeId && storeId !== 'all' ? storeId : undefined;
+};
+
+const toCategoryError = (err: any) => {
+  if (err?.code === '23505') {
+    return new Error('A category with that name already exists for this store.');
+  }
+  if (err?.code === '23503') {
+    return new Error('This category is assigned to products. Move those products to another category before deleting it.');
+  }
+  return err;
+};
 
 const mapSellingOption = (row: any): ProductSellingOption => ({
   id: row.id,
@@ -131,35 +167,40 @@ const getCompatibilityOption = (options: ProductSellingOption[], data: ProductFo
     };
 };
 
-export const useProductStore = create<ProductStore & {
-  addCategory: (storeId: string, name: string) => Promise<void>;
-  renameCategory: (categoryId: string, name: string) => Promise<void>;
-  deleteCategory: (categoryId: string) => Promise<void>;
-}>((set, get) => ({
+export const useProductStore = create<ProductStore>((set, get) => ({
     addCategory: async (storeId, name) => {
-      if (!storeId || !name.trim()) return;
+      if (!storeId || storeId === 'all') throw new Error('Select a store before adding categories.');
+      const normalizedName = normalizeCategoryName(name);
+      if (!normalizedName) return undefined;
+      const duplicate = get().categories.some((category) => category.name.trim().toLowerCase() === normalizedName.toLowerCase());
+      if (duplicate) throw new Error('A category with that name already exists for this store.');
+
       const id = crypto.randomUUID();
-      const { error } = await supabase.from('categories').insert({ id, store_id: storeId, name });
-      if (error) throw error;
-      // Refresh categories
+      const { error } = await supabase.from('categories').insert({ id, store_id: storeId, name: normalizedName });
+      if (error) throw toCategoryError(error);
       await get().fetchCategories(storeId);
+      return { id, name: normalizedName };
     },
 
-    renameCategory: async (categoryId, name) => {
-      if (!categoryId || !name.trim()) return;
-      const { error } = await supabase.from('categories').update({ name }).eq('id', categoryId);
-      if (error) throw error;
-      // Refresh categories
-      const storeId = useAuthStore.getState().activeStoreId;
+    renameCategory: async (categoryId, name, refreshStoreId) => {
+      const normalizedName = normalizeCategoryName(name);
+      if (!categoryId || !normalizedName) return;
+      const duplicate = get().categories.some((category) =>
+        category.id !== categoryId && category.name.trim().toLowerCase() === normalizedName.toLowerCase()
+      );
+      if (duplicate) throw new Error('A category with that name already exists for this store.');
+
+      const { error } = await supabase.from('categories').update({ name: normalizedName }).eq('id', categoryId);
+      if (error) throw toCategoryError(error);
+      const storeId = getActiveCategoryStoreId(refreshStoreId);
       if (storeId) await get().fetchCategories(storeId);
     },
 
-    deleteCategory: async (categoryId) => {
+    deleteCategory: async (categoryId, refreshStoreId) => {
       if (!categoryId) return;
       const { error } = await supabase.from('categories').delete().eq('id', categoryId);
-      if (error) throw error;
-      // Refresh categories
-      const storeId = useAuthStore.getState().activeStoreId;
+      if (error) throw toCategoryError(error);
+      const storeId = getActiveCategoryStoreId(refreshStoreId);
       if (storeId) await get().fetchCategories(storeId);
     },
   categories: [],
@@ -169,33 +210,55 @@ export const useProductStore = create<ProductStore & {
 
   fetchCategories: async (storeId) => {
     if (!storeId || storeId === 'all') {
-      // In combined view, we don't fetch or insert categories, just use static for display fallback
+      // In combined view, keep static labels only as a display fallback.
       if (get().categories.length === 0) set({ categories: STATIC_CATEGORIES });
       return;
     }
     try {
       if (!navigator.onLine) throw new Error('Offline');
-      const { data, error } = await supabase.from('categories').select('*').eq('store_id', storeId);
+      const { data, error } = await supabase
+        .from('categories')
+        .select('id,name')
+        .eq('store_id', storeId)
+        .order('name', { ascending: true });
       if (error) throw error;
-      
-      if (!data || data.length === 0) {
-        // Seed database with default categories for this store with valid UUIDs
-        const newCats = STATIC_CATEGORIES.map(c => ({
-          id: crypto.randomUUID(),
-          store_id: storeId,
-          name: c.name
-        }));
-        const { error: insertError } = await supabase.from('categories').insert(newCats);
-        if (insertError) throw insertError;
-        set({ categories: newCats.map(c => ({ id: c.id, name: c.name })) });
-      } else {
-        set({ categories: data.map(c => ({ id: c.id, name: c.name })) });
-      }
+      set({ categories: mapCategoryRows(data || []) });
     } catch (err) {
-      console.warn("Failed to fetch/seed categories", err);
+      console.warn("Failed to fetch categories", err);
       // For a specific store, keep categories empty to avoid invalid static IDs in FK category_id fields.
       set({ categories: [] });
     }
+  },
+
+  seedDefaultCategories: async (storeId) => {
+    if (!storeId || storeId === 'all') throw new Error('Select a store before restoring default categories.');
+    const { data, error } = await supabase
+      .from('categories')
+      .select('id,name')
+      .eq('store_id', storeId);
+    if (error) throw toCategoryError(error);
+
+    const existing = mapCategoryRows(data || []);
+    const existingNames = new Set(existing.map((category) => category.name.trim().toLowerCase()));
+    const missingNames = DEFAULT_CATEGORY_NAMES.filter((name) => !existingNames.has(name.toLowerCase()));
+
+    let inserted: Category[] = [];
+    if (missingNames.length > 0) {
+      const rows = missingNames.map((name) => ({
+        id: crypto.randomUUID(),
+        store_id: storeId,
+        name,
+      }));
+      const { data: insertedRows, error: insertError } = await supabase
+        .from('categories')
+        .insert(rows)
+        .select('id,name');
+      if (insertError) throw toCategoryError(insertError);
+      inserted = mapCategoryRows(insertedRows || rows);
+    }
+
+    set({ categories: mapCategoryRows([...existing, ...inserted]) });
+    return inserted;
   },
 
   fetchProducts: async () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Sliders, History, PackageOpen } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -11,7 +11,7 @@ import { StockAdjustmentModal } from '@/components/inventory/StockAdjustmentModa
 import { StockAdjustmentLog } from '@/components/inventory/StockAdjustmentLog';
 import { useToast } from '@/components/shared/Toast';
 import { formatCurrency } from '@/lib/utils';
-import { useProductStore } from '@/stores/productStore';
+import { isDefaultCategoryName, useProductStore } from '@/stores/productStore';
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 import {
@@ -25,16 +25,24 @@ import type { Column } from '@/components/shared/DataTable';
 
 type Tab = 'products' | 'log';
 
-// Category Management Modal (scaffold)
-import { useEffect } from 'react';
-import { useRef } from 'react';
 function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onClose: () => void; storeId: string }) {
-  const { categories, fetchCategories, addCategory, renameCategory, deleteCategory } = useProductStore();
+  const { toast } = useToast();
+  const { categories, products, fetchCategories, seedDefaultCategories, addCategory, renameCategory, deleteCategory } = useProductStore();
   const [newCat, setNewCat] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const usedCategoryIds = useMemo(() => {
+    return new Set(products.filter((product) => product.storeId === storeId).map((product) => product.categoryId));
+  }, [products, storeId]);
+  const defaultCategories = useMemo(() => {
+    return categories.filter((category) => isDefaultCategoryName(category.name));
+  }, [categories]);
+  const unusedDefaultCategories = useMemo(() => {
+    return defaultCategories.filter((category) => !usedCategoryIds.has(category.id));
+  }, [defaultCategories, usedCategoryIds]);
+
   useEffect(() => {
     if (open && storeId) fetchCategories(storeId);
     setNewCat('');
@@ -48,78 +56,164 @@ function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onCl
     try {
       await addCategory(storeId, newCat.trim());
       setNewCat('');
+      toast('success', 'Category added.');
       if (inputRef.current) inputRef.current.focus();
+    } catch (err: any) {
+      toast('error', err?.message || 'Failed to add category.');
     } finally {
       setLoading(false);
     }
   };
+
   const handleRename = async (id: string) => {
     if (!editingName.trim()) return;
     setLoading(true);
     try {
-      await renameCategory(id, editingName.trim());
+      await renameCategory(id, editingName.trim(), storeId);
       setEditingId(null);
       setEditingName('');
+      toast('success', 'Category renamed.');
+    } catch (err: any) {
+      toast('error', err?.message || 'Failed to rename category.');
     } finally {
       setLoading(false);
     }
   };
-  const handleDelete = async (id: string) => {
+
+  const handleDelete = async (id: string, isUsed: boolean) => {
+    if (isUsed) {
+      toast('warning', 'Move products to another category before deleting this one.');
+      return;
+    }
     if (!window.confirm('Delete this category? This cannot be undone.')) return;
     setLoading(true);
     try {
-      await deleteCategory(id);
+      await deleteCategory(id, storeId);
+      toast('success', 'Category deleted.');
+    } catch (err: any) {
+      toast('error', err?.message || 'Failed to delete category.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestoreDefaults = async () => {
+    setLoading(true);
+    try {
+      const restored = await seedDefaultCategories(storeId);
+      toast(restored.length > 0 ? 'success' : 'info', restored.length > 0 ? 'Default categories restored.' : 'Default categories are already available.');
+    } catch (err: any) {
+      toast('error', err?.message || 'Failed to restore default categories.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveUnusedDefaults = async () => {
+    if (unusedDefaultCategories.length === 0) {
+      toast('warning', 'No unused default categories can be removed.');
+      return;
+    }
+    if (!window.confirm(`Remove ${unusedDefaultCategories.length} unused default categor${unusedDefaultCategories.length === 1 ? 'y' : 'ies'}?`)) return;
+    setLoading(true);
+    try {
+      for (const category of unusedDefaultCategories) {
+        await deleteCategory(category.id, storeId);
+      }
+      const stillUsed = defaultCategories.length - unusedDefaultCategories.length;
+      toast('success', 'Unused default categories removed.');
+      if (stillUsed > 0) {
+        toast('info', `${stillUsed} default categor${stillUsed === 1 ? 'y is' : 'ies are'} still used by products.`);
+      }
+    } catch (err: any) {
+      toast('error', err?.message || 'Failed to remove default categories.');
     } finally {
       setLoading(false);
     }
   };
 
   return open ? (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-      <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-        <h2 className="text-lg font-bold mb-4">Manage Categories</h2>
-        <ul className="mb-4">
-          {categories.map((cat) => (
-            <li key={cat.id} className="flex items-center gap-2 py-1">
-              {editingId === cat.id ? (
-                <>
-                  <input
-                    className="border rounded px-2 py-1 text-sm flex-1"
-                    value={editingName}
-                    onChange={e => setEditingName(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') handleRename(cat.id);
-                      if (e.key === 'Escape') { setEditingId(null); setEditingName(''); }
-                    }}
-                    autoFocus
-                  />
-                  <button className="text-blue-600 text-xs" onClick={() => handleRename(cat.id)} disabled={loading}>Save</button>
-                  <button className="text-gray-400 text-xs" onClick={() => { setEditingId(null); setEditingName(''); }}>Cancel</button>
-                </>
-              ) : (
-                <>
-                  <span className="flex-1 truncate">{cat.name}</span>
-                  <button className="text-xs text-blue-600" onClick={() => { setEditingId(cat.id); setEditingName(cat.name); }}>Rename</button>
-                  <button className="text-xs text-red-600" onClick={() => handleDelete(cat.id)} disabled={loading}>Delete</button>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-        <div className="flex gap-2 mb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative z-10 bg-white rounded-xl shadow-xl p-6 w-full max-w-lg">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Manage Categories</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{categories.length} categories in this store</p>
+          </div>
+          <button className="text-sm text-gray-400 hover:text-gray-700" onClick={onClose}>Close</button>
+        </div>
+
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button
+            type="button"
+            className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            onClick={handleRestoreDefaults}
+            disabled={loading}
+          >
+            Restore defaults
+          </button>
+          <button
+            type="button"
+            className="px-3 py-1.5 rounded-lg border border-red-200 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+            onClick={handleRemoveUnusedDefaults}
+            disabled={loading || defaultCategories.length === 0}
+          >
+            Remove unused defaults
+          </button>
+        </div>
+
+        <div className="mb-4 max-h-72 overflow-y-auto rounded-lg border border-gray-100 divide-y divide-gray-100">
+          {categories.length === 0 ? (
+            <div className="px-3 py-6 text-center text-sm text-gray-500">No categories yet.</div>
+          ) : categories.map((cat) => {
+            const isDefault = isDefaultCategoryName(cat.name);
+            const isUsed = usedCategoryIds.has(cat.id);
+            return (
+              <div key={cat.id} className="flex items-center gap-2 px-3 py-2">
+                {editingId === cat.id ? (
+                  <>
+                    <input
+                      className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm flex-1"
+                      value={editingName}
+                      onChange={e => setEditingName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') void handleRename(cat.id);
+                        if (e.key === 'Escape') { setEditingId(null); setEditingName(''); }
+                      }}
+                      autoFocus
+                    />
+                    <button className="text-blue-600 text-xs font-semibold" onClick={() => handleRename(cat.id)} disabled={loading}>Save</button>
+                    <button className="text-gray-400 text-xs font-semibold" onClick={() => { setEditingId(null); setEditingName(''); }}>Cancel</button>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1 truncate text-sm text-gray-800">{cat.name}</span>
+                    {isDefault && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">Default</span>}
+                    {isUsed && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">In use</span>}
+                    <button className="text-xs font-semibold text-blue-600" onClick={() => { setEditingId(cat.id); setEditingName(cat.name); }}>Rename</button>
+                    <button className="text-xs font-semibold text-red-600 disabled:text-gray-300" onClick={() => handleDelete(cat.id, isUsed)} disabled={loading || isUsed}>Delete</button>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex gap-2">
           <input
             ref={inputRef}
-            className="border rounded px-2 py-1 text-sm flex-1"
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1"
             placeholder="New category name"
             value={newCat}
             onChange={e => setNewCat(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
             disabled={loading}
           />
-          <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm" onClick={handleAdd} disabled={loading || !newCat.trim()}>Add</button>
-        </div>
-        <div className="flex justify-end gap-2">
-          <button className="px-4 py-2 bg-gray-200 rounded" onClick={onClose}>Close</button>
+          <button className="inline-flex items-center gap-1.5 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-semibold disabled:opacity-50" onClick={handleAdd} disabled={loading || !newCat.trim()}>
+            <Plus className="w-4 h-4" />
+            Add
+          </button>
         </div>
       </div>
     </div>

@@ -12,10 +12,10 @@ export function AddSupplierPage() {
   };
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-7xl">
       <PageHeader
         title="Add Supplier"
-        subtitle="Register a new supplier for your products"
+        subtitle="Register a new supplier without leaving the screen"
       />
       <SupplierForm mode="create" onSubmit={handleSubmit} />
     </div>
