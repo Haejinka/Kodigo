@@ -31,6 +31,10 @@ interface PosDB extends DBSchema {
 
 let dbPromise: Promise<IDBPDatabase<PosDB>>;
 
+function isDatabaseRejection(err: any) {
+  return Boolean(err?.code || err?.details || err?.hint || err?.status);
+}
+
 // Small helper to retry IDB operations that fail due to AbortError/lock stealing.
 async function idbRetry<T>(fn: () => Promise<T>, retries = 3, delayMs = 150): Promise<T> {
   let lastErr: any;
@@ -103,37 +107,21 @@ export async function queueSaleOffline(sale: Sale) {
 /** Attempt to push a single sale to Supabase */
 async function pushSaleToSupabase(sale: Sale): Promise<void> {
   const { id, storeId, cashierId, subtotal, tax, discount, total, cashReceived, change, items } = sale;
-  
-  // Start generic Supabase RPC or direct insert
-  // For strictly multi-statement relations, it's often better to do this in a Supabase transaction RPC, 
-  // but for now, we'll try plain JS inserts (requires RLS to allow inserts)
-  
-  const { error: saleError } = await supabase.from('sales').insert({
-    id, // Preserve UUID generated locally
-    store_id: storeId,
-    cashier_id: cashierId,
-    subtotal,
-    tax,
-    discount,
-    total,
-    cash_received: cashReceived,
-    change
-  }).select().single();
 
-  if (saleError) throw saleError;
-  
-  // Insert items
-  const mappedItems = items.map(item => ({
-    sale_id: id,
-    product_id: item.productId,
-    product_name: item.productName,
-    quantity: item.quantity,
-    unit_price: item.unitPrice,
-    line_total: item.lineTotal
-  }));
+  const { error } = await supabase.rpc('process_pos_sale', {
+    p_id: id,
+    p_store_id: storeId,
+    p_cashier_id: cashierId,
+    p_subtotal: subtotal,
+    p_tax: tax,
+    p_discount: discount,
+    p_total: total,
+    p_cash_received: cashReceived,
+    p_change: change,
+    p_items: items,
+  });
 
-  const { error: itemsError } = await supabase.from('sale_items').insert(mappedItems);
-  if (itemsError) throw itemsError;
+  if (error) throw error;
 }
 
 /** Push all pending sales when connection is restored */
@@ -173,6 +161,9 @@ export async function processSale(sale: Sale) {
   try {
     await pushSaleToSupabase(sale);
   } catch (err: any) {
+    if (isDatabaseRejection(err)) {
+      throw err;
+    }
     console.error('[Sync] Failed to push to Supabase, queueing locally:', err);
     await queueSaleOffline(sale);
   }
@@ -225,18 +216,18 @@ export async function syncPendingMutations() {
   for (const mut of pending) {
     try {
       if (mut.operation === 'INSERT') {
-        const { error } = await supabase.from(mut.table).insert(mut.payload).select();
+        const { error } = await (supabase as any).from(mut.table).insert(mut.payload).select();
         if (error) throw error;
       } else if (mut.operation === 'UPDATE' && mut.matchKey) {
-        const { error } = await supabase.from(mut.table).update(mut.payload).eq(mut.matchKey, mut.matchValue).select();
+        const { error } = await (supabase as any).from(mut.table).update(mut.payload).eq(mut.matchKey, mut.matchValue).select();
         if (error) throw error;
       } else if (mut.operation === 'DELETE' && mut.matchKey) {
-        const { error } = await supabase.from(mut.table).delete().eq(mut.matchKey, mut.matchValue).select();
+        const { error } = await (supabase as any).from(mut.table).delete().eq(mut.matchKey, mut.matchValue).select();
         if (error) throw error;
       }
       await idbRetry(() => db.delete('generic_mutations', mut.id));
     } catch (err: any) {
-      console.error(`Failed to sync mutation on \${mut.table}:`, err);
+      console.error(`Failed to sync mutation on ${mut.table}:`, err);
       mut._syncStatus = 'error';
       mut._syncError = err?.message || 'Unknown error';
       await idbRetry(() => db.put('generic_mutations', mut));
@@ -268,25 +259,25 @@ export async function executeOrQueueMutation(
   
   try {
     if (operation === 'INSERT') {
-      const result: any = await withTimeout(supabase.from(table).insert(payload));
+      const result: any = await withTimeout((supabase as any).from(table).insert(payload));
       const { error } = result;
       if (error) throw error;
     } else if (operation === 'UPDATE' && matchKey) {
-      const result: any = await withTimeout(supabase.from(table).update(payload).eq(matchKey, matchValue));
+      const result: any = await withTimeout((supabase as any).from(table).update(payload).eq(matchKey, matchValue));
       const { error } = result;
       if (error) throw error;
     } else if (operation === 'DELETE' && matchKey) {
-      const result: any = await withTimeout(supabase.from(table).delete().eq(matchKey, matchValue));
+      const result: any = await withTimeout((supabase as any).from(table).delete().eq(matchKey, matchValue));
       const { error } = result;
       if (error) throw error;
     }
   } catch (err: any) {
     // Check if it's an actual Supabase/Postgres error (e.g., RLS, validation) vs a network error
     if (err && err.code) {
-      console.error(`[Sync] API/DB Error on \${operation} for \${table}:`, err);
+      console.error(`[Sync] API/DB Error on ${operation} for ${table}:`, err);
       throw err; // Do not queue locally if the database rejected it for logic/permission reasons
     }
-    console.warn(`[Sync] Mutation \${operation} on \${table} failed online (network issue?), queueing locally:`, err);
+    console.warn(`[Sync] Mutation ${operation} on ${table} failed online (network issue?), queueing locally:`, err);
     await queueMutationOffline(table, operation, payload, matchKey, matchValue);
   }
 }

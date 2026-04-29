@@ -89,49 +89,61 @@ export function RestockingPage() {
 
   const handleCreatePO = async () => {
     setCreating(true);
-
-    // Group selected items by supplier and store
-    const grouped = new Map<string, { storeId: string; supplierId: string; supplierName: string; items: RestockItem[] }>();
-    for (const item of selectedItems) {
-      const key = `${item.storeId}_${item.suggestedSupplierId || '__unassigned__'}`;
-      if (!grouped.has(key)) {
-        grouped.set(key, {
-          storeId: item.storeId,
-          supplierId: item.suggestedSupplierId,
-          supplierName: item.suggestedSupplierName,
-          items: [],
-        });
+    try {
+      // Group selected items by supplier and store
+      const grouped = new Map<string, { storeId: string; supplierId: string; supplierName: string; items: RestockItem[] }>();
+      for (const item of selectedItems) {
+        const key = `${item.storeId}_${item.suggestedSupplierId || '__unassigned__'}`;
+        if (!grouped.has(key)) {
+          grouped.set(key, {
+            storeId: item.storeId,
+            supplierId: item.suggestedSupplierId,
+            supplierName: item.suggestedSupplierName,
+            items: [],
+          });
+        }
+        grouped.get(key)!.items.push(item);
       }
-      grouped.get(key)!.items.push(item);
-    }
 
-    // Create one PO per supplier+store group
-    for (const group of grouped.values()) {
-      if (!group.supplierId) continue; // skip unassigned
-      createPurchaseOrder(
-        group.storeId, // NEW: added storeId
-        group.supplierId,
-        group.supplierName,
-        group.items.map((i) => ({
-          productId: i.productId,
-          productName: i.productName,
-          quantity: i.suggestedQty,
-          unitCost: i.estimatedCost / i.suggestedQty,
-        })),
+      const groups = [...grouped.values()];
+      const validGroups = groups.filter((g) => g.supplierId);
+      const skippedItems = groups
+        .filter((g) => !g.supplierId)
+        .reduce((count, group) => count + group.items.length, 0);
+
+      if (validGroups.length === 0) {
+        toast('error', 'Assign a supplier before creating a purchase order.');
+        return;
+      }
+
+      await Promise.all(validGroups.map((group) =>
+        createPurchaseOrder(
+          group.storeId,
+          group.supplierId,
+          group.supplierName,
+          group.items.map((i) => ({
+            productId: i.productId,
+            productName: i.productName,
+            quantity: i.suggestedQty,
+            unitCost: i.estimatedCost / i.suggestedQty,
+          })),
+        )
+      ));
+
+      // Refresh relative price scores now that new POs exist
+      recalculatePriceScores(products);
+
+      toast(
+        skippedItems > 0 ? 'info' : 'success',
+        `${validGroups.length} purchase order${validGroups.length !== 1 ? 's' : ''} created. ${skippedItems > 0 ? `${skippedItems} item${skippedItems !== 1 ? 's' : ''} skipped without suppliers.` : `Estimated total: ${formatCurrency(totalCost)}`}`,
       );
+      setConfirmOpen(false);
+      clearAll();
+    } catch (err: any) {
+      toast('error', err?.message || 'Failed to create purchase orders.');
+    } finally {
+      setCreating(false);
     }
-
-    // Refresh relative price scores now that new POs exist
-    recalculatePriceScores(products);
-
-    const poCount = [...grouped.values()].filter((g) => g.supplierId).length;
-    toast(
-      'success',
-      `${poCount} purchase order${poCount !== 1 ? 's' : ''} created for ${selectedItems.length} product${selectedItems.length !== 1 ? 's' : ''} (${formatCurrency(totalCost)})`,
-    );
-    setCreating(false);
-    setConfirmOpen(false);
-    clearAll();
   };
 
   return (

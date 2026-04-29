@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useAlertStore } from '@/stores/alertStore';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard } from '@/components/shared/StatCard';
 import { DollarSign, ShoppingBag, TrendingUp, BarChart2 } from 'lucide-react';
@@ -33,40 +32,6 @@ export function AnalyticsPage() {
   const [revenueData, setRevenueData] = useState<RevenueDataPoint[]>([]);
   const [hourlyData, setHourlyData] = useState<HourlySalesPoint[]>([]);
   const [categoryData, setCategoryData] = useState<CategorySalesPoint[]>([]);
-  const alerts = useAlertStore((st) => st.alerts);
-
-  // Simple diagnostic fetch to detect store-scoped RLS issues: fetch sales for the selected period; if 0 rows, retry unscoped and log counts.
-  useEffect(() => {
-    let mounted = true;
-    const fetchDiagnostic = async () => {
-      try {
-        const now = new Date();
-        const days = period === 'Today' ? 1 : period === '7 days' ? 7 : period === '90 days' ? 90 : 30;
-        const start = new Date(now);
-        start.setDate(now.getDate() - (days - 1));
-        start.setHours(0,0,0,0);
-
-        let q = supabase.from('sales').select('id,total,store_id,created_at').gte('created_at', start.toISOString());
-        if (activeStoreId && activeStoreId !== 'all') q = q.eq('store_id', activeStoreId);
-        const { data, error } = await q;
-        if (error) {
-          console.error('Analytics sales fetch error:', error);
-          return;
-        }
-
-        const rows = (data || []).length;
-        if (rows === 0 && activeStoreId && activeStoreId !== 'all') {
-          const { data: unscoped, error: unscopedErr } = await supabase.from('sales').select('id').gte('created_at', start.toISOString());
-          if (unscopedErr) console.warn('Analytics unscoped fetch error:', unscopedErr);
-          console.info('Analytics: store-scoped rows=0; unscoped rows=', (unscoped || []).length);
-        }
-      } catch (err) {
-        console.error('Analytics diagnostic error:', err);
-      }
-    };
-    void fetchDiagnostic();
-    return () => { mounted = false; };
-  }, [period, activeStoreId]);
   
 
   // Clear local UI state when switching stores
@@ -90,14 +55,7 @@ export function AnalyticsPage() {
         const { data, error } = await q;
         if (error) { console.error('Failed to fetch analytics sales:', error); return; }
 
-        let finalData = data || [];
-        if ((finalData.length === 0) && activeStoreId && activeStoreId !== 'all') {
-          const { data: unscoped, error: unscopedErr } = await supabase.from('sales').select('total,created_at,store_id').gte('created_at', start.toISOString());
-          if (unscopedErr) console.warn('Analytics unscoped sales fetch error:', unscopedErr);
-          else finalData = unscoped || [];
-        }
-
-        const totals = (finalData || []).map((r: any) => Number(r.total || 0));
+        const totals = (data || []).map((r: any) => Number(r.total || 0));
         const revenue = totals.reduce((a,b) => a + b, 0);
         const transactions = totals.length;
         const avg = transactions ? revenue / transactions : 0;
@@ -137,11 +95,6 @@ export function AnalyticsPage() {
         const { data: salesData, error: salesErr } = await q;
         let sales = salesData || [];
         if (salesErr) { console.error('Failed to fetch sales for charts:', salesErr); sales = []; }
-        if (sales.length === 0 && activeStoreId && activeStoreId !== 'all') {
-          const { data: unscoped, error: ue } = await supabase.from('sales').select('id,total,created_at').gte('created_at', start.toISOString()).order('created_at', { ascending: true });
-          if (ue) console.warn('Unscoped sales fetch for charts error:', ue);
-          else sales = unscoped || [];
-        }
 
         // Revenue chart: aggregate by date (also compute profit by fetching sale_items + product cost_price)
         const revMap = new Map<string, { revenue: number; transactions: number }>();
@@ -314,7 +267,7 @@ export function AnalyticsPage() {
       {/* Transactions Table */}
       <div>
         <h2 className="text-base font-semibold text-gray-900 mb-3">Transactions</h2>
-        <RecentTransactions activeStoreId={activeStoreId} />
+        <RecentTransactions activeStoreId={activeStoreId ?? undefined} />
       </div>
     </div>
   );
@@ -330,14 +283,8 @@ function RecentTransactions({ activeStoreId }: { activeStoreId?: string }) {
         if (activeStoreId && activeStoreId !== 'all') q = q.eq('store_id', activeStoreId);
         const { data, error } = await q;
         if (error) { console.error('Failed to fetch recent transactions (analytics):', error); return; }
-        let final = data || [];
-        if ((final.length === 0) && activeStoreId && activeStoreId !== 'all') {
-          const { data: unscoped, error: ue } = await supabase.from('sales').select('id,total,store_id,created_at').order('created_at', { ascending: false }).limit(20);
-          if (ue) console.warn('Analytics unscoped recent transactions error:', ue);
-          else final = unscoped || [];
-        }
         if (!mounted) return;
-        setRows(final);
+        setRows(data || []);
       } catch (err) { console.error('Error fetching analytics recent transactions:', err); }
     };
     void fetchRecent();

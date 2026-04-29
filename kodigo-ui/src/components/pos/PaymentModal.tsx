@@ -18,7 +18,7 @@ type Step = 'payment' | 'confirmed';
 
 export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const { items, total, clearCart } = useCartStore();
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const orderTotal = total();
 
   const [cashInput, setCashInput] = useState('');
@@ -28,7 +28,8 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
 
   const cashAmount = parseFloat(cashInput) || 0;
   const change = Math.max(0, cashAmount - orderTotal);
-  const canConfirm = cashAmount >= orderTotal;
+  const stockIssue = items.find((i) => i.quantity > i.product.currentStock);
+  const canConfirm = items.length > 0 && cashAmount >= orderTotal && !stockIssue;
 
   const quickAmounts = [
     Math.ceil(orderTotal / 50) * 50,
@@ -43,6 +44,13 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     const storeId = useAuthStore.getState().activeStoreId;
     if (!storeId || storeId === 'all') {
       alert("Please select a specific store to process sales.");
+      setProcessing(false);
+      return;
+    }
+
+    const currentStockIssue = items.find((i) => i.quantity > i.product.currentStock);
+    if (currentStockIssue) {
+      alert(`${currentStockIssue.product.name} only has ${currentStockIssue.product.currentStock} in stock.`);
       setProcessing(false);
       return;
     }
@@ -64,7 +72,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       cashReceived: cashAmount,
       change,
       cashierId: user?.id || null,
-      cashierName: user?.name || "Unknown Cashier",
+      cashierName: profile?.name || user?.user_metadata?.name || user?.email || "Unknown Cashier",
       createdAt: new Date().toISOString(),
     };
 
@@ -75,7 +83,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       setStep("confirmed");
     } catch (err) {
       console.error(err);
-      alert("Failed to process transaction.");
+      alert(err instanceof Error ? err.message : "Failed to process transaction.");
     } finally {
       setProcessing(false);
     }
@@ -204,7 +212,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                   <User className="w-3 h-3" />
                   Cashier
                 </span>
-                <span className="font-medium text-gray-700">{completedSale?.cashierName ?? user?.name}</span>
+                <span className="font-medium text-gray-700">{completedSale?.cashierName ?? profile?.name ?? user?.email}</span>
               </div>
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <span>Transaction ID</span>

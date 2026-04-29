@@ -107,14 +107,14 @@ export const useProductStore = create<ProductStore & {
     set({ isLoading: true });
     try {
       if (!navigator.onLine) throw new Error("Offline");
-      let query = supabase.from('products').select('*');
+      let query = supabase.from('products').select('*, suppliers(name)');
       if (storeId !== 'all') {
         query = query.eq('store_id', storeId);
       }
       const { data, error } = await query;
       if (error) throw error;
       
-      const mapped: Product[] = (data || []).map(p => ({
+      const mapped: Product[] = (data || []).map((p: any) => ({
         id: p.id,
         storeId: p.store_id,
         name: p.name,
@@ -123,6 +123,8 @@ export const useProductStore = create<ProductStore & {
         categoryId: p.category_id,
         categoryName: get().categories.find(c => c.id === p.category_id)?.name || '', 
         unit: p.unit || 'unit',
+        purchaseUnit: p.purchase_unit || undefined,
+        conversionFactor: p.conversion_factor || 1,
         costPrice: p.cost_price,
         sellingPrice: p.selling_price,
         currentStock: p.current_stock,
@@ -130,6 +132,9 @@ export const useProductStore = create<ProductStore & {
         safetyStock: p.safety_stock || 0,
         reorderLevel: p.reorder_level || 0,
         leadTimeDays: p.lead_time_days || 0,
+        supplierId: p.supplier_id || undefined,
+        supplierName: p.suppliers?.name || undefined,
+        imageUrl: p.image_url || undefined,
         createdAt: p.created_at,
         updatedAt: p.updated_at,
       }));
@@ -143,8 +148,8 @@ export const useProductStore = create<ProductStore & {
     }
   },
 
-  addProduct: async (data, _supplierName) => {
-    let storeId = data.storeId || useAuthStore.getState().activeStoreId;
+  addProduct: async (data) => {
+    const storeId = data.storeId || useAuthStore.getState().activeStoreId;
     if (storeId === 'all') {
       console.warn("Cannot add product mapping to 'all' stores. Must pick one.");
       return undefined;
@@ -167,7 +172,10 @@ export const useProductStore = create<ProductStore & {
       reorder_level: data.reorderLevel,
       lead_time_days: data.leadTimeDays,
       unit: data.unit,
+      purchase_unit: data.purchaseUnit || null,
+      conversion_factor: data.conversionFactor || 1,
       supplier_id: data.supplierId || null,
+      image_url: data.imageUrl || null,
     };
 
     // Optimistic Update
@@ -197,7 +205,7 @@ export const useProductStore = create<ProductStore & {
     }
   },
 
-  updateProduct: async (id, data, _supplierName) => {
+  updateProduct: async (id, data) => {
     const targetProduct = get().products.find((p) => p.id === id);
     if (!targetProduct) {
       throw new Error('Product not found. Refresh the page and try again.');
@@ -223,7 +231,10 @@ export const useProductStore = create<ProductStore & {
       reorder_level: data.reorderLevel,
       lead_time_days: data.leadTimeDays,
       unit: data.unit,
+      purchase_unit: data.purchaseUnit || null,
+      conversion_factor: data.conversionFactor || 1,
       supplier_id: data.supplierId || null,
+      image_url: data.imageUrl || null,
       updated_at: new Date().toISOString(),
     };
 
@@ -319,7 +330,8 @@ export const useProductStore = create<ProductStore & {
       quantity_delta: actualDelta,
       stock_before: stockBefore,
       stock_after: stockAfter,
-      note
+      note,
+      created_by: useAuthStore.getState().user?.id || null,
     });
 
     await executeOrQueueMutation('products', 'UPDATE', {

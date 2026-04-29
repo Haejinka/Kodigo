@@ -1,10 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { ToastProvider } from '@/components/shared/Toast';
 import { AppShell } from '@/components/layout/AppShell';
 import { useAuthStore } from '@/stores/authStore';
 import { useIsMobile } from '@/hooks/useIsMobile';
-import { supabase } from '@/lib/supabase';
 import { syncPendingMutations, syncPendingSales } from '@/lib/offline-sync';
 
 import { useProductStore } from '@/stores/productStore';
@@ -37,17 +36,7 @@ import {
 
 // Route guards
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, role, user, profile } = useAuthStore();
-  const [profileErrStr, setProfileErrStr] = useState<string>('');
-  
-  useEffect(() => {
-    if (user && !profile) {
-      supabase.from('profiles').select('*').eq('id', user.id).single()
-        .then(({ data, error }) => {
-           setProfileErrStr(error ? JSON.stringify(error) : (data ? "DATA FOUND MANUALLY" : "NO DATA, NO ERROR"));
-        });
-    }
-  }, [user, profile]);
+  const { isAuthenticated, isLoading, role } = useAuthStore();
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -57,18 +46,6 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   if (!role) return (
     <div className="min-h-screen flex flex-col items-center justify-center space-y-4 text-red-600 font-medium">
       <p>Error: User role could not be verified. Please contact system administrator.</p>
-      
-      {/* Diagnostic details for profile/role resolution failures. */}
-      <div className="bg-gray-100 text-black p-4 rounded text-xs text-left w-full max-w-xl overflow-auto mt-4">
-        <strong>Role resolution diagnostics:</strong><br />
-        UserId: {user?.id}<br />
-        UserRole (DB): {profile?.role || "NOT FOUND"}<br />
-        Profile Object Found: {profile ? "YES" : "NO"}<br />
-        Auth metadata role: {user?.raw_user_meta_data?.role || "NONE"}<br /><br />
-        <strong>Manual Fetch Error:</strong> <br />
-        {profileErrStr || "Fetching..."}
-      </div>
-
       <button
         onClick={() => useAuthStore.getState().logout()}
         className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition"

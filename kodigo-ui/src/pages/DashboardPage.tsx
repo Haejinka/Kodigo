@@ -42,23 +42,8 @@ export function DashboardPage() {
           return;
         }
 
-        // If we got no rows when scoping by store, retry without the store filter to detect a store-scoped RLS or mapping issue.
-        let finalData = data || [];
-        if ((finalData.length === 0) && activeStoreId && activeStoreId !== 'all') {
-          try {
-            const { data: unscoped, error: unscopedErr } = await supabase.from('sales').select('total,store_id,created_at').gte('created_at', start.toISOString()).lt('created_at', end.toISOString());
-            if (unscopedErr) {
-              console.warn('Unscoped sales fetch error:', unscopedErr);
-            } else {
-              console.info('Store-scoped sales returned 0 rows; unscoped fetch returned', (unscoped || []).length, 'rows');
-              finalData = unscoped || [];
-            }
-          } catch (err) {
-            console.warn('Error during unscoped sales retry:', err);
-          }
-        }
-
-        const totals = (finalData || []).map((r: any) => Number(r.total || 0));
+        const salesRows = data || [];
+        const totals = salesRows.map((r: any) => Number(r.total || 0));
         const todayRevenue = totals.reduce((a,b) => a + b, 0);
         const todayTransactions = totals.length;
         const avgOrderValue = todayTransactions ? todayRevenue / todayTransactions : 0;
@@ -66,7 +51,7 @@ export function DashboardPage() {
         // Compute profit for today's sales using sale_items and product cost_price when available.
         let todayProfit = 0;
         try {
-          const saleIds = (finalData || []).map((r: any) => r.id).filter(Boolean);
+          const saleIds = salesRows.map((r: any) => r.id).filter(Boolean);
           if (saleIds.length > 0) {
             const { data: items, error: itemsErr } = await supabase.from('sale_items').select('product_id,quantity,line_total,sale_id').in('sale_id', saleIds);
             if (!itemsErr && items && items.length > 0) {
@@ -129,19 +114,8 @@ export function DashboardPage() {
           return;
         }
 
-        let final = data || [];
-        if ((final.length === 0) && activeStoreId && activeStoreId !== 'all') {
-          // retry unscoped to detect RLS/store mapping issue
-          const { data: unscoped, error: ue } = await supabase.from('sales').select('id,total,store_id,created_at').order('created_at', { ascending: false }).limit(12);
-          if (ue) console.warn('Unscoped recent transactions error:', ue);
-          else {
-            console.info('Scoped recent transactions returned 0; unscoped returned', (unscoped || []).length);
-            final = unscoped || [];
-          }
-        }
-
         if (!mounted) return;
-        setRecent(final);
+        setRecent(data || []);
       } catch (err) {
         console.error('Error fetching recent transactions:', err);
       }

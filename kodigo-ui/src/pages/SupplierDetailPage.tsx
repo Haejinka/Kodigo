@@ -38,14 +38,33 @@ export function SupplierDetailPage() {
     if (!supplier) return;
     setDeleting(true);
     await new Promise((r) => setTimeout(r, 600));
-    deleteSupplier(supplier.id);
-    toast('success', `"${supplier.name}" has been removed.`);
-    navigate('/suppliers');
+    try {
+      await deleteSupplier(supplier.id);
+      toast('success', `"${supplier.name}" has been removed.`);
+      navigate('/suppliers');
+    } catch (err: any) {
+      toast('error', err?.message || 'Failed to remove supplier.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
-  const handleReceive = (poId: string, onTime: boolean) => {
-    receivePurchaseOrder(poId, onTime, products);
-    toast('success', onTime ? 'Order marked as received on time.' : 'Order marked as received (late).');
+  const handleReceive = async (poId: string, onTime: boolean) => {
+    try {
+      await receivePurchaseOrder(poId, onTime, products);
+      toast('success', onTime ? 'Order received and stock replenished.' : 'Order received late and stock replenished.');
+    } catch (err: any) {
+      toast('error', err?.message || 'Failed to receive purchase order.');
+    }
+  };
+
+  const handleCancel = async (poId: string) => {
+    try {
+      await cancelPurchaseOrder(poId);
+      toast('info', 'Purchase order cancelled.');
+    } catch (err: any) {
+      toast('error', err?.message || 'Failed to cancel purchase order.');
+    }
   };
 
   if (!supplier) {
@@ -252,7 +271,7 @@ export function SupplierDetailPage() {
                           Mark Late
                         </button>
                         <button
-                          onClick={() => { cancelPurchaseOrder(po.id); toast('info', 'Purchase order cancelled.'); }}
+                          onClick={() => void handleCancel(po.id)}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 text-xs font-medium transition-colors"
                         >
                           <XCircle className="w-3.5 h-3.5" />

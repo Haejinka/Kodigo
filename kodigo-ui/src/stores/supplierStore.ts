@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Supplier, PurchaseOrder, Product } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
+import { useProductStore } from '@/stores/productStore';
 import { executeOrQueueMutation } from '@/lib/offline-sync';
 
 export type SupplierFormData = Omit<
@@ -118,7 +119,7 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
   },
 
   addSupplier: async (data) => {
-    let storeId = data.storeId || useAuthStore.getState().activeStoreId;
+    const storeId = data.storeId || useAuthStore.getState().activeStoreId;
     if (storeId === 'all') {
        console.warn("Please select a specific store first.");
        return undefined;
@@ -163,7 +164,7 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
         set(s => ({ suppliers: s.suppliers.filter(sup => sup.id !== newId) }));
       }
       console.error('Failed to create supplier:', err);
-      const code = err?.code || err?.status || '';
+      const code = (err as any)?.code || (err as any)?.status || '';
       if (code === '42501' || String(err).toLowerCase().includes('permission')) {
         throw new Error('Permission denied: cannot create supplier. Check your store mapping and RLS policies.');
       }
@@ -275,47 +276,61 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
       createdAt: new Date().toISOString()
     };
 
+    const previousPurchaseOrders = get().purchaseOrders;
     set(s => ({ purchaseOrders: [optimisticPO, ...s.purchaseOrders] }));
-    
-    // Insert PO
-    await executeOrQueueMutation('purchase_orders', 'INSERT', newPO);
-    
-    // Insert Items - optimistic local queue handles array of promises
-    items.forEach(async (item) => {
-      await executeOrQueueMutation('purchase_order_items', 'INSERT', {
-        id: crypto.randomUUID(),
-        purchase_order_id: newId,
-        product_id: item.productId,
-        product_name: item.productName,
-        quantity: item.quantity,
-        unit_cost: item.unitCost
-      });
-    });
+
+    try {
+      // Insert PO
+      await executeOrQueueMutation('purchase_orders', 'INSERT', newPO);
+
+      await Promise.all(items.map((item) =>
+        executeOrQueueMutation('purchase_order_items', 'INSERT', {
+          id: crypto.randomUUID(),
+          purchase_order_id: newId,
+          product_id: item.productId,
+          product_name: item.productName,
+          quantity: item.quantity,
+          unit_cost: item.unitCost
+        })
+      ));
+    } catch (err) {
+      set({ purchaseOrders: previousPurchaseOrders });
+      throw err;
+    }
 
     return optimisticPO;
   },
 
-  receivePurchaseOrder: async (poId, onTime, _products) => {
+  receivePurchaseOrder: async (poId, onTime) => {
+    const po = get().purchaseOrders.find((p) => p.id === poId);
+    if (!po) throw new Error('Purchase order not found.');
+
     const now = new Date().toISOString();
+    const { error } = await supabase.rpc('receive_purchase_order', {
+      p_po_id: poId,
+      p_on_time: onTime,
+    });
+
+    if (error) throw error;
+
     set(s => ({
       purchaseOrders: s.purchaseOrders.map(p => 
         p.id === poId ? { ...p, status: 'received', onTime, receivedAt: now } : p
       )
     }));
 
-    await executeOrQueueMutation('purchase_orders', 'UPDATE', {
-      status: 'received',
-      on_time: onTime,
-      received_at: now,
-      updated_at: now
-    }, 'id', poId);
+    useProductStore.setState((state) => ({
+      products: state.products.map((product) => {
+        const item = po.items.find((line) => line.productId === product.id);
+        return item ? { ...product, currentStock: product.currentStock + item.quantity } : product;
+      }),
+    }));
 
-    // Database Triggers `trg_po_received` will automatically recalculate total_orders, 
-    // on_time_deliveries, reliability_score, and price_scores on the backend!
-    // Since we are optimistic tracking, we should re-fetch suppliers in the background if online.
+    // Database triggers/RPC refresh supplier scores and product stock on the backend.
     if (navigator.onLine) {
         setTimeout(() => {
            get().fetchSuppliers();
+           useProductStore.getState().fetchProducts();
         }, 1500); // 1.5s buffer for triggers
     }
   },
@@ -333,7 +348,7 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
     }, 'id', poId);
   },
 
-  recalculatePriceScores: (_products: Product[]) => {
+  recalculatePriceScores: () => {
      // Intentionally left as a no-op / background-refresh prompt. 
      // The backend `recalc_all_price_scores()` already calculates this continuously.
      if (navigator.onLine) {

@@ -137,8 +137,6 @@ export function GeneralSettingsPage() {
 
   const [addingStore, setAddingStore] = useState(false);
   const [editingStore, setEditingStore] = useState<StoreType | null>(null);
-  const [deleteTargetStore, setDeleteTargetStore] = useState<StoreType | null>(null);
-  const [deletingStore, setDeletingStore] = useState(false);
 
   const handleUpdate = async (name: string, address: string, taxRate: number) => {
     if (!editingStore) return false;
@@ -174,7 +172,7 @@ export function GeneralSettingsPage() {
       } else {
         toast('error', 'Failed to create store');
       }
-    } catch (e) {
+    } catch {
       toast('error', 'An error occurred while creating store');
     }
     setAddingStore(false);

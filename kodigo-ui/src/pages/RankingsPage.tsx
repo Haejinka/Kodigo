@@ -35,12 +35,14 @@ export function RankingsPage() {
         let q = supabase.from('sale_items').select('product_id,product_name,quantity,line_total,sale(created_at,store_id)').gte('sale.created_at', start.toISOString()).order('sale.created_at', { ascending: false }).limit(1000);
         if (activeStoreId && activeStoreId !== 'all') q = q.eq('sale.store_id', activeStoreId);
         const { data, error } = await q;
-        let items = data || [];
+        let items: any[] = (data || []) as any[];
         if (error) {
           console.error('Failed to fetch sale_items for rankings (joined query):', error);
           // Attempt fallback: fetch sale ids for the period (scoped) and then fetch sale_items by sale_id
           try {
-            const { data: saleIdsData, error: saleIdsErr } = await supabase.from('sales').select('id').gte('created_at', start.toISOString()).eq('store_id', activeStoreId ?? '').limit(500);
+            let saleIdsQuery = supabase.from('sales').select('id').gte('created_at', start.toISOString()).limit(500);
+            if (activeStoreId && activeStoreId !== 'all') saleIdsQuery = saleIdsQuery.eq('store_id', activeStoreId);
+            const { data: saleIdsData, error: saleIdsErr } = await saleIdsQuery;
             if (saleIdsErr) {
               console.warn('Failed to fetch sale ids for fallback:', saleIdsErr);
               if (mounted) setRankings([]);
@@ -136,7 +138,6 @@ export function RankingsPage() {
 
       {/* Podium: top 3 separate from the rankings card */}
       {rankings.length > 0 && (() => {
-        const totalRevenue = rankings.reduce((s, it) => s + (it.revenue || 0), 0) || 0.000001;
         const top3 = rankings.slice(0, 3);
         return (
           <div className="mb-6 grid grid-cols-3 gap-6">

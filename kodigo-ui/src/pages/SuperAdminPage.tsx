@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-import { ShieldAlert, KeyRound, Copy, Check, Clock, User, UserCheck } from 'lucide-react';
+import { ShieldAlert, KeyRound, Copy, Check } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/shared/Button';
 import { supabase } from '@/lib/supabase';
@@ -57,29 +57,17 @@ export function SuperAdminPage() {
     setCopied(null);
 
     try {
-      // Create code on the frontend instead of relying on Edge Function
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error("Not authenticated");
-
-      const inviteCode = `VIP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-
-      const { data, error } = await supabase
-        .from('invite_codes')
-        .insert([{ 
-          code: inviteCode, 
-          role: 'admin',
-          created_by: session.user.id 
-        }])
-        .select()
-        .single();
-        
+      const { data, error } = await supabase.functions.invoke('generate-invite');
       if (error) {
-        console.error("Insert error:", error);
-        throw new Error(error.message || "Failed to insert code into database");
+        console.error("Invite generation error:", error);
+        throw new Error(error.message || "Failed to generate invite code");
       }
 
+      const inviteCode = data?.code;
+      if (!inviteCode) throw new Error("Invite code was not returned by the server");
+
       setGeneratedCode(inviteCode); 
-      fetchCodes();
+      await fetchCodes();
     } catch (err: any) {
       setError(err.message || 'Failed to generate code.');
     } finally {

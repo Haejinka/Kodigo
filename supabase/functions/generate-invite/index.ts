@@ -6,6 +6,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function generateInviteCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  const body = Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('');
+  return `VIP-${body}`;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -41,8 +49,7 @@ serve(async (req) => {
     }
 
     // 4. Generate the invite code
-    const randomString = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const inviteCode = `VIP-${randomString}`;
+    const inviteCode = generateInviteCode();
 
     // 5. Insert into database bypassing RLS (using Service Role Key because it's a secured backend environment)
     const supabaseAdmin = createClient(
@@ -62,7 +69,8 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('generate-invite failed', error);
+    return new Response(JSON.stringify({ error: 'Failed to generate invite code.' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
     });

@@ -13,6 +13,13 @@ import type {
   Category,
 } from '@/types';
 
+const MOCK_STORE_ID = 'store-main';
+
+const withMockStore = <T extends object>(item: T): T & { storeId: string } => ({
+  storeId: MOCK_STORE_ID,
+  ...item,
+});
+
 // ─── Users ───────────────────────────────────────────────────────────────────
 
 export const mockUsers: User[] = [
@@ -83,7 +90,7 @@ export const mockSuppliers: Supplier[] = [
     onTimeDeliveries: 62,
     createdAt: '2025-03-10T08:00:00Z',
   },
-];
+].map(withMockStore) as Supplier[];
 
 // ─── Products ────────────────────────────────────────────────────────────────
 
@@ -173,7 +180,7 @@ export const mockProducts: Product[] = [
     leadTimeDays: 2, supplierId: 's2', supplierName: 'Universal Robina Corp',
     createdAt: '2025-01-20T08:00:00Z', updatedAt: '2026-03-04T07:20:00Z',
   },
-];
+].map(withMockStore) as Product[];
 
 // ─── Stock Alerts ────────────────────────────────────────────────────────────
 
@@ -186,7 +193,7 @@ export const mockAlerts: StockAlert[] = [
   { id: 'a2', productId: 'p3', productName: 'Nescafé 3-in-1 Original 20g', type: 'out-of-stock', currentStock: 0, minStockLevel: 50, isRead: false, createdAt: '2026-03-02T07:30:00Z' },
   { id: 'a3', productId: 'p5', productName: 'Century Tuna Flakes 180g', type: 'critical', currentStock: 3, minStockLevel: 20, isRead: false, createdAt: '2026-03-02T07:00:00Z' },
   { id: 'a4', productId: 'p8', productName: 'Joy Dishwashing Liquid 250ml', type: 'low', currentStock: 14, minStockLevel: 20, isRead: true, createdAt: '2026-03-01T18:00:00Z' },
-];
+].map(withMockStore) as StockAlert[];
 
 // ─── Dashboard Stats ─────────────────────────────────────────────────────────
 
@@ -287,7 +294,7 @@ export const mockRestockItems: RestockItem[] = [
   { productId: 'p2', productName: 'Nova Country Cheddar 78g', currentStock: 8, suggestedQty: 60, suggestedSupplierId: 's2', suggestedSupplierName: 'Universal Robina Corp', estimatedCost: 1200, urgency: 'high', unit: 'pack' },
   { productId: 'p5', productName: 'Century Tuna Flakes 180g', currentStock: 3, suggestedQty: 50, suggestedSupplierId: 's1', suggestedSupplierName: 'San Miguel Corporation', estimatedCost: 1500, urgency: 'high', unit: 'can' },
   { productId: 'p8', productName: 'Joy Dishwashing Liquid 250ml', currentStock: 14, suggestedQty: 30, suggestedSupplierId: 's1', suggestedSupplierName: 'San Miguel Corporation', estimatedCost: 840, urgency: 'medium', unit: 'bottle' },
-];
+].map(withMockStore) as RestockItem[];
 
 // ─── Recent Sales ────────────────────────────────────────────────────────────
 
@@ -337,4 +344,4 @@ export const mockRecentSales: Sale[] = [
     subtotal: 111, tax: 0, discount: 11, total: 100, cashReceived: 100, change: 0,
     createdAt: '2026-03-04T07:31:00Z',
   },
-];
+].map(withMockStore) as Sale[];

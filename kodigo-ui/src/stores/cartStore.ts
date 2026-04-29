@@ -17,10 +17,14 @@ export const useCartStore = create<CartState>((set, get) => ({
   items: [],
 
   addItem: (product: Product, qty = 1) => {
+    const maxStock = Math.max(0, product.currentStock);
+    if (maxStock === 0) return;
+    const safeQty = Math.min(Math.max(1, qty), maxStock);
+
     set((state) => {
       const existing = state.items.find((i) => i.product.id === product.id);
       if (existing) {
-        const newQty = existing.quantity + qty;
+        const newQty = Math.min(existing.quantity + safeQty, maxStock);
         return {
           items: state.items.map((i) =>
             i.product.id === product.id
@@ -32,7 +36,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       return {
         items: [
           ...state.items,
-          { product, quantity: qty, lineTotal: qty * product.sellingPrice },
+          { product, quantity: safeQty, lineTotal: safeQty * product.sellingPrice },
         ],
       };
     });
@@ -47,10 +51,18 @@ export const useCartStore = create<CartState>((set, get) => ({
       get().removeItem(productId);
       return;
     }
+    const existing = get().items.find((i) => i.product.id === productId);
+    if (!existing) return;
+    const maxStock = Math.max(0, existing.product.currentStock);
+    if (maxStock === 0) {
+      get().removeItem(productId);
+      return;
+    }
+    const safeQty = Math.min(qty, maxStock);
     set((state) => ({
       items: state.items.map((i) =>
         i.product.id === productId
-          ? { ...i, quantity: qty, lineTotal: qty * i.product.sellingPrice }
+          ? { ...i, quantity: safeQty, lineTotal: safeQty * i.product.sellingPrice }
           : i
       ),
     }));

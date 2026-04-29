@@ -135,6 +135,8 @@ export function InventoryPage() {
   const [deleting, setDeleting] = useState(false);
   // Category modal state
   const [catModalOpen, setCatModalOpen] = useState(false);
+  const categoryStoreId = activeStoreId && activeStoreId !== 'all' ? activeStoreId : '';
+  const canManageCategories = Boolean(categoryStoreId);
 
   const categories = [...new Set(products.map((p) => p.categoryName))].sort();
 
@@ -277,7 +279,14 @@ export function InventoryPage() {
 
   const handleAdjust = async (delta: number, reason: AdjustmentReason, note: string) => {
     await new Promise((r) => setTimeout(r, 600));
-    if (adjustTarget) adjustStock(adjustTarget.id, delta, reason, note);
+    if (!adjustTarget) return;
+    try {
+      await adjustStock(adjustTarget.id, delta, reason, note);
+      toast('success', 'Stock adjustment recorded.');
+      setAdjustTarget(null);
+    } catch (err: any) {
+      toast('error', err?.message || 'Failed to adjust stock.');
+    }
   };
 
   const toolbar = (
@@ -330,11 +339,11 @@ export function InventoryPage() {
         }
       />
       <div className="flex justify-end mb-4">
-        <Button variant="secondary" onClick={() => setCatModalOpen(true)}>
+        <Button variant="secondary" onClick={() => setCatModalOpen(true)} disabled={!canManageCategories}>
           Manage Categories
         </Button>
       </div>
-      <ManageCategoriesModal open={catModalOpen} onClose={() => setCatModalOpen(false)} storeId={activeStoreId} />
+      <ManageCategoriesModal open={catModalOpen} onClose={() => setCatModalOpen(false)} storeId={categoryStoreId} />
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-gray-200 mb-5">

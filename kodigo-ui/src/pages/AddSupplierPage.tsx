@@ -8,7 +8,7 @@ export function AddSupplierPage() {
 
   const handleSubmit = async (data: SupplierFormData) => {
     await new Promise((r) => setTimeout(r, 600));
-    try { await addSupplier(data); } catch(e) { window.alert(e.message || JSON.stringify(e)); }
+    await addSupplier(data);
   };
 
   return (

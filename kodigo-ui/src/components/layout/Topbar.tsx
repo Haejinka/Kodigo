@@ -8,11 +8,7 @@ import { useCartStore } from '@/stores/cartStore';
 import { formatDateTime } from '@/lib/utils';
 import { MobileSidebarDrawer } from './Sidebar';
 
-interface TopbarProps {
-  onMenuToggle?: () => void;
-}
-
-export function Topbar({}: TopbarProps) {
+export function Topbar() {
   const { user, profile, role, logout, stores, activeStoreId, setActiveStoreId } = useAuthStore();
   const { alerts, unreadCount, markAllRead } = useAlertStore();
   const clearCart = useCartStore(s => s.clearCart);
@@ -44,6 +40,8 @@ export function Topbar({}: TopbarProps) {
     critical: 'Critical',
     low: 'Low Stock',
   };
+  const displayName = profile?.name || user?.user_metadata?.name || user?.email || 'User';
+  const displayRole = profile?.role || role || 'user';
 
   return (
     <>
@@ -185,9 +183,9 @@ export function Topbar({}: TopbarProps) {
             className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-semibold">
-              {user?.name?.charAt(0) ?? 'U'}
+              {displayName.charAt(0).toUpperCase()}
             </div>
-            <span className="hidden sm:block text-sm font-medium text-gray-700">{user?.name}</span>
+            <span className="hidden sm:block text-sm font-medium text-gray-700">{displayName}</span>
           </button>
 
           {profileOpen && (
@@ -195,8 +193,8 @@ export function Topbar({}: TopbarProps) {
               <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
               <div className="absolute right-0 top-11 z-20 w-48 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
-                  <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+                  <p className="text-sm font-semibold text-gray-900">{displayName}</p>
+                  <p className="text-xs text-gray-500 capitalize">{String(displayRole).replace('_', ' ')}</p>
                 </div>
                 <button
                   onClick={handleLogout}
