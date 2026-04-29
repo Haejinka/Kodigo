@@ -20,7 +20,7 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
         'bg-white border rounded-xl p-3 text-left transition-all group relative',
         outOfStock
           ? 'opacity-50 cursor-not-allowed border-gray-200'
-          : 'border-gray-200 hover:border-blue-300 hover:shadow-md cursor-pointer active:scale-[0.98]'
+          : 'border-gray-200 hover:border-blue-300 hover:shadow-md cursor-pointer active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2'
       )}
     >
       {/* Product image / icon */}
