@@ -2,6 +2,23 @@ import { create } from 'zustand';
 import type { UserRole, Store } from '@/types';
 import { supabase } from '@/lib/supabase';
 
+type StoreRow = {
+  id: string;
+  name: string;
+  address: string | null;
+  tax_rate?: number | string | null;
+  taxRate?: number | string | null;
+};
+
+const toStore = (row: StoreRow): Store => ({
+  id: row.id,
+  name: row.name,
+  address: row.address ?? '',
+  taxRate: Number(row.taxRate ?? row.tax_rate ?? 0),
+});
+
+const toStores = (rows: StoreRow[] | null | undefined): Store[] => (rows ?? []).map(toStore);
+
 // Helper to reliably resolve user role from various possible DB/metadata sources
 const resolveRole = (user: any, profile: any): UserRole | null => {
   const checkRole = (r: any): UserRole | null => {
@@ -35,8 +52,8 @@ const fetchUserStores = async (role: string | null) => {
   } else {
     // Note: Due to RLS, they only see stores they are mapped to. 
     // We can just fetch from 'stores' and RLS will filter it.
-    const { data: stores } = await supabase.from('stores').select('*');
-    return stores || [];
+    const { data: stores } = await supabase.from('stores').select('id, name, address, tax_rate');
+    return toStores(stores);
   }
 };
 
@@ -92,28 +109,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Refresh stores
     const role = resolveRole(user, profile);
     const stores = await fetchUserStores(role);
-    set({ stores: stores as Store[] });
-    return store;
+    const createdStore = Array.isArray(store) ? store[0] : store;
+    set({ stores });
+    return createdStore ? toStore(createdStore as StoreRow) : null;
   },
 
   updateStore: async (id: string, name: string, address: string, taxRate: number) => {
     const { user, profile } = get();
     if (!user) return false;
 
-    const { error } = await supabase
+    const { data: updatedStore, error } = await supabase
       .from('stores')
       .update({ name, address, tax_rate: taxRate })
-      .eq('id', id);
+      .eq('id', id)
+      .select('id, name, address, tax_rate')
+      .maybeSingle();
 
-    if (error) {
-      console.error("Error updating store", error);
+    if (error || !updatedStore) {
+      console.error("Error updating store", error ?? 'No matching store was updated');
       return false;
     }
 
     // Refresh stores
     const role = resolveRole(user, profile);
     const stores = await fetchUserStores(role);
-    set({ stores: stores as Store[] });
+    set({ stores });
     return true;
   },
   deleteStore: async (id: string) => {
@@ -138,7 +158,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { activeStoreId } = get();
     let newActiveStoreId = activeStoreId;
     if (activeStoreId === id) {
-      newActiveStoreId = stores.length > 0 ? (stores[0] as Store).id : null;
+      newActiveStoreId = stores.length > 0 ? stores[0].id : null;
       if (newActiveStoreId) {
         localStorage.setItem('kodigo_active_store_id', newActiveStoreId);
       } else {
@@ -146,7 +166,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     }
     
-    set({ stores: stores as Store[], activeStoreId: newActiveStoreId });
+    set({ stores, activeStoreId: newActiveStoreId });
     return true;
   },
   initialize: async () => {
@@ -184,7 +204,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           user: session.user,
           profile,
           role: computedRole,
-          stores: stores as Store[],
+          stores,
           activeStoreId: initialStoreId,
           isAuthenticated: true,
           isLoading: false
@@ -220,7 +240,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               user: session.user,
               profile,
               role: computedRole,
-              stores: stores as Store[],
+              stores,
               activeStoreId: stores?.length ? stores[0].id : null,
               isAuthenticated: true
             });
@@ -266,7 +286,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           user: data.session.user,
           profile,
           role: computedRole,
-          stores: stores as Store[],
+          stores,
           activeStoreId: stores?.length ? stores[0].id : null,
           isAuthenticated: true,
           isLoading: false
