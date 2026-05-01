@@ -6,7 +6,9 @@ import { StatCard } from '@/components/shared/StatCard';
 import { formatCurrency } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import { useProductStore } from '@/stores/productStore';
+import { useAlertStore } from '@/stores/alertStore';
 import { useToast } from '@/components/shared/Toast';
+import { supabase } from '@/lib/supabase';
 import {
   buildInventoryReport,
   canAccessReports,
@@ -38,6 +40,7 @@ export function ReportsPage() {
   const { toast } = useToast();
   const { activeStoreId, role } = useAuthStore();
   const { products } = useProductStore();
+  const fetchNotifications = useAlertStore((s) => s.fetchNotifications);
   const [filters, setFilters] = useState<ReportFilters>(defaultFilters);
   const [report, setReport] = useState<SalesReportData | null>(null);
   const [stockMovements, setStockMovements] = useState<StockMovementReportRow[]>([]);
@@ -108,17 +111,39 @@ export function ReportsPage() {
       toast('error', 'Only authorized reporting roles can export reports.');
       return;
     }
+    const fileName = `Kodigo-Reports-${report.filters.startDate}-to-${report.filters.endDate}.xlsx`;
+    const storeId = activeStoreId && activeStoreId !== 'all' ? activeStoreId : null;
+
+    const recordReportNotification = async (status: 'completed' | 'failed', message?: string) => {
+      const { error } = await supabase.rpc('record_report_export_notification', {
+        p_store_id: storeId,
+        p_status: status,
+        p_file_name: fileName,
+        p_error: message ?? null,
+        p_filters: filters,
+      });
+      if (error) {
+        console.error('Failed to record report export notification:', error);
+        return;
+      }
+      void fetchNotifications();
+    };
+
     setExporting(true);
     try {
       await exportReportsWorkbook({
         salesReport: report,
         inventoryRows: filteredInventoryRows,
         stockMovements,
+        fileName,
       });
+      await recordReportNotification('completed');
       toast('success', 'Excel report exported.');
     } catch (err) {
       console.error('Failed to export report:', err);
-      toast('error', err instanceof Error ? err.message : 'Failed to export Excel report.');
+      const message = err instanceof Error ? err.message : 'Failed to export Excel report.';
+      await recordReportNotification('failed', message);
+      toast('error', message);
     } finally {
       setExporting(false);
     }

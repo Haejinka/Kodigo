@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ShoppingCart, Package, RefreshCw,
   Truck, BarChart2, Trophy, Settings, LogOut, ChevronLeft,
   ChevronRight, Store,
-  FileSpreadsheet,
+  FileSpreadsheet, Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
@@ -17,15 +17,17 @@ interface NavItem {
   path: string;
   icon: React.ComponentType<{ className?: string }>;
   roles: UserRole[];
-  badgeKey?: 'alerts';
+  badgeKey?: 'stockAlerts' | 'notifications';
 }
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['admin'] },
   { label: 'Super Admin', path: '/super-admin', icon: LayoutDashboard, roles: ['super_admin'] },
+  { label: 'Notifications', path: '/notifications', icon: Bell, roles: ['admin'], badgeKey: 'notifications' },
+  { label: 'Notifications', path: '/super-admin/notifications', icon: Bell, roles: ['super_admin'], badgeKey: 'notifications' },
   { label: 'POS Terminal', path: '/pos', icon: ShoppingCart, roles: ['admin', 'cashier'] },
   { label: 'Inventory', path: '/inventory', icon: Package, roles: ['admin'] },
-  { label: 'Restocking', path: '/restocking', icon: RefreshCw, roles: ['admin'], badgeKey: 'alerts' },
+  { label: 'Restocking', path: '/restocking', icon: RefreshCw, roles: ['admin'], badgeKey: 'stockAlerts' },
   { label: 'Suppliers', path: '/suppliers', icon: Truck, roles: ['admin'] },
   { label: 'Analytics', path: '/analytics', icon: BarChart2, roles: ['admin'] },
   { label: 'Rankings', path: '/rankings', icon: Trophy, roles: ['admin'] },
@@ -40,9 +42,10 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { role, logout } = useAuthStore();
-  const { unreadCount } = useAlertStore();
+  const { alerts, unreadCount } = useAlertStore();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const stockUnreadCount = alerts.filter((alert) => !alert.isRead).length;
 
   const filtered = navItems.filter((item) => {
     if (!role || !item.roles.includes(role)) return false;
@@ -75,7 +78,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <nav className="flex-1 overflow-y-auto py-2">
         {filtered.map((item) => {
           const Icon = item.icon;
-          const badge = item.badgeKey === 'alerts' && unreadCount > 0 ? unreadCount : null;
+          const badge = item.badgeKey === 'stockAlerts'
+            ? stockUnreadCount
+            : item.badgeKey === 'notifications'
+              ? unreadCount
+              : 0;
           return (
             <NavLink
               key={item.path}
@@ -91,14 +98,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             >
               <Icon className="w-5 h-5 shrink-0" />
               {!collapsed && <span className="truncate">{item.label}</span>}
-              {badge && (
+              {badge > 0 && (
                 <span
                   className={cn(
                     'ml-auto bg-red-500 text-white text-xs rounded-full font-semibold leading-none px-1.5 py-0.5',
                     collapsed && 'absolute top-1 right-1'
                   )}
                 >
-                  {badge}
+                  {badge > 99 ? '99+' : badge}
                 </span>
               )}
             </NavLink>
@@ -146,9 +153,10 @@ interface MobileDrawerProps {
 
 export function MobileSidebarDrawer({ open, onClose }: MobileDrawerProps) {
   const { role, logout } = useAuthStore();
-  const { unreadCount } = useAlertStore();
+  const { alerts, unreadCount } = useAlertStore();
   const navigate = useNavigate();
   const filtered = navItems.filter((item) => role && item.roles.includes(role));
+  const stockUnreadCount = alerts.filter((alert) => !alert.isRead).length;
 
   const handleLogout = () => {
     logout();
@@ -169,7 +177,11 @@ export function MobileSidebarDrawer({ open, onClose }: MobileDrawerProps) {
         <nav className="flex-1 overflow-y-auto py-2">
           {filtered.map((item) => {
             const Icon = item.icon;
-            const badge = item.badgeKey === 'alerts' && unreadCount > 0 ? unreadCount : null;
+            const badge = item.badgeKey === 'stockAlerts'
+              ? stockUnreadCount
+              : item.badgeKey === 'notifications'
+                ? unreadCount
+                : 0;
             return (
               <NavLink
                 key={item.path}
@@ -186,9 +198,9 @@ export function MobileSidebarDrawer({ open, onClose }: MobileDrawerProps) {
               >
                 <Icon className="w-5 h-5 shrink-0" />
                 <span>{item.label}</span>
-                {badge && (
+                {badge > 0 && (
                   <span className="ml-auto bg-red-500 text-white text-xs rounded-full font-semibold px-1.5 py-0.5">
-                    {badge}
+                    {badge > 99 ? '99+' : badge}
                   </span>
                 )}
               </NavLink>

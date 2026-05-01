@@ -284,6 +284,50 @@ export interface StockAlert {
   createdAt: string;
 }
 
+export type NotificationType =
+  | 'low_stock'
+  | 'out_of_stock'
+  | 'stock_adjustment'
+  | 'sack_conversion'
+  | 'sale_completed'
+  | 'sale_voided'
+  | 'sale_refunded'
+  | 'sale_returned'
+  | 'report_export_completed'
+  | 'report_export_failed'
+  | 'system_error'
+  | string;
+
+export type NotificationSeverity = 'info' | 'success' | 'warning' | 'critical' | 'error';
+
+export interface AppNotification {
+  id: string;
+  storeId?: string;
+  type: NotificationType;
+  severity: NotificationSeverity;
+  title: string;
+  message: string;
+  metadata: Record<string, unknown>;
+  sourceTable?: string;
+  sourceId?: string;
+  entityType?: string;
+  entityId?: string;
+  productId?: string;
+  productName?: string;
+  sellingOptionId?: string;
+  sellingOptionLabel?: string;
+  unitLabel?: string;
+  packageSize?: number;
+  packageUnit?: string;
+  currentStock?: number;
+  threshold?: number;
+  isRead: boolean;
+  readAt?: string;
+  dismissedAt?: string;
+  resolvedAt?: string;
+  createdAt: string;
+}
+
 // ─── Restocking ──────────────────────────────────────────────────────────────
 
 export interface RestockItem {

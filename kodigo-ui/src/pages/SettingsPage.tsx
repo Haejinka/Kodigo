@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import { createManagedUser, listManagedUsers, removeManagedUser, updateManagedUser } from '@/lib/admin-users';
+import { supabase } from '@/lib/supabase';
 
 const inputCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
 
@@ -692,12 +693,16 @@ export function UserManagementPage() {
 
 export function NotificationsSettingsPage() {
   const { toast } = useToast();
+  const { user } = useAuthStore();
   const [settings, setSettings] = useState({
     lowStock: true,
     outOfStock: true,
     dailySummary: false,
     salesMilestone: true,
   });
+  const [loading, setLoading] = useState(true);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const labels: Record<string, { title: string; description: string }> = {
     lowStock: { title: 'Low Stock Alerts', description: 'Notify when a product reaches its minimum stock level' },
@@ -706,27 +711,120 @@ export function NotificationsSettingsPage() {
     salesMilestone: { title: 'Sales Milestone Alerts', description: 'Notify when daily revenue hits a target' },
   };
 
+  const columns: Record<string, string> = {
+    lowStock: 'low_stock',
+    outOfStock: 'out_of_stock',
+    dailySummary: 'daily_summary',
+    salesMilestone: 'sales_milestone',
+  };
+
+  useEffect(() => {
+    const loadPreferences = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const { data, error } = await supabase
+          .from('notification_preferences')
+          .select('low_stock,out_of_stock,daily_summary,sales_milestone')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (!data) {
+          const defaults = {
+            user_id: user.id,
+            low_stock: true,
+            out_of_stock: true,
+            daily_summary: false,
+            sales_milestone: true,
+          };
+          const { error: upsertError } = await supabase
+            .from('notification_preferences')
+            .upsert(defaults, { onConflict: 'user_id' });
+          if (upsertError) throw upsertError;
+          setSettings({
+            lowStock: defaults.low_stock,
+            outOfStock: defaults.out_of_stock,
+            dailySummary: defaults.daily_summary,
+            salesMilestone: defaults.sales_milestone,
+          });
+        } else {
+          setSettings({
+            lowStock: Boolean(data.low_stock),
+            outOfStock: Boolean(data.out_of_stock),
+            dailySummary: Boolean(data.daily_summary),
+            salesMilestone: Boolean(data.sales_milestone),
+          });
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to load notification preferences.';
+        setLoadError(message);
+        toast('error', message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadPreferences();
+  }, [toast, user?.id]);
+
+  const toggleSetting = async (key: keyof typeof settings) => {
+    if (!user?.id || savingKey) return;
+
+    const nextValue = !settings[key];
+    const previous = settings;
+    setSettings((current) => ({ ...current, [key]: nextValue }));
+    setSavingKey(key);
+
+    try {
+      const { error } = await supabase
+        .from('notification_preferences')
+        .upsert({
+          user_id: user.id,
+          [columns[key]]: nextValue,
+        }, { onConflict: 'user_id' });
+      if (error) throw error;
+      toast('success', 'Preference updated.');
+    } catch (err) {
+      setSettings(previous);
+      toast('error', err instanceof Error ? err.message : 'Failed to update preference.');
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
       <h3 className="font-semibold text-gray-900 mb-5 flex items-center gap-2">
         <Bell className="w-4 h-4" /> Notification Preferences
       </h3>
+      {loading && <p className="text-sm text-gray-500 py-4">Loading preferences...</p>}
+      {!loading && loadError && (
+        <div className="text-sm text-red-600 py-4">
+          {loadError}
+        </div>
+      )}
       <div className="space-y-4">
-        {Object.entries(settings).map(([key, enabled]) => (
+        {!loading && !loadError && (Object.entries(settings) as Array<[keyof typeof settings, boolean]>).map(([key, enabled]) => (
           <div key={key} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
             <div>
               <p className="text-sm font-medium text-gray-900">{labels[key].title}</p>
               <p className="text-xs text-gray-500 mt-0.5">{labels[key].description}</p>
             </div>
             <button
-              onClick={() => {
-                setSettings((prev) => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
-                toast('info', 'Preference updated.');
-              }}
+              onClick={() => void toggleSetting(key)}
+              disabled={savingKey !== null}
               className={cn(
-                'relative w-10 h-6 rounded-full transition-colors focus:outline-none',
+                'relative w-10 h-6 rounded-full transition-colors focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed',
                 enabled ? 'bg-blue-600' : 'bg-gray-200'
               )}
+              aria-pressed={enabled}
             >
               <span
                 className={cn(

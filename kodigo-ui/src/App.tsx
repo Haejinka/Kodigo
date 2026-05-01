@@ -26,6 +26,7 @@ import { SupplierDetailPage } from '@/pages/SupplierDetailPage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { RankingsPage } from '@/pages/RankingsPage';
 import { ReportsPage } from '@/pages/ReportsPage';
+import { NotificationsPage } from '@/pages/NotificationsPage';
 import { AddSupplierPage } from '@/pages/AddSupplierPage';
 import { EditSupplierPage } from '@/pages/EditSupplierPage';
 import {
@@ -140,6 +141,14 @@ function AppRoutes() {
   }, [activeStoreId, isAuthenticated, fetchProducts, fetchSuppliers, fetchPurchaseOrders, fetchAlerts]);
 
   useEffect(() => {
+    if (!isAuthenticated) return undefined;
+    const intervalId = window.setInterval(() => {
+      void fetchAlerts();
+    }, 30000);
+    return () => window.clearInterval(intervalId);
+  }, [activeStoreId, isAuthenticated, fetchAlerts]);
+
+  useEffect(() => {
     const onFocus = () => { void revalidateData(); };
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -189,6 +198,7 @@ function AppRoutes() {
               <AppShell>
                 <Routes>
                   <Route path="/" element={<SuperAdminPage />} />
+                  <Route path="notifications" element={<NotificationsPage />} />
                   <Route path="*" element={<Navigate to="/super-admin" replace />} />
                 </Routes>
               </AppShell>
@@ -207,6 +217,7 @@ function AppRoutes() {
                 <Routes>
                   <Route path="/" element={<DefaultAdminRoute />} />
                   <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/notifications" element={<NotificationsPage />} />
                   <Route path="/inventory" element={<InventoryPage />} />
                   <Route path="/inventory/products/new" element={<AddProductPage />} />
                   <Route path="/inventory/products/:id" element={<EditProductPage />} />
