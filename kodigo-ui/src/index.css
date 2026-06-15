@@ -59,10 +59,28 @@ body {
 
 @layer components {
   .report-input {
-    @apply w-full rounded-xl border px-3 py-2 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500;
+    @apply h-11 w-full rounded-xl border px-3 py-2 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500;
     border-color: var(--app-border);
     background-color: var(--app-surface-elevated);
     color: var(--app-text-primary);
+  }
+
+  .report-input:hover {
+    border-color: color-mix(in srgb, var(--app-border) 65%, var(--app-accent) 35%);
+  }
+
+  button[data-variant="secondary"] {
+    border-color: var(--app-border);
+    background-color: var(--app-surface-card);
+    color: var(--app-text-primary);
+  }
+
+  button[data-variant="secondary"]:hover {
+    background-color: var(--app-surface-elevated);
+  }
+
+  button[data-variant="secondary"]:active {
+    background-color: color-mix(in srgb, var(--app-surface-elevated) 80%, var(--app-border-subtle) 20%);
   }
 }
 

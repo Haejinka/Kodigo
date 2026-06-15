@@ -183,7 +183,7 @@ export function ReportsPage() {
       />
 
       <div className="mb-6 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-card)] p-4 shadow-sm">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
           <FilterField label="Start">
             <input
               type="date"
@@ -352,7 +352,7 @@ export function ReportsPage() {
 
 function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="mb-1 block text-xs font-medium text-gray-500">{label}</span>
       {children}
     </label>
