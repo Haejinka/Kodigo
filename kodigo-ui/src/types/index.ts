@@ -24,6 +24,8 @@ export interface User {
   avatarUrl?: string;
   passwordHash?: string;
   storeId?: string;
+  storeIds?: string[];
+  storeNames?: string[];
 }
 
 // ─── Products & Inventory ────────────────────────────────────────────────────

@@ -21,6 +21,7 @@ export async function createManagedUser(input: {
   password: string;
   role: ManageableRole;
   storeId: string;
+  storeIds?: string[];
 }): Promise<User> {
   const data = await invokeAdminUsers<{ user: User }>({ action: 'create', ...input });
   return data.user;
@@ -32,6 +33,7 @@ export async function updateManagedUser(input: {
   email: string;
   role: ManageableRole;
   storeId: string;
+  storeIds?: string[];
 }): Promise<User> {
   const data = await invokeAdminUsers<{ user: User }>({ action: 'update', ...input });
   return data.user;

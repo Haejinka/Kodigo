@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingCart, Package, RefreshCw,
   Truck, BarChart2, Trophy, Settings, LogOut, ChevronLeft,
-  ChevronRight, Store,
+  ChevronRight,
   FileSpreadsheet, Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -68,7 +68,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     >
       {/* Logo area on mobile only */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--app-border-subtle)]">
-        <Store className="w-5 h-5 text-blue-600 shrink-0" />
+        <img
+          src="/kodigo-icon.png"
+          alt="KodiGo"
+          className="w-5 h-5 rounded-md shrink-0 object-cover"
+        />
         {!collapsed && (
           <span className="font-bold text-gray-900 text-sm">KodiGo</span>
         )}
@@ -171,7 +175,11 @@ export function MobileSidebarDrawer({ open, onClose }: MobileDrawerProps) {
       <div className="fixed inset-0 z-30 bg-black/40" onClick={onClose} />
       <aside className="fixed left-0 top-0 bottom-0 z-40 w-64 shadow-xl flex flex-col bg-[var(--app-surface-nav)] border-r border-[var(--app-border)]">
         <div className="flex items-center gap-3 px-4 py-4 border-b border-[var(--app-border)]">
-          <Store className="w-5 h-5 text-blue-600" />
+          <img
+            src="/kodigo-icon.png"
+            alt="KodiGo"
+            className="w-5 h-5 rounded-md object-cover"
+          />
           <span className="font-bold text-gray-900">KodiGo</span>
         </div>
         <nav className="flex-1 overflow-y-auto py-2">

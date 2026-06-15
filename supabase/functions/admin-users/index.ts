@@ -16,6 +16,7 @@ type RequestBody = {
   password?: string;
   role?: UserRole;
   storeId?: string;
+  storeIds?: string[];
 };
 
 function json(body: unknown, status = 200) {
@@ -35,6 +36,18 @@ function requireText(value: unknown, label: string) {
 function requireRole(value: unknown): UserRole {
   if (value === "admin" || value === "cashier") return value;
   throw new Error("Role must be admin or cashier");
+}
+
+function normalizeStoreIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(
+    new Set(
+      value
+        .filter((entry): entry is string => typeof entry === "string")
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0),
+    ),
+  );
 }
 
 serve(async (req) => {
@@ -110,20 +123,56 @@ serve(async (req) => {
 
       const authById = new Map((authUsers.users ?? []).map((authUser) => [authUser.id, authUser]));
       const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
-      const users = (mappings ?? [])
-        .map((mapping) => {
-          const profile = profileById.get(mapping.profile_id);
-          if (!profile) return null;
-          const authUser = authById.get(mapping.profile_id);
-          return {
-            id: profile.id,
-            email: authUser?.email ?? "",
-            name: profile.name,
-            role: profile.role,
-            storeId: mapping.store_id,
-          };
-        })
-        .filter(Boolean);
+      const storeNameById = new Map<string, string>();
+      for (const row of callerStores ?? []) {
+        if (typeof row.store_id === "string") {
+          storeNameById.set(row.store_id, row.store_id);
+        }
+      }
+      const { data: scopedStores, error: scopedStoresError } = await adminClient
+        .from("stores")
+        .select("id, name")
+        .in("id", scopedStoreIds);
+      if (scopedStoresError) throw scopedStoresError;
+      for (const store of scopedStores ?? []) {
+        storeNameById.set(store.id as string, String(store.name ?? ""));
+      }
+
+      const usersById = new Map<string, {
+        id: string;
+        email: string;
+        name: string;
+        role: UserRole;
+        storeId?: string;
+        storeIds: string[];
+        storeNames: string[];
+      }>();
+
+      for (const mapping of mappings ?? []) {
+        const profile = profileById.get(mapping.profile_id);
+        if (!profile) continue;
+        const authUser = authById.get(mapping.profile_id);
+        const existing = usersById.get(mapping.profile_id);
+        if (existing) {
+          if (!existing.storeIds.includes(mapping.store_id as string)) {
+            existing.storeIds.push(mapping.store_id as string);
+            existing.storeNames.push(storeNameById.get(mapping.store_id as string) ?? String(mapping.store_id));
+          }
+          continue;
+        }
+
+        usersById.set(mapping.profile_id as string, {
+          id: profile.id,
+          email: authUser?.email ?? "",
+          name: profile.name,
+          role: profile.role,
+          storeId: mapping.store_id,
+          storeIds: [mapping.store_id as string],
+          storeNames: [storeNameById.get(mapping.store_id as string) ?? String(mapping.store_id)],
+        });
+      }
+
+      const users = Array.from(usersById.values());
 
       return json({ users });
     }
@@ -133,8 +182,15 @@ serve(async (req) => {
       const email = requireText(body.email, "Email").toLowerCase();
       const password = requireText(body.password, "Password");
       const role = requireRole(body.role);
-      const storeId = requireText(body.storeId, "Store");
-      assertStoreAccess(storeId);
+      const requestedStoreIds = normalizeStoreIds(body.storeIds);
+      const singleStoreId = typeof body.storeId === "string" ? body.storeId.trim() : "";
+      const storeIds = role === "admin"
+        ? (requestedStoreIds.length > 0 ? requestedStoreIds : singleStoreId ? [singleStoreId] : [])
+        : [requireText(body.storeId, "Store")];
+
+      if (storeIds.length === 0) throw new Error("At least one store is required.");
+      for (const storeId of storeIds) assertStoreAccess(storeId);
+      const primaryStoreId = storeIds[0];
 
       const { data: created, error: createError } = await adminClient.auth.admin.createUser({
         email,
@@ -153,20 +209,27 @@ serve(async (req) => {
 
       const { error: mapError } = await adminClient
         .from("store_users")
-        .insert({ store_id: storeId, profile_id: created.user.id });
+        .insert(storeIds.map((storeId) => ({ store_id: storeId, profile_id: created.user.id })));
       if (mapError) throw mapError;
 
       await adminClient.from("audit_logs").insert({
-        store_id: storeId,
+        store_id: primaryStoreId,
         actor_id: user.id,
         action: "user.created",
         entity_type: "profile",
         entity_id: created.user.id,
-        details: { email, role },
+        details: { email, role, store_ids: storeIds },
       });
 
       return json({
-        user: { id: created.user.id, email, name, role, storeId },
+        user: {
+          id: created.user.id,
+          email,
+          name,
+          role,
+          storeId: primaryStoreId,
+          storeIds,
+        },
       });
     }
 
@@ -175,14 +238,22 @@ serve(async (req) => {
       const name = requireText(body.name, "Name");
       const email = requireText(body.email, "Email").toLowerCase();
       const role = requireRole(body.role);
-      const storeId = requireText(body.storeId, "Store");
-      assertStoreAccess(storeId);
+      const requestedStoreIds = normalizeStoreIds(body.storeIds);
+      const singleStoreId = typeof body.storeId === "string" ? body.storeId.trim() : "";
+      const storeIds = role === "admin"
+        ? (requestedStoreIds.length > 0 ? requestedStoreIds : singleStoreId ? [singleStoreId] : [])
+        : [requireText(body.storeId, "Store")];
+
+      if (storeIds.length === 0) throw new Error("At least one store is required.");
+      for (const storeId of storeIds) assertStoreAccess(storeId);
+      const primaryStoreId = storeIds[0];
 
       const { data: existingMapping, error: existingMappingError } = await adminClient
         .from("store_users")
         .select("store_id")
         .eq("profile_id", userId)
         .in("store_id", Array.from(allowedStoreIds))
+        .limit(1)
         .maybeSingle();
       if (existingMappingError) throw existingMappingError;
       if (!existingMapping) throw new Error("User is not assigned to one of your stores.");
@@ -208,30 +279,40 @@ serve(async (req) => {
 
       const { error: remapError } = await adminClient
         .from("store_users")
-        .insert({ store_id: storeId, profile_id: userId });
+        .insert(storeIds.map((storeId) => ({ store_id: storeId, profile_id: userId })));
       if (remapError) throw remapError;
 
       await adminClient.from("audit_logs").insert({
-        store_id: storeId,
+        store_id: primaryStoreId,
         actor_id: user.id,
         action: "user.updated",
         entity_type: "profile",
         entity_id: userId,
-        details: { email, role },
+        details: { email, role, store_ids: storeIds },
       });
 
-      return json({ user: { id: userId, email, name, role, storeId } });
+      return json({
+        user: {
+          id: userId,
+          email,
+          name,
+          role,
+          storeId: primaryStoreId,
+          storeIds,
+        },
+      });
     }
 
     if (body.action === "remove") {
       const userId = requireText(body.userId, "User id");
-      if (userId === user.id) throw new Error("You cannot remove your own account.");
+      if (userId === user.id) throw new Error("You cannot remove the owner account you are signed in with.");
 
       const { data: targetMapping, error: targetMappingError } = await adminClient
         .from("store_users")
         .select("store_id")
         .eq("profile_id", userId)
         .in("store_id", Array.from(allowedStoreIds))
+        .limit(1)
         .maybeSingle();
       if (targetMappingError) throw targetMappingError;
       if (!targetMapping) throw new Error("User is not assigned to one of your stores.");

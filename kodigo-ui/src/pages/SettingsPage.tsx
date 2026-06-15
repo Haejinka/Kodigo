@@ -288,6 +288,30 @@ export function GeneralSettingsPage() {
 
 const selectCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer';
 
+interface StoreAssignmentPickerProps {
+  stores: StoreType[];
+  selectedStoreIds: string[];
+  onToggle: (storeId: string) => void;
+}
+
+function StoreAssignmentPicker({ stores, selectedStoreIds, onToggle }: StoreAssignmentPickerProps) {
+  return (
+    <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+      {stores.map((store) => (
+        <label key={store.id} className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            checked={selectedStoreIds.includes(store.id)}
+            onChange={() => onToggle(store.id)}
+          />
+          <span>{store.name}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 interface EditUserModalProps {
   user: User;
   onSave: (updated: User) => Promise<void>;
@@ -301,16 +325,33 @@ function EditUserModal({ user, onSave, onClose }: EditUserModalProps) {
   const [email, setEmail] = useState(user.email);
   const [role, setRole] = useState<'admin' | 'cashier'>(user.role === 'admin' ? 'admin' : 'cashier');
   const [storeId, setStoreId] = useState(user.storeId || '');
+  const [adminStoreIds, setAdminStoreIds] = useState<string[]>(user.storeIds?.length ? user.storeIds : user.storeId ? [user.storeId] : []);
   const [saving, setSaving] = useState(false);
+
+  const toggleAdminStore = (nextStoreId: string) => {
+    setAdminStoreIds((prev) => (
+      prev.includes(nextStoreId)
+        ? prev.filter((id) => id !== nextStoreId)
+        : [...prev, nextStoreId]
+    ));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) { toast('error', 'Name is required.'); return; }
     if (!email.trim() || !email.includes('@')) { toast('error', 'A valid email is required.'); return; }
-    if (!storeId) { toast('error', 'Store assignment is required.'); return; }
+    if (role === 'admin' && adminStoreIds.length === 0) { toast('error', 'At least one store assignment is required.'); return; }
+    if (role === 'cashier' && !storeId) { toast('error', 'Store assignment is required.'); return; }
     setSaving(true);
     try {
-      await onSave({ ...user, name: name.trim(), email: email.trim(), role, storeId });
+      await onSave({
+        ...user,
+        name: name.trim(),
+        email: email.trim(),
+        role,
+        storeId: role === 'admin' ? adminStoreIds[0] ?? '' : storeId,
+        storeIds: role === 'admin' ? adminStoreIds : [storeId],
+      });
       onClose();
     } catch (err) {
       toast('error', err instanceof Error ? err.message : 'Failed to update user.');
@@ -369,26 +410,45 @@ function EditUserModal({ user, onSave, onClose }: EditUserModalProps) {
               <select
                 className={selectCls}
                 value={role}
-                onChange={(e) => setRole(e.target.value as 'admin' | 'cashier')}
+                onChange={(e) => {
+                  const nextRole = e.target.value as 'admin' | 'cashier';
+                  setRole(nextRole);
+                  if (nextRole === 'admin') {
+                    setAdminStoreIds((prev) => prev.length ? prev : (storeId ? [storeId] : []));
+                  } else {
+                    setStoreId((prev) => prev || adminStoreIds[0] || stores[0]?.id || '');
+                  }
+                }}
               >
                 <option value="cashier">Cashier — POS access only</option>
                 <option value="admin">Admin — Full access</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Assignment</label>
-              <select
-                className={selectCls}
-                value={storeId}
-                onChange={(e) => setStoreId(e.target.value)}
-                disabled={stores.length <= 1}
-              >
-                <option value="">No Store Assigned</option>
-                {stores.map(store => (
-                  <option key={store.id} value={store.id}>{store.name}</option>
-                ))}
-              </select>
-            </div>
+            {role === 'cashier' ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Assignment</label>
+                <select
+                  className={selectCls}
+                  value={storeId}
+                  onChange={(e) => setStoreId(e.target.value)}
+                  disabled={stores.length <= 1}
+                >
+                  <option value="">No Store Assigned</option>
+                  {stores.map(store => (
+                    <option key={store.id} value={store.id}>{store.name}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Assignments</label>
+                <StoreAssignmentPicker
+                  stores={stores}
+                  selectedStoreIds={adminStoreIds}
+                  onToggle={toggleAdminStore}
+                />
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-3 pt-1">
             <Button variant="ghost" type="button" onClick={onClose}>
@@ -405,7 +465,7 @@ function EditUserModal({ user, onSave, onClose }: EditUserModalProps) {
 }
 
 interface CreateUserModalProps {
-  onCreate: (input: { name: string; email: string; password: string; role: 'admin' | 'cashier'; storeId: string }) => Promise<void>;
+  onCreate: (input: { name: string; email: string; password: string; role: 'admin' | 'cashier'; storeId: string; storeIds?: string[] }) => Promise<void>;
   onClose: () => void;
 }
 
@@ -418,7 +478,16 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<'admin' | 'cashier'>('cashier');
   const [storeId, setStoreId] = useState(activeStoreId && activeStoreId !== 'all' ? activeStoreId : stores[0]?.id ?? '');
+  const [adminStoreIds, setAdminStoreIds] = useState<string[]>(storeId ? [storeId] : []);
   const [creating, setCreating] = useState(false);
+
+  const toggleAdminStore = (nextStoreId: string) => {
+    setAdminStoreIds((prev) => (
+      prev.includes(nextStoreId)
+        ? prev.filter((id) => id !== nextStoreId)
+        : [...prev, nextStoreId]
+    ));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -427,7 +496,8 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
     if (!password) { toast('error', 'Password is required.'); return; }
     if (password.length < 6) { toast('error', 'Password must be at least 6 characters.'); return; }
     if (password !== confirmPassword) { toast('error', 'Passwords do not match.'); return; }
-    if (!storeId || storeId === 'all') { toast('error', 'Store assignment is required.'); return; }
+    if (role === 'cashier' && (!storeId || storeId === 'all')) { toast('error', 'Store assignment is required.'); return; }
+    if (role === 'admin' && adminStoreIds.length === 0) { toast('error', 'At least one store assignment is required.'); return; }
     
     setCreating(true);
     try {
@@ -436,7 +506,8 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
         email: email.trim(),
         password,
         role,
-        storeId,
+        storeId: role === 'admin' ? adminStoreIds[0] ?? '' : storeId,
+        storeIds: role === 'admin' ? adminStoreIds : [storeId],
       });
       onClose();
     } catch (err) {
@@ -511,26 +582,45 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
               <select
                 className={selectCls}
                 value={role}
-                onChange={(e) => setRole(e.target.value as 'admin' | 'cashier')}
+                onChange={(e) => {
+                  const nextRole = e.target.value as 'admin' | 'cashier';
+                  setRole(nextRole);
+                  if (nextRole === 'admin') {
+                    setAdminStoreIds((prev) => prev.length ? prev : (storeId ? [storeId] : []));
+                  } else {
+                    setStoreId((prev) => prev || adminStoreIds[0] || stores[0]?.id || '');
+                  }
+                }}
               >
                 <option value="cashier">Cashier • POS access only</option>
                 <option value="admin">Admin • Full system access</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Assignment</label>
-              <select
-                className={selectCls}
-                value={storeId}
-                onChange={(e) => setStoreId(e.target.value)}
-                disabled={stores.length <= 1}
-              >
-                <option value="">No Store Assigned</option>
-                {stores.map(store => (
-                  <option key={store.id} value={store.id}>{store.name}</option>
-                ))}
-              </select>
-            </div>
+            {role === 'cashier' ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Assignment</label>
+                <select
+                  className={selectCls}
+                  value={storeId}
+                  onChange={(e) => setStoreId(e.target.value)}
+                  disabled={stores.length <= 1}
+                >
+                  <option value="">No Store Assigned</option>
+                  {stores.map(store => (
+                    <option key={store.id} value={store.id}>{store.name}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Assignments</label>
+                <StoreAssignmentPicker
+                  stores={stores}
+                  selectedStoreIds={adminStoreIds}
+                  onToggle={toggleAdminStore}
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
@@ -549,7 +639,7 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
 
 export function UserManagementPage() {
   const { toast } = useToast();
-  const { stores, activeStoreId } = useAuthStore();
+  const { user: currentUser, stores, activeStoreId } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
@@ -581,12 +671,13 @@ export function UserManagementPage() {
       email: updated.email,
       role: updated.role,
       storeId: updated.storeId || '',
+      storeIds: updated.storeIds,
     });
     setUsers((prev) => prev.map((u) => (u.id === saved.id ? saved : u)));
     toast('success', 'User updated successfully.');
   };
 
-  const handleCreate = async (input: { name: string; email: string; password: string; role: 'admin' | 'cashier'; storeId: string }) => {
+  const handleCreate = async (input: { name: string; email: string; password: string; role: 'admin' | 'cashier'; storeId: string; storeIds?: string[] }) => {
     const created = await createManagedUser(input);
     setUsers((prev) => [created, ...prev]);
     toast('success', `${created.role === 'admin' ? 'Admin' : 'User'} created successfully.`);
@@ -619,7 +710,10 @@ export function UserManagementPage() {
           ) : users.length === 0 ? (
             <li className="px-5 py-8 text-center text-sm text-gray-500">No users found for your assigned stores.</li>
           ) : users.map((u) => {
-            const assignedStore = stores.find(s => s.id === u.storeId);
+            const assignedStores = (u.storeIds?.length ? u.storeIds : u.storeId ? [u.storeId] : [])
+              .map((storeId) => stores.find((s) => s.id === storeId)?.name)
+              .filter((name): name is string => Boolean(name));
+            const isCurrentOwner = u.id === currentUser?.id && u.role === 'admin';
             return (
             <li key={u.id} className="flex items-center gap-4 px-5 py-4">
               <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm shrink-0">
@@ -629,12 +723,12 @@ export function UserManagementPage() {
                 <p className="font-medium text-gray-900 text-sm">{u.name}</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <p className="text-xs text-gray-500">{u.email}</p>
-                  {assignedStore && (
+                  {assignedStores.length > 0 && (
                     <>
                       <span className="text-gray-300">•</span>
                       <p className="text-xs text-gray-600 flex items-center gap-1">
                         <Store className="w-3 h-3" />
-                        {assignedStore.name}
+                        {assignedStores.join(', ')}
                       </p>
                     </>
                   )}
@@ -649,12 +743,16 @@ export function UserManagementPage() {
               >
                 Edit
               </button>
-              <button
-                onClick={() => setDeleteTarget(u)}
-                className="text-xs text-red-500 hover:underline font-medium"
-              >
-                Remove
-              </button>
+              {isCurrentOwner ? (
+                <span className="text-xs font-medium text-gray-400">Owner</span>
+              ) : (
+                <button
+                  onClick={() => setDeleteTarget(u)}
+                  className="text-xs text-red-500 hover:underline font-medium"
+                >
+                  Remove
+                </button>
+              )}
             </li>
           );
           })}
