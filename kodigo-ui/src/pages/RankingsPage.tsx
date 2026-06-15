@@ -11,7 +11,7 @@ import {
 } from '@/lib/reporting';
 import type { SalesGroupReportRow } from '@/lib/reporting';
 
-const periods = ['Daily', 'Weekly', 'Monthly'] as const;
+const periods = ['Daily', 'Weekly', 'Monthly', 'Yearly'] as const;
 type Period = typeof periods[number];
 
 export function RankingsPage() {
@@ -28,7 +28,13 @@ export function RankingsPage() {
     const fetchRankings = async () => {
       try {
         if (!activeStoreId) return;
-        const days = period === 'Daily' ? 1 : period === 'Weekly' ? 7 : 30;
+        const days = period === 'Daily'
+          ? 1
+          : period === 'Weekly'
+            ? 7
+            : period === 'Monthly'
+              ? 30
+              : 365;
         const report = await fetchSalesReport(
           { ...getDateRangeForDays(days), paymentMethod: 'all', status: 'all' },
           activeStoreId,

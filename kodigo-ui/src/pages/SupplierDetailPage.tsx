@@ -83,7 +83,7 @@ export function SupplierDetailPage() {
     <div>
       <PageHeader
         title={supplier.name}
-        subtitle={`Contact: ${supplier.contact}`}
+        subtitle={`Contact: ${supplier.contact}${supplier.storeNames.length > 0 ? ` · ${supplier.storeNames.join(', ')}` : ''}`}
         actions={
           <div className="flex items-center gap-2">
             <Button

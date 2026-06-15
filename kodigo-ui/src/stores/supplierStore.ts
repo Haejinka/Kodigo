@@ -7,7 +7,7 @@ import { executeOrQueueMutation } from '@/lib/offline-sync';
 
 export type SupplierFormData = Omit<
   Supplier,
-  'id' | 'overallScore' | 'reliabilityScore' | 'priceScore' | 'totalOrders' | 'onTimeDeliveries' | 'createdAt'
+  'id' | 'storeId' | 'storeNames' | 'overallScore' | 'reliabilityScore' | 'priceScore' | 'totalOrders' | 'onTimeDeliveries' | 'createdAt'
 >;
 
 interface SupplierStore {
@@ -33,6 +33,69 @@ interface SupplierStore {
   recalculatePriceScores: (products: Product[]) => void;
 }
 
+const mapSupplierRows = (rows: any[] = []): Supplier[] => {
+  return rows
+    .map((s) => ({
+      id: s.id,
+      storeId: s.store_ids?.[0] || '',
+      storeIds: s.store_ids || [],
+      storeNames: s.store_names || [],
+      name: s.name,
+      contact: s.contact,
+      email: s.email,
+      phone: s.phone,
+      address: s.address,
+      leadTimeDays: s.lead_time_days,
+      reliabilityScore: s.reliability_score || 0,
+      priceScore: s.price_score || 0,
+      overallScore: s.overall_score || 0,
+      totalOrders: s.total_orders || 0,
+      onTimeDeliveries: s.on_time_deliveries || 0,
+      createdAt: s.created_at,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+};
+
+export const fetchSuppliersForStore = async (storeId?: string): Promise<Supplier[]> => {
+  let supplierStoreQuery = supabase
+    .from('supplier_stores')
+    .select('supplier_id, store_id, stores(id,name)');
+
+  if (storeId && storeId !== 'all') {
+    supplierStoreQuery = supplierStoreQuery.eq('store_id', storeId);
+  }
+
+  const { data: supplierStoreRows, error: supplierStoreError } = await supplierStoreQuery;
+  if (supplierStoreError) throw supplierStoreError;
+
+  const rows = supplierStoreRows || [];
+  const supplierIds = [...new Set(rows.map((row: any) => row.supplier_id).filter(Boolean))];
+  if (supplierIds.length === 0) return [];
+
+  const supplierMeta = new Map<string, { storeIds: string[]; storeNames: string[] }>();
+  for (const row of rows as any[]) {
+    const current = supplierMeta.get(row.supplier_id) || { storeIds: [], storeNames: [] };
+    if (row.store_id && !current.storeIds.includes(row.store_id)) current.storeIds.push(row.store_id);
+    const storeName = Array.isArray(row.stores) ? row.stores[0]?.name : row.stores?.name;
+    if (storeName && !current.storeNames.includes(storeName)) current.storeNames.push(storeName);
+    supplierMeta.set(row.supplier_id, current);
+  }
+
+  const { data: suppliers, error: supplierError } = await supabase
+    .from('suppliers')
+    .select('*')
+    .in('id', supplierIds)
+    .order('name', { ascending: true });
+
+  if (supplierError) throw supplierError;
+
+  return mapSupplierRows((suppliers || []).map((supplier: any) => ({
+    ...supplier,
+    store_ids: supplierMeta.get(supplier.id)?.storeIds || [],
+    store_names: supplierMeta.get(supplier.id)?.storeNames || [],
+  })));
+};
+
 export const useSupplierStore = create<SupplierStore>((set, get) => ({
   suppliers: [],
   purchaseOrders: [],
@@ -44,32 +107,8 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
     set({ isLoading: true });
     try {
       if (!navigator.onLine) throw new Error("Offline mode: cannot fetch initial suppliers");
-      let query = supabase.from('suppliers').select('*');
-      // If a specific store is selected, scope to it. Otherwise fetch globally.
-      if (storeId && storeId !== 'all') {
-        query = query.eq('store_id', storeId);
-      }
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const mapped: Supplier[] = (data || []).map(s => ({
-        id: s.id,
-        storeId: s.store_id,
-        name: s.name,
-        contact: s.contact,
-        email: s.email,
-        phone: s.phone,
-        address: s.address,
-        leadTimeDays: s.lead_time_days,
-        reliabilityScore: s.reliability_score || 0,
-        priceScore: s.price_score || 0,
-        overallScore: s.overall_score || 0,
-        totalOrders: s.total_orders || 0,
-        onTimeDeliveries: s.on_time_deliveries || 0,
-        createdAt: s.created_at,
-      }));
-
-      set({ suppliers: mapped, isLoading: false });
+      const suppliers = await fetchSuppliersForStore(storeId ?? undefined);
+      set({ suppliers, isLoading: false });
     } catch (err) {
       console.warn("Using previously cached suppliers (cache mechanism TBD)", err);
       set({ isLoading: false });
@@ -119,17 +158,18 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
   },
 
   addSupplier: async (data) => {
-    const storeId = data.storeId || useAuthStore.getState().activeStoreId;
-    if (storeId === 'all') {
-       console.warn("Please select a specific store first.");
+    const selectedStoreIds = [...new Set((data.storeIds || []).filter((storeId) => storeId && storeId !== 'all'))];
+    if (selectedStoreIds.length === 0) {
+       console.warn("Please select at least one store first.");
        return undefined;
     }
-    if (!storeId) return undefined;
+    if (!navigator.onLine) {
+      throw new Error('Creating shared suppliers currently requires an online connection.');
+    }
 
     const newId = crypto.randomUUID();
     const newSupplier = {
       id: newId,
-      store_id: storeId,
       name: data.name,
       contact: data.contact,
       email: data.email,
@@ -141,7 +181,9 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
     const optimistic: Supplier = {
       ...data,
       id: newId,
-      storeId,
+      storeId: selectedStoreIds[0],
+      storeIds: selectedStoreIds,
+      storeNames: useAuthStore.getState().stores.filter((store) => selectedStoreIds.includes(store.id)).map((store) => store.name),
       reliabilityScore: 100,
       priceScore: 50,
       overallScore: 80,
@@ -151,16 +193,30 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
     };
 
     const currentActiveStore = useAuthStore.getState().activeStoreId;
-    if (currentActiveStore === 'all' || currentActiveStore === storeId) {
+    if (currentActiveStore === 'all' || selectedStoreIds.includes(currentActiveStore || '')) {
       set(s => ({ suppliers: [...s.suppliers, optimistic] }));
     }
 
     try {
-      await executeOrQueueMutation('suppliers', 'INSERT', newSupplier);
+      const { error: insertSupplierError } = await supabase.from('suppliers').insert(newSupplier);
+      if (insertSupplierError) throw insertSupplierError;
+
+      const { error: linkError } = await supabase.from('supplier_stores').insert(
+        selectedStoreIds.map((storeId) => ({
+          supplier_id: newId,
+          store_id: storeId,
+        }))
+      );
+      if (linkError) {
+        await supabase.from('suppliers').delete().eq('id', newId);
+        throw linkError;
+      }
+
+      await get().fetchSuppliers();
       return optimistic;
     } catch (err) {
       // Revert optimistic addition if the network/database call failed with an explicit data error
-      if (currentActiveStore === 'all' || currentActiveStore === storeId) {
+      if (currentActiveStore === 'all' || selectedStoreIds.includes(currentActiveStore || '')) {
         set(s => ({ suppliers: s.suppliers.filter(sup => sup.id !== newId) }));
       }
       console.error('Failed to create supplier:', err);
@@ -176,6 +232,14 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
   },
 
   updateSupplier: async (id, data) => {
+    const selectedStoreIds = [...new Set((data.storeIds || []).filter((storeId) => storeId && storeId !== 'all'))];
+    if (selectedStoreIds.length === 0) {
+      throw new Error('Assign the supplier to at least one store.');
+    }
+    if (!navigator.onLine) {
+      throw new Error('Updating shared supplier assignments currently requires an online connection.');
+    }
+
     const changes = {
       name: data.name,
       contact: data.contact,
@@ -187,11 +251,56 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
 
     const previous = get().suppliers;
     set(s => ({
-      suppliers: s.suppliers.map(sup => sup.id === id ? { ...sup, ...data } : sup)
+      suppliers: s.suppliers.map((sup) => {
+        if (sup.id !== id) return sup;
+        const storeNames = useAuthStore.getState().stores
+          .filter((store) => selectedStoreIds.includes(store.id))
+          .map((store) => store.name);
+        return {
+          ...sup,
+          ...data,
+          storeId: selectedStoreIds[0],
+          storeIds: selectedStoreIds,
+          storeNames,
+        };
+      })
     }));
 
     try {
-      await executeOrQueueMutation('suppliers', 'UPDATE', changes, 'id', id);
+      const { error: supplierError } = await supabase.from('suppliers').update(changes).eq('id', id);
+      if (supplierError) throw supplierError;
+
+      const { data: existingLinks, error: existingLinksError } = await supabase
+        .from('supplier_stores')
+        .select('store_id')
+        .eq('supplier_id', id);
+      if (existingLinksError) throw existingLinksError;
+
+      const existingStoreIds = new Set((existingLinks || []).map((row) => row.store_id));
+      const nextStoreIds = new Set(selectedStoreIds);
+      const toAdd = selectedStoreIds.filter((storeId) => !existingStoreIds.has(storeId));
+      const toRemove = [...existingStoreIds].filter((storeId) => !nextStoreIds.has(storeId));
+
+      if (toAdd.length > 0) {
+        const { error: addLinkError } = await supabase.from('supplier_stores').insert(
+          toAdd.map((storeId) => ({
+            supplier_id: id,
+            store_id: storeId,
+          }))
+        );
+        if (addLinkError) throw addLinkError;
+      }
+
+      for (const storeId of toRemove) {
+        const { error: removeLinkError } = await supabase
+          .from('supplier_stores')
+          .delete()
+          .eq('supplier_id', id)
+          .eq('store_id', storeId);
+        if (removeLinkError) throw removeLinkError;
+      }
+
+      await get().fetchSuppliers();
     } catch (err: any) {
       // rollback on error
       set({ suppliers: previous });
@@ -206,36 +315,91 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
   deleteSupplier: async (id) => {
     const previousSuppliers = get().suppliers;
     const previousPurchaseOrders = get().purchaseOrders;
+    const activeStoreId = useAuthStore.getState().activeStoreId;
+    const supplier = previousSuppliers.find((item) => item.id === id);
+    if (!supplier) throw new Error('Supplier not found.');
+    if (!navigator.onLine) {
+      throw new Error('Removing shared suppliers currently requires an online connection.');
+    }
+
+    const targetStoreId =
+      activeStoreId && activeStoreId !== 'all'
+        ? activeStoreId
+        : supplier.storeIds.length === 1
+        ? supplier.storeIds[0]
+        : undefined;
+
+    if (!targetStoreId) {
+      throw new Error('Select a specific store before removing a supplier shared across multiple stores.');
+    }
 
     // Check the database directly because local cache can be stale.
     const { count: linkedPoCount, error: linkedPoError } = await supabase
       .from('purchase_orders')
       .select('id', { count: 'exact', head: true })
-      .eq('supplier_id', id);
+      .eq('supplier_id', id)
+      .eq('store_id', targetStoreId);
 
     if (linkedPoError && linkedPoError.code) {
       throw linkedPoError;
     }
 
+    const { count: linkedProductCount, error: linkedProductError } = await supabase
+      .from('products')
+      .select('id', { count: 'exact', head: true })
+      .eq('supplier_id', id)
+      .eq('store_id', targetStoreId);
+
+    if (linkedProductError && linkedProductError.code) {
+      throw linkedProductError;
+    }
+
     const hasLinkedPurchaseOrders = (linkedPoCount ?? 0) > 0
-      || previousPurchaseOrders.some((po) => po.supplierId === id);
+      || previousPurchaseOrders.some((po) => po.supplierId === id && po.storeId === targetStoreId);
 
     if (hasLinkedPurchaseOrders) {
-      throw new Error('Cannot delete supplier with existing purchase orders. Remove or reassign linked orders first.');
+      throw new Error('Cannot remove this supplier from the selected store while purchase orders still reference it.');
+    }
+
+    if ((linkedProductCount ?? 0) > 0) {
+      throw new Error('Cannot remove this supplier from the selected store while products still use it. Reassign those products first.');
     }
 
     set(s => ({
-      suppliers: s.suppliers.filter(sup => sup.id !== id),
-      purchaseOrders: s.purchaseOrders.filter(po => po.supplierId !== id)
+      suppliers: s.suppliers.filter((sup) => {
+        if (sup.id !== id) return true;
+        return !sup.storeIds.includes(targetStoreId) || sup.storeIds.length > 1;
+      }).map((sup) => {
+        if (sup.id !== id) return sup;
+        const nextStoreIds = sup.storeIds.filter((storeId) => storeId !== targetStoreId);
+        const removedStoreName = useAuthStore.getState().stores.find((item) => item.id === targetStoreId)?.name;
+        return {
+          ...sup,
+          storeIds: nextStoreIds,
+          storeNames: sup.storeNames.filter((storeName) => storeName !== removedStoreName),
+          storeId: nextStoreIds[0] || '',
+        };
+      }),
+      purchaseOrders: s.purchaseOrders.filter(po => !(po.supplierId === id && po.storeId === targetStoreId))
     }));
 
     try {
-      await Promise.race([
-        executeOrQueueMutation('suppliers', 'DELETE', undefined, 'id', id),
-        new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Delete request timed out. Check your internet and try again.')), 15000);
-        })
-      ]);
+      if (supplier.storeIds.length > 1) {
+        const { error } = await supabase
+          .from('supplier_stores')
+          .delete()
+          .eq('supplier_id', id)
+          .eq('store_id', targetStoreId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('suppliers')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
+      }
+
+      await get().fetchSuppliers();
     } catch (err: any) {
       // Revert optimistic state if backend rejects deletion.
       set({ suppliers: previousSuppliers, purchaseOrders: previousPurchaseOrders });

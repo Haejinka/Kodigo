@@ -4,9 +4,9 @@ import { ImagePlus, Link, Package, Plus, Star, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { useToast } from '@/components/shared/Toast';
 import { useAuthStore } from '@/stores/authStore';
-import { useProductStore } from '@/stores/productStore';
-import { useSupplierStore } from '@/stores/supplierStore';
-import type { Product, ProductSellingOption, SellingOptionKind } from '@/types';
+import { fetchCategoriesForStore, useProductStore } from '@/stores/productStore';
+import { fetchSuppliersForStore } from '@/stores/supplierStore';
+import type { Category, Product, ProductSellingOption, SellingOptionKind, Supplier } from '@/types';
 
 type ProductFormData = Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'categoryName' | 'supplierName'>;
 
@@ -72,14 +72,14 @@ const createSellingOption = (
 export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const suppliers = useSupplierStore((s) => s.suppliers);
-  const categories = useProductStore((s) => s.categories);
   const fetchCategories = useProductStore((s) => s.fetchCategories);
   const addCategory = useProductStore((s) => s.addCategory);
   const seedDefaultCategories = useProductStore((s) => s.seedDefaultCategories);
   const { stores, activeStoreId } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [categoryLoading, setCategoryLoading] = useState(false);
+  const [storeCategories, setStoreCategories] = useState<Category[]>([]);
+  const [storeSuppliers, setStoreSuppliers] = useState<Supplier[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [newCategoryName, setNewCategoryName] = useState('');
   const [urlInputMode, setUrlInputMode] = useState(false);
@@ -124,6 +124,43 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       return next;
     });
   };
+
+  useEffect(() => {
+    const targetStoreId = form.storeId || (activeStoreId === 'all' ? '' : activeStoreId) || '';
+    if (!targetStoreId) {
+      setStoreCategories([]);
+      setStoreSuppliers([]);
+      return;
+    }
+
+    let cancelled = false;
+    setCategoryLoading(true);
+
+    void Promise.all([
+      fetchCategoriesForStore(targetStoreId),
+      fetchSuppliersForStore(targetStoreId),
+    ]).then(([categories, suppliers]) => {
+      if (cancelled) return;
+      setStoreCategories(categories);
+      setStoreSuppliers(suppliers);
+      setForm((prev) => ({
+        ...prev,
+        categoryId: categories.some((category) => category.id === prev.categoryId) ? prev.categoryId : '',
+        supplierId: suppliers.some((supplier) => supplier.id === prev.supplierId) ? prev.supplierId : '',
+      }));
+    }).catch((err) => {
+      if (cancelled) return;
+      console.warn('Failed to load store-scoped product form options', err);
+      setStoreCategories([]);
+      setStoreSuppliers([]);
+    }).finally(() => {
+      if (!cancelled) setCategoryLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [form.storeId, activeStoreId]);
 
   useEffect(() => {
     const targetStoreId = form.storeId || (activeStoreId === 'all' ? 'all' : activeStoreId);
@@ -216,7 +253,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     if (!form.name.trim()) errs.name = 'Product name is required';
     if (!form.sku.trim()) errs.sku = 'SKU is required';
     if (!form.categoryId) errs.categoryId = 'Category is required';
-    if (form.storeId && categories.length === 0) errs.categoryId = 'No categories available for this store yet';
+    if (form.storeId && storeCategories.length === 0) errs.categoryId = 'No categories available for this store yet';
     if (form.costPrice < 0) errs.costPrice = 'Cost price cannot be negative';
     if (activeSellingOptions.length === 0) errs.sellingOptions = 'At least one active selling option is required';
     form.sellingOptions.forEach((option, index) => {
@@ -255,6 +292,8 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     try {
       const category = await addCategory(form.storeId, name);
       if (category) {
+        const refreshedCategories = await fetchCategoriesForStore(form.storeId);
+        setStoreCategories(refreshedCategories);
         setForm((prev) => ({ ...prev, categoryId: category.id }));
         setNewCategoryName('');
         clearCategoryError();
@@ -276,6 +315,8 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     setCategoryLoading(true);
     try {
       const added = await seedDefaultCategories(form.storeId);
+      const refreshedCategories = await fetchCategoriesForStore(form.storeId);
+      setStoreCategories(refreshedCategories);
       if (added.length > 0 && !form.categoryId) {
         setForm((prev) => ({ ...prev, categoryId: added[0].id }));
         clearCategoryError();
@@ -341,6 +382,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
                       ...prev,
                       storeId,
                       categoryId: '',
+                      supplierId: '',
                       sellingOptions: prev.sellingOptions.map((option) => ({ ...option, storeId })),
                     }));
                     setNewCategoryName('');
@@ -391,7 +433,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
                     disabled={!form.storeId}
                   >
                     <option value="">Select category...</option>
-                    {categories.map((c) => (
+                    {storeCategories.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
@@ -420,8 +462,8 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
                     </button>
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className={categories.length === 0 ? 'text-xs text-amber-600' : 'text-xs text-gray-400'}>
-                      {categories.length === 0 ? 'No categories for this store.' : `${categories.length} categories available.`}
+                    <p className={storeCategories.length === 0 ? 'text-xs text-amber-600' : 'text-xs text-gray-400'}>
+                      {storeCategories.length === 0 ? 'No categories for this store.' : `${storeCategories.length} categories available.`}
                     </p>
                     <button
                       type="button"
@@ -435,14 +477,15 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
                 </div>
                 {errors.categoryId && <p className="text-xs text-red-500 mt-1">{errors.categoryId}</p>}
               </Field>
-              <Field label="Supplier">
+              <Field label="Supplier" hint="Optional. Leave blank if this product has no supplier yet.">
                 <select
                   className={selectCls}
                   value={form.supplierId}
                   onChange={(e) => set('supplierId', e.target.value)}
+                  disabled={!form.storeId}
                 >
-                  <option value="">Select supplier...</option>
-                  {suppliers.map((s) => (
+                  <option value="">No supplier assigned</option>
+                  {storeSuppliers.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>

@@ -14,6 +14,7 @@ import type {
 } from '@/types';
 
 const MOCK_STORE_ID = 'store-main';
+const MOCK_STORE_NAME = 'Main Store';
 
 const withMockStore = <T extends object>(item: T): T & { storeId: string } => ({
   storeId: MOCK_STORE_ID,
@@ -47,6 +48,8 @@ export const mockCategories: Category[] = [
 export const mockSuppliers: Supplier[] = [
   {
     id: 's1',
+    storeIds: [MOCK_STORE_ID],
+    storeNames: [MOCK_STORE_NAME],
     name: 'San Miguel Corporation',
     contact: 'Pedro Lim',
     email: 'pedro@smc.ph',
@@ -62,6 +65,8 @@ export const mockSuppliers: Supplier[] = [
   },
   {
     id: 's2',
+    storeIds: [MOCK_STORE_ID],
+    storeNames: [MOCK_STORE_NAME],
     name: 'Universal Robina Corp',
     contact: 'Lisa Tan',
     email: 'lisa@urc.ph',
@@ -77,6 +82,8 @@ export const mockSuppliers: Supplier[] = [
   },
   {
     id: 's3',
+    storeIds: [MOCK_STORE_ID],
+    storeNames: [MOCK_STORE_NAME],
     name: 'Nestlé Philippines',
     contact: 'Carlo Reyes',
     email: 'carlo@nestle.ph',

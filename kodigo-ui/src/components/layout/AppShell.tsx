@@ -10,7 +10,7 @@ export function AppShell({ children }: AppShellProps) {
   const { collapsed, toggleSidebar } = useSidebar();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 text-gray-900 transition-colors">
       <Topbar />
       <div className="hidden lg:block">
         <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />

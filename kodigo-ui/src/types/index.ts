@@ -36,6 +36,8 @@ export interface Category {
 export interface Supplier {
   id: string;
   storeId: string;
+  storeIds: string[];
+  storeNames: string[];
   name: string;
   contact: string;
   email: string;

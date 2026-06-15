@@ -54,6 +54,17 @@ const mapCategoryRows = (rows: any[] = []): Category[] => {
     .sort((a, b) => a.name.localeCompare(b.name));
 };
 
+export const fetchCategoriesForStore = async (storeId: string): Promise<Category[]> => {
+  if (!storeId || storeId === 'all') return [];
+  const { data, error } = await supabase
+    .from('categories')
+    .select('id,name')
+    .eq('store_id', storeId)
+    .order('name', { ascending: true });
+  if (error) throw toCategoryError(error);
+  return mapCategoryRows(data || []);
+};
+
 const getActiveCategoryStoreId = (fallback?: string) => {
   const storeId = fallback || useAuthStore.getState().activeStoreId;
   return storeId && storeId !== 'all' ? storeId : undefined;
@@ -216,13 +227,8 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     }
     try {
       if (!navigator.onLine) throw new Error('Offline');
-      const { data, error } = await supabase
-        .from('categories')
-        .select('id,name')
-        .eq('store_id', storeId)
-        .order('name', { ascending: true });
-      if (error) throw error;
-      set({ categories: mapCategoryRows(data || []) });
+      const categories = await fetchCategoriesForStore(storeId);
+      set({ categories });
     } catch (err) {
       console.warn("Failed to fetch categories", err);
       // For a specific store, keep categories empty to avoid invalid static IDs in FK category_id fields.

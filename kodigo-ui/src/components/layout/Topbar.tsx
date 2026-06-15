@@ -5,8 +5,10 @@ import { cn, formatDateTime } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import { useAlertStore } from '@/stores/alertStore';
 import { useCartStore } from '@/stores/cartStore';
+import { useThemeStore } from '@/stores/themeStore';
 import type { AppNotification } from '@/types';
 import { MobileSidebarDrawer } from './Sidebar';
+import { Moon, Sun } from 'lucide-react';
 
 const typeLabels: Record<string, string> = {
   low_stock: 'Low Stock',
@@ -93,6 +95,8 @@ export function Topbar() {
   const { user, profile, role, logout, stores, activeStoreId, setActiveStoreId } = useAuthStore();
   const { notifications, unreadCount, markRead, markAllRead, dismiss, isLoading, error, fetchNotifications } = useAlertStore();
   const clearCart = useCartStore(s => s.clearCart);
+  const mode = useThemeStore((s) => s.mode);
+  const toggleMode = useThemeStore((s) => s.toggleMode);
   const [storeOpen, setStoreOpen] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -123,7 +127,7 @@ export function Topbar() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-30 h-16 bg-white border-b border-gray-200 flex items-center px-4 gap-4">
+      <header className="fixed top-0 left-0 right-0 z-30 h-16 bg-white border-b border-gray-200 flex items-center px-4 gap-4 transition-colors">
         <button
           className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
           onClick={() => setDrawerOpen(true)}
@@ -138,6 +142,17 @@ export function Topbar() {
         </div>
 
         <div className="flex-1" />
+
+        <button
+          type="button"
+          onClick={toggleMode}
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
+          aria-label={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}
+          title={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}
+        >
+          {mode === 'dark' ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-gray-600" />}
+          <span className="hidden sm:inline">{mode === 'dark' ? 'Light' : 'Dark'}</span>
+        </button>
 
         {role === 'admin' && stores.length > 0 && (
           <div className="relative mr-2">

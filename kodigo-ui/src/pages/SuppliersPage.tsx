@@ -67,6 +67,9 @@ export function SuppliersPage() {
         <div>
           <p className="font-medium text-gray-900">{s.name}</p>
           <p className="text-xs text-gray-400">{s.contact}</p>
+          <p className="text-[11px] text-blue-600 mt-0.5">
+            {s.storeNames.length === 1 ? s.storeNames[0] : `${s.storeNames.length} stores`}
+          </p>
         </div>
       ),
     },
@@ -99,7 +102,7 @@ export function SuppliersPage() {
       key: 'onTime',
       header: 'On-Time %',
       accessor: (s) => {
-        const pct = Math.round((s.onTimeDeliveries / s.totalOrders) * 100);
+        const pct = s.totalOrders > 0 ? Math.round((s.onTimeDeliveries / s.totalOrders) * 100) : 100;
         return <Badge variant={pct >= 90 ? 'success' : pct >= 75 ? 'warning' : 'danger'}>{pct}%</Badge>;
       },
       align: 'center',

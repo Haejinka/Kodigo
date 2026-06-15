@@ -53,7 +53,13 @@ export function SupplierForm({ initial, onSubmit, mode, backPath = '/suppliers' 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState<SupplierFormData>({
-    storeId: initial?.storeId ?? (activeStoreId === 'all' ? '' : activeStoreId) ?? '',
+    storeIds: initial?.storeIds?.length
+      ? initial.storeIds
+      : initial?.storeId
+      ? [initial.storeId]
+      : activeStoreId && activeStoreId !== 'all'
+      ? [activeStoreId]
+      : [],
     name: initial?.name ?? '',
     contact: initial?.contact ?? '',
     email: initial?.email ?? '',
@@ -73,7 +79,7 @@ export function SupplierForm({ initial, onSubmit, mode, backPath = '/suppliers' 
 
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (!form.storeId) errs.storeId = 'Store selection is required';
+    if (!form.storeIds.length) errs.storeIds = 'Select at least one store';
     if (!form.name.trim()) errs.name = 'Supplier name is required';
     if (!form.contact.trim()) errs.contact = 'Contact person is required';
     if (!form.email.trim()) errs.email = 'Email is required';
@@ -113,18 +119,27 @@ export function SupplierForm({ initial, onSubmit, mode, backPath = '/suppliers' 
         <div className={cardCls}>
           <h3 className={`${titleCls} mb-3`}>Supplier Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
-            <Field label="Store" required error={errors.storeId}>
-              <select
-                className={inputCls}
-                value={form.storeId}
-                onChange={(e) => set('storeId', e.target.value)}
-                disabled={mode === 'edit'}
-              >
-                <option value="" disabled>Select a store</option>
-                {stores.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+            <Field label="Stores" required error={errors.storeIds} hint="Choose every store this supplier can serve.">
+              <div className="rounded-lg border border-gray-200 bg-white p-3 space-y-2">
+                {stores.length === 0 ? (
+                  <p className="text-xs text-gray-500">No stores available.</p>
+                ) : stores.map((store) => (
+                  <label key={store.id} className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-gray-300 accent-blue-600"
+                      checked={form.storeIds.includes(store.id)}
+                      onChange={(e) => {
+                        const nextStoreIds = e.target.checked
+                          ? [...form.storeIds, store.id]
+                          : form.storeIds.filter((value) => value !== store.id);
+                        set('storeIds', nextStoreIds);
+                      }}
+                    />
+                    <span>{store.name}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </Field>
 
             <div className="md:col-span-2">

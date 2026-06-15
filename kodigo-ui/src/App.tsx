@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { ToastProvider } from '@/components/shared/Toast';
 import { AppShell } from '@/components/layout/AppShell';
 import { useAuthStore } from '@/stores/authStore';
+import { useThemeStore } from '@/stores/themeStore';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { syncPendingMutations, syncPendingSales } from '@/lib/offline-sync';
 import { installGlobalErrorLogging } from '@/lib/error-logging';
@@ -246,6 +247,12 @@ function AppRoutes() {
 }
 
 function App() {
+  const initializeTheme = useThemeStore((s) => s.initializeTheme);
+
+  useEffect(() => {
+    initializeTheme();
+  }, [initializeTheme]);
+
   return (
     <BrowserRouter>
       <ToastProvider>
