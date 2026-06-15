@@ -29,8 +29,9 @@ export function POSPage() {
   const [logoutOpen, setLogoutOpen] = useState(false);
   const clock = useClock();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    setLogoutOpen(false);
+    await logout();
     navigate('/login', { replace: true });
   };
 

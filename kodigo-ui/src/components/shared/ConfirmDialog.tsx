@@ -29,7 +29,7 @@ export function ConfirmDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/50" onClick={onCancel} />
-      <div className="relative z-10 bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+      <div className="relative z-10 bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-sm p-6">
         <button
           onClick={onCancel}
           className="absolute right-4 top-4 p-1 rounded-lg hover:bg-gray-100"
@@ -38,7 +38,7 @@ export function ConfirmDialog({
         </button>
 
         {danger && (
-          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+          <div className="w-12 h-12 rounded-full bg-red-50 border border-red-200 flex items-center justify-center mb-4">
             <AlertTriangle className="w-6 h-6 text-red-600" />
           </div>
         )}

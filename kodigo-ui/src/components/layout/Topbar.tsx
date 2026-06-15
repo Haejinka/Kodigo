@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, Check, ChevronDown, ExternalLink, Menu, Store as StoreIcon, X } from 'lucide-react';
+import { Bell, Check, ChevronDown, ExternalLink, Menu, Moon, Store as StoreIcon, Sun, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn, formatDateTime } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
@@ -8,8 +8,6 @@ import { useCartStore } from '@/stores/cartStore';
 import { useThemeStore } from '@/stores/themeStore';
 import type { AppNotification } from '@/types';
 import { MobileSidebarDrawer } from './Sidebar';
-import { Moon, Sun } from 'lucide-react';
-
 const typeLabels: Record<string, string> = {
   low_stock: 'Low Stock',
   out_of_stock: 'Out of Stock',
@@ -45,7 +43,7 @@ function NotificationItem({
   onDismiss: (id: string) => void;
 }) {
   return (
-    <div className={cn('px-4 py-3 border-b border-gray-50 last:border-0', !notification.isRead && 'bg-blue-50/40')}>
+    <div className={cn('px-4 py-3 border-b border-gray-100 last:border-0', !notification.isRead && 'bg-blue-50/40')}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -109,9 +107,10 @@ export function Topbar() {
     clearCart();
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    setProfileOpen(false);
+    await logout();
+    navigate('/login', { replace: true });
   };
 
   const handleOpenNotifications = () => {
@@ -127,9 +126,9 @@ export function Topbar() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-30 h-16 bg-white border-b border-gray-200 flex items-center px-4 gap-4 transition-colors">
+      <header className="fixed top-0 left-0 right-0 z-30 h-16 flex items-center px-4 gap-4 transition-colors bg-[var(--app-surface-nav)] border-b border-[var(--app-border)]">
         <button
-          className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          className="lg:hidden p-2 rounded-lg hover:bg-[var(--app-surface-elevated)] transition-colors"
           onClick={() => setDrawerOpen(true)}
           aria-label="Open menu"
         >
@@ -146,19 +145,19 @@ export function Topbar() {
         <button
           type="button"
           onClick={toggleMode}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
-          aria-label={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}
-          title={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}
+          className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium text-gray-700 transition-colors border-[var(--app-border)] bg-[var(--app-surface-card)] hover:bg-[var(--app-surface-elevated)]"
+          aria-label={`Theme: ${mode}`}
+          title={`Theme: ${mode}`}
         >
-          {mode === 'dark' ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-gray-600" />}
-          <span className="hidden sm:inline">{mode === 'dark' ? 'Light' : 'Dark'}</span>
+          {mode === 'dark' ? <Moon className="h-4 w-4 text-blue-400" /> : <Sun className="h-4 w-4 text-amber-500" />}
+          <span className="hidden sm:inline capitalize">{mode}</span>
         </button>
 
         {role === 'admin' && stores.length > 0 && (
           <div className="relative mr-2">
             <button
               onClick={() => { setStoreOpen((v) => !v); setAlertOpen(false); setProfileOpen(false); }}
-              className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 border rounded-lg transition-colors border-[var(--app-border)] bg-[var(--app-surface-card)] hover:bg-[var(--app-surface-elevated)]"
             >
               <StoreIcon className="w-4 h-4 text-gray-600" />
               <span className="text-sm font-medium text-gray-700 max-w-[120px] truncate">
@@ -169,8 +168,8 @@ export function Topbar() {
             {storeOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setStoreOpen(false)} />
-                <div className="absolute right-0 top-11 z-20 w-56 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
-                  <div className="px-4 py-2 border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                <div className="absolute right-0 top-11 z-20 w-56 rounded-xl shadow-xl border overflow-hidden bg-[var(--app-surface-card)] border-[var(--app-border)]">
+                  <div className="px-4 py-2 border-b text-xs font-semibold text-gray-500 uppercase tracking-wide border-[var(--app-border-subtle)] bg-[var(--app-surface-elevated)]">
                     Switch Store
                   </div>
                   <div className="max-h-60 overflow-y-auto">
@@ -178,8 +177,8 @@ export function Topbar() {
                       <button
                         onClick={() => handleStoreChange('all')}
                         className={cn(
-                          'w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors border-b border-gray-100',
-                          activeStoreId === 'all' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                          'w-full text-left px-4 py-2.5 text-sm transition-colors border-b border-[var(--app-border-subtle)] hover:bg-[var(--app-accent-soft)]',
+                          activeStoreId === 'all' ? 'bg-[var(--app-accent-soft)] text-blue-700 font-medium' : 'text-gray-700'
                         )}
                       >
                         All Stores
@@ -190,8 +189,8 @@ export function Topbar() {
                         key={store.id}
                         onClick={() => handleStoreChange(store.id)}
                         className={cn(
-                          'w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors',
-                          activeStoreId === store.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                          'w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-[var(--app-accent-soft)]',
+                          activeStoreId === store.id ? 'bg-[var(--app-accent-soft)] text-blue-700 font-medium' : 'text-gray-700'
                         )}
                       >
                         {store.name}
@@ -207,7 +206,7 @@ export function Topbar() {
         <div className="relative">
           <button
             onClick={handleOpenNotifications}
-            className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="relative p-2 rounded-lg hover:bg-[var(--app-surface-elevated)] transition-colors"
             aria-label="Notifications"
           >
             <Bell className="w-5 h-5 text-gray-600" />
@@ -221,8 +220,8 @@ export function Topbar() {
           {alertOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setAlertOpen(false)} />
-              <div className="absolute right-0 top-11 z-20 w-[360px] max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
-                <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
+              <div className="absolute right-0 top-11 z-20 w-[360px] max-w-[calc(100vw-2rem)] rounded-xl shadow-xl border overflow-hidden bg-[var(--app-surface-card)] border-[var(--app-border)]">
+                <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--app-border-subtle)]">
                   <div>
                     <span className="font-semibold text-sm text-gray-900">Notifications</span>
                     <p className="text-xs text-gray-500">{unreadCount} unread</p>
@@ -241,7 +240,7 @@ export function Topbar() {
                         setAlertOpen(false);
                         navigate(role === 'super_admin' ? '/super-admin/notifications' : '/notifications');
                       }}
-                      className="p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                      className="p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-[var(--app-accent-soft)]"
                       aria-label="View all notifications"
                       title="View all"
                     >
@@ -284,7 +283,7 @@ export function Topbar() {
         <div className="relative">
           <button
             onClick={() => { setProfileOpen((v) => !v); setAlertOpen(false); setStoreOpen(false); }}
-            className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-[var(--app-surface-elevated)] transition-colors"
           >
             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-semibold">
               {displayName.charAt(0).toUpperCase()}
@@ -295,14 +294,14 @@ export function Topbar() {
           {profileOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
-              <div className="absolute right-0 top-11 z-20 w-48 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100">
+              <div className="absolute right-0 top-11 z-20 w-48 rounded-xl shadow-xl border overflow-hidden bg-[var(--app-surface-card)] border-[var(--app-border)]">
+                <div className="px-4 py-3 border-b border-[var(--app-border-subtle)]">
                   <p className="text-sm font-semibold text-gray-900">{displayName}</p>
                   <p className="text-xs text-gray-500 capitalize">{String(displayRole).replace('_', ' ')}</p>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-[var(--app-surface-elevated)] transition-colors"
                 >
                   Log out
                 </button>

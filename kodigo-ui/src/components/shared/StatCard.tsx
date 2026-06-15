@@ -22,16 +22,16 @@ export function StatCard({ label, value, change, icon: Icon, color = 'blue', loa
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 animate-pulse">
-        <div className="h-4 bg-gray-200 rounded w-24 mb-4" />
-        <div className="h-7 bg-gray-200 rounded w-32 mb-3" />
-        <div className="h-3 bg-gray-200 rounded w-16" />
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm animate-pulse">
+        <div className="mb-4 h-4 w-24 rounded bg-gray-200" />
+        <div className="mb-3 h-7 w-32 rounded bg-gray-200" />
+        <div className="h-3 w-16 rounded bg-gray-200" />
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm font-medium text-gray-500">{label}</span>
         {Icon && (

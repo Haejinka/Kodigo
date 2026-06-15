@@ -86,7 +86,7 @@ export function DataTable<T>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-100">
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i}>

@@ -10,10 +10,10 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<string, string> = {
   primary: 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 border border-blue-600',
-  secondary: 'bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100 border border-gray-200',
+  secondary: 'bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100 border border-gray-200 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-800 dark:active:bg-slate-700',
   danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 border border-red-600',
-  ghost: 'bg-transparent text-gray-600 hover:bg-gray-100 active:bg-gray-200 border border-transparent',
-  outline: 'bg-transparent text-blue-600 hover:bg-blue-50 border border-blue-600',
+  ghost: 'bg-transparent text-gray-600 hover:bg-gray-100 active:bg-gray-200 border border-transparent dark:text-slate-300 dark:hover:bg-slate-800 dark:active:bg-slate-700',
+  outline: 'bg-transparent text-blue-600 hover:bg-blue-50 border border-blue-600 dark:text-blue-300 dark:border-blue-500 dark:hover:bg-blue-950/40',
 };
 
 const sizeStyles: Record<string, string> = {
@@ -37,7 +37,7 @@ export function Button({
       {...props}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] min-h-[44px]',
+        'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:ring-offset-white dark:focus:ring-offset-[var(--app-surface-card)] disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] min-h-[44px]',
         variantStyles[variant],
         sizeStyles[size],
         className

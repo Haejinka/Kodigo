@@ -75,6 +75,20 @@ interface AuthState {
   logout: () => Promise<void>;
 }
 
+const resetAuthState: Pick<
+  AuthState,
+  'user' | 'role' | 'profile' | 'isAuthenticated' | 'isLoading' | 'error' | 'stores' | 'activeStoreId'
+> = {
+  user: null,
+  role: null,
+  profile: null,
+  isAuthenticated: false,
+  isLoading: false,
+  error: null,
+  stores: [],
+  activeStoreId: null,
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   role: null,
@@ -210,15 +224,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isLoading: false
         });
       } else {
-        set({
-          user: null,
-          profile: null,
-          role: null,
-          stores: [],
-          activeStoreId: null,
-          isAuthenticated: false,
-          isLoading: false
-        });
+        set(resetAuthState);
       }
 
       // Listen for auth changes
@@ -246,7 +252,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             });
           }
         } else if (event === 'SIGNED_OUT') {
-          set({ user: null, profile: null, role: null, stores: [], activeStoreId: null, isAuthenticated: false });
+          set(resetAuthState);
         }
       });
     } catch (error: any) {
@@ -301,7 +307,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     localStorage.removeItem('kodigo_active_store_id');
-    await supabase.auth.signOut();
+    set({ isLoading: true, error: null });
+
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      // Clear client auth state even if the remote sign-out request fails so
+      // the app does not immediately navigate the user back into a protected route.
+      set(resetAuthState);
+    }
   },
 }));
 

@@ -182,7 +182,7 @@ export function ReportsPage() {
         }
       />
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
+      <div className="mb-6 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-card)] p-4 shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9 gap-3">
           <FilterField label="Start">
             <input
@@ -353,7 +353,7 @@ export function ReportsPage() {
 function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-xs font-medium text-gray-500 mb-1">{label}</span>
+      <span className="mb-1 block text-xs font-medium text-gray-500">{label}</span>
       {children}
     </label>
   );
@@ -361,7 +361,7 @@ function FilterField({ label, children }: { label: string; children: React.React
 
 function ReportSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+    <section className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-card)] p-5 shadow-sm">
       <h2 className="text-base font-semibold text-gray-900 mb-4">{title}</h2>
       {children}
     </section>
@@ -388,14 +388,14 @@ function ProductGroupTable({ rows, compact = false }: { rows: SalesGroupReportRo
 
 function SimpleTable({ headers, rows }: { headers: string[]; rows: Array<Array<string | number>> }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-gray-400 text-center py-6">No matching records.</p>;
+    return <p className="py-8 text-center text-sm text-gray-400">No matching records.</p>;
   }
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-100 bg-gray-50">
+          <tr className="border-b border-[var(--app-border-subtle)] bg-[var(--app-surface-elevated)]">
             {headers.map((header) => (
               <th key={header} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                 {header}
@@ -403,9 +403,9 @@ function SimpleTable({ headers, rows }: { headers: string[]; rows: Array<Array<s
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-[var(--app-border-subtle)]">
           {rows.map((row, index) => (
-            <tr key={index} className="hover:bg-gray-50">
+            <tr key={index} className="transition-colors hover:bg-[var(--app-surface-elevated)]">
               {row.map((cell, cellIndex) => (
                 <td key={cellIndex} className="px-3 py-2 text-gray-700 whitespace-nowrap">
                   {cell}

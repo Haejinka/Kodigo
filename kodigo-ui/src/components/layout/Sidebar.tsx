@@ -54,20 +54,20 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     return true;
   });
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
   };
 
   return (
     <aside
       className={cn(
-        'fixed left-0 top-16 bottom-0 z-20 flex flex-col bg-white border-r border-gray-200 transition-all duration-200',
+        'fixed left-0 top-16 bottom-0 z-20 flex flex-col border-r transition-all duration-200 bg-[var(--app-surface-nav)] border-[var(--app-border)]',
         collapsed ? 'w-16' : 'w-60'
       )}
     >
       {/* Logo area on mobile only */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--app-border-subtle)]">
         <Store className="w-5 h-5 text-blue-600 shrink-0" />
         {!collapsed && (
           <span className="font-bold text-gray-900 text-sm">KodiGo</span>
@@ -91,8 +91,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 cn(
                   'flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors relative',
                   isActive
-                    ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-[var(--app-accent-soft)] text-[#60A5FA] border-r-2 border-[var(--app-accent)]'
+                    : 'text-gray-600 hover:bg-[var(--app-surface-elevated)] hover:text-gray-900'
                 )
               }
             >
@@ -114,10 +114,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </nav>
 
       {/* Bottom actions */}
-      <div className="border-t border-gray-200 py-2">
+      <div className="border-t border-[var(--app-border)] py-2">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+          className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-[var(--app-surface-elevated)] hover:text-gray-900 transition-colors"
         >
           <LogOut className="w-5 h-5 shrink-0" />
           {!collapsed && <span>Logout</span>}
@@ -127,7 +127,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Collapse toggle */}
       <button
         onClick={onToggle}
-        className="absolute -right-3 top-6 z-10 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50 transition-colors"
+        className="absolute -right-3 top-6 z-10 w-6 h-6 rounded-full border shadow-sm flex items-center justify-center transition-colors bg-[var(--app-surface-card)] border-[var(--app-border)] hover:bg-[var(--app-surface-elevated)]"
         aria-label="Toggle sidebar"
       >
         {collapsed ? (
@@ -158,9 +158,9 @@ export function MobileSidebarDrawer({ open, onClose }: MobileDrawerProps) {
   const filtered = navItems.filter((item) => role && item.roles.includes(role));
   const stockUnreadCount = alerts.filter((alert) => !alert.isRead).length;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
     onClose();
   };
 
@@ -169,8 +169,8 @@ export function MobileSidebarDrawer({ open, onClose }: MobileDrawerProps) {
   return (
     <>
       <div className="fixed inset-0 z-30 bg-black/40" onClick={onClose} />
-      <aside className="fixed left-0 top-0 bottom-0 z-40 w-64 bg-white shadow-xl flex flex-col">
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-200">
+      <aside className="fixed left-0 top-0 bottom-0 z-40 w-64 shadow-xl flex flex-col bg-[var(--app-surface-nav)] border-r border-[var(--app-border)]">
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-[var(--app-border)]">
           <Store className="w-5 h-5 text-blue-600" />
           <span className="font-bold text-gray-900">KodiGo</span>
         </div>
@@ -189,10 +189,10 @@ export function MobileSidebarDrawer({ open, onClose }: MobileDrawerProps) {
                 onClick={onClose}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  'flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors',
+                  isActive
+                      ? 'bg-[var(--app-accent-soft)] text-[#60A5FA] border-r-2 border-[var(--app-accent)]'
+                      : 'text-gray-600 hover:bg-[var(--app-surface-elevated)] hover:text-gray-900'
                   )
                 }
               >
@@ -207,10 +207,10 @@ export function MobileSidebarDrawer({ open, onClose }: MobileDrawerProps) {
             );
           })}
         </nav>
-        <div className="border-t border-gray-200 py-2">
+        <div className="border-t border-[var(--app-border)] py-2">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-gray-600 hover:bg-[var(--app-surface-elevated)]"
           >
             <LogOut className="w-5 h-5" />
             <span>Logout</span>

@@ -11,14 +11,31 @@ interface ProductCardProps {
 export function ProductCard({ product, onAdd }: ProductCardProps) {
   const options = getProductSellingOptions(product);
   const outOfStock = options.every((option) => option.stockQuantity <= 0);
+  const defaultInStockOption = options.find((option) => option.stockQuantity > 0);
+
+  const handleCardAdd = () => {
+    if (!defaultInStockOption) return;
+    onAdd(product, defaultInStockOption);
+  };
 
   return (
     <div
+      role="button"
+      tabIndex={outOfStock ? -1 : 0}
+      aria-disabled={outOfStock}
+      onClick={handleCardAdd}
+      onKeyDown={(event) => {
+        if (outOfStock) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          handleCardAdd();
+        }
+      }}
       className={cn(
-        'bg-white border rounded-xl p-3 text-left transition-all group relative',
+        'bg-white border rounded-xl p-3 text-left transition-all group relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
         outOfStock
           ? 'opacity-50 cursor-not-allowed border-gray-200'
-          : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
+          : 'border-gray-200 cursor-pointer hover:border-blue-300 hover:shadow-md'
       )}
     >
       {/* Product image / icon */}
@@ -40,7 +57,10 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
             <button
               key={option.id}
               type="button"
-              onClick={() => !optionOut && onAdd(product, option)}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (!optionOut) onAdd(product, option);
+              }}
               disabled={optionOut}
               className={cn(
                 'w-full rounded-lg border px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',

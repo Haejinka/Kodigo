@@ -51,7 +51,9 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col items-center justify-center space-y-4 text-red-600 font-medium">
       <p>Error: User role could not be verified. Please contact system administrator.</p>
       <button
-        onClick={() => useAuthStore.getState().logout()}
+        onClick={async () => {
+          await useAuthStore.getState().logout();
+        }}
         className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition"
       >
         Log Out to Reset Session
