@@ -34,6 +34,7 @@ const navItems: NavItem[] = [
   { label: 'Rankings', path: '/rankings', icon: Trophy, roles: ['admin'] },
   { label: 'Reports', path: '/reports', icon: FileSpreadsheet, roles: ['admin', 'inventory'] },
   { label: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
+  { label: 'Account Security', path: '/account/security', icon: Settings, roles: ['admin', 'cashier', 'inventory', 'super_admin'] },
 ];
 
 interface SidebarProps {

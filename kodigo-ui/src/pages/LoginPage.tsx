@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/shared/Button';
@@ -8,6 +8,7 @@ import { useActiveBranding } from '@/lib/branding';
 export function LoginPage() {
   const { login, isLoading, error, isAuthenticated, role } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const branding = useActiveBranding();
 
   // If already logged in, redirect them immediately 
@@ -63,7 +64,12 @@ export function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium text-gray-700">Password</label>
+                <Link to="/forgot-password" className="text-xs font-medium text-blue-600 hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -86,6 +92,12 @@ export function LoginPage() {
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700">
                 {error}
+              </div>
+            )}
+
+            {location.state?.passwordReset && (
+              <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm text-green-700">
+                Password updated. Sign in with your new password.
               </div>
             )}
 

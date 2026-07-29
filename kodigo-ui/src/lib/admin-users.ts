@@ -42,3 +42,9 @@ export async function updateManagedUser(input: {
 export async function removeManagedUser(userId: string): Promise<void> {
   await invokeAdminUsers<{ success: boolean }>({ action: 'remove', userId });
 }
+
+export async function sendManagedUserPasswordReset(email: string): Promise<void> {
+  const redirectTo = `${window.location.origin}/reset-password`;
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) throw error;
+}

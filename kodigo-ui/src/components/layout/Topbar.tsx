@@ -302,6 +302,15 @@ export function Topbar() {
                   <p className="text-xs text-gray-500 capitalize">{String(displayRole).replace('_', ' ')}</p>
                 </div>
                 <button
+                  onClick={() => {
+                    setProfileOpen(false);
+                    navigate('/account/security');
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-[var(--app-surface-elevated)] transition-colors"
+                >
+                  Account security
+                </button>
+                <button
                   onClick={handleLogout}
                   className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-[var(--app-surface-elevated)] transition-colors"
                 >

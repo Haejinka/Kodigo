@@ -36,7 +36,10 @@ import {
   UserManagementPage,
   NotificationsSettingsPage,
   SecuritySettingsPage,
+  AccountSecurityPage,
 } from '@/pages/SettingsPage';
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 
 // Route guards
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -193,6 +196,19 @@ function AppRoutes() {
       {/* Public */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+      <Route
+        path="/account/security"
+        element={
+          <RequireAuth>
+            <AppShell>
+              <AccountSecurityPage />
+            </AppShell>
+          </RequireAuth>
+        }
+      />
 
       {/* POS — no sidebar shell; admin blocked on mobile */}
       <Route

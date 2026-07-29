@@ -11,7 +11,13 @@ import { Badge } from '@/components/shared/Badge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
-import { createManagedUser, listManagedUsers, removeManagedUser, updateManagedUser } from '@/lib/admin-users';
+import {
+  createManagedUser,
+  listManagedUsers,
+  removeManagedUser,
+  sendManagedUserPasswordReset,
+  updateManagedUser,
+} from '@/lib/admin-users';
 import { supabase } from '@/lib/supabase';
 import { StoreBrandingEditor } from '@/components/settings/StoreBrandingEditor';
 
@@ -657,6 +663,7 @@ export function UserManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [editTarget, setEditTarget] = useState<User | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [resettingUserId, setResettingUserId] = useState<string | null>(null);
 
   const scopedStoreId = activeStoreId && activeStoreId !== 'all' ? activeStoreId : undefined;
 
@@ -707,6 +714,18 @@ export function UserManagementPage() {
     }
   };
 
+  const handlePasswordReset = async (managedUser: User) => {
+    setResettingUserId(managedUser.id);
+    try {
+      await sendManagedUserPasswordReset(managedUser.email);
+      toast('success', `Password reset instructions were sent to ${managedUser.email}.`);
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Failed to send password reset instructions.');
+    } finally {
+      setResettingUserId(null);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -754,6 +773,13 @@ export function UserManagementPage() {
                 onClick={() => setEditTarget(u)}
               >
                 Edit
+              </button>
+              <button
+                className="text-xs text-blue-600 hover:underline font-medium disabled:text-gray-400 disabled:no-underline"
+                onClick={() => void handlePasswordReset(u)}
+                disabled={resettingUserId !== null}
+              >
+                {resettingUserId === u.id ? 'Sending...' : 'Reset password'}
               </button>
               {isCurrentOwner ? (
                 <span className="text-xs font-medium text-gray-400">Owner</span>
@@ -954,6 +980,7 @@ export function NotificationsSettingsPage() {
 
 export function SecuritySettingsPage() {
   const { toast } = useToast();
+  const user = useAuthStore((state) => state.user);
   const [saving, setSaving] = useState(false);
   const [current, setCurrent] = useState('');
   const [newPass, setNewPass] = useState('');
@@ -961,13 +988,31 @@ export function SecuritySettingsPage() {
 
   const handleChange = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.email) { toast('error', 'Your account email could not be verified.'); return; }
+    if (!current) { toast('error', 'Current password is required.'); return; }
     if (newPass !== confirm) { toast('error', 'Passwords do not match.'); return; }
     if (newPass.length < 8) { toast('error', 'Password must be at least 8 characters.'); return; }
+    if (current === newPass) { toast('error', 'Choose a password different from your current password.'); return; }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 700));
-    toast('success', 'Password changed successfully!');
-    setSaving(false);
-    setCurrent(''); setNewPass(''); setConfirm('');
+    try {
+      const { error: verificationError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: current,
+      });
+      if (verificationError) throw new Error('Current password is incorrect.');
+
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPass });
+      if (updateError) throw updateError;
+
+      toast('success', 'Password changed successfully.');
+      setCurrent('');
+      setNewPass('');
+      setConfirm('');
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Failed to change password.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -992,6 +1037,15 @@ export function SecuritySettingsPage() {
           Update Password
         </Button>
       </form>
+    </div>
+  );
+}
+
+export function AccountSecurityPage() {
+  return (
+    <div>
+      <PageHeader title="Account Security" subtitle="Manage the password for your signed-in account" />
+      <SecuritySettingsPage />
     </div>
   );
 }
