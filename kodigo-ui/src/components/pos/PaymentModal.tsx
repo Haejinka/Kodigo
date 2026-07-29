@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ComponentType } from 'react';
-import { CheckCircle, X, Printer, User, CreditCard, Smartphone, Banknote, Landmark } from 'lucide-react';
+import { CheckCircle, X, User, CreditCard, Smartphone, Banknote, Landmark, Eye } from 'lucide-react';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { openCashDrawer } from '@/lib/hardware';
 import { Button } from '@/components/shared/Button';
@@ -9,11 +9,12 @@ import { useAuthStore } from '@/stores/authStore';
 import { useProductStore } from '@/stores/productStore';
 import { processSale } from '@/lib/offline-sync';
 import {
-  getSaleItemUnitLabel,
   getSellingOptionLabel,
   isLegacySellingOption,
 } from '@/types';
-import type { PaymentMethod, Sale } from '@/types';
+import type { PaymentMethod, ReceiptSnapshot, Sale } from '@/types';
+import { fetchReceiptBySaleId, receiptSnapshotFromSale } from '@/lib/receipts';
+import { ReceiptPreviewModal } from '@/components/receipts/ReceiptPreviewModal';
 
 interface PaymentModalProps {
   open: boolean;
@@ -30,59 +31,6 @@ const paymentMethods: Array<{ value: PaymentMethod; label: string; icon: Compone
   { value: 'bank_transfer', label: 'Bank', icon: Landmark },
 ];
 
-const escapeHtml = (value: string) =>
-  value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char] ?? char));
-
-function printReceipt(sale: Sale) {
-  const receipt = window.open('', '_blank', 'width=380,height=640');
-  if (!receipt) return;
-
-  const itemRows = sale.items.map((item) => `
-    <tr>
-      <td>${escapeHtml(item.productName)} - ${escapeHtml(getSaleItemUnitLabel(item))} x${item.quantity}</td>
-      <td style="text-align:right">${formatCurrency(item.lineTotal)}</td>
-    </tr>
-  `).join('');
-
-  receipt.document.write(`
-    <html>
-      <head>
-        <title>${escapeHtml(sale.receiptNumber ?? sale.id)}</title>
-        <style>
-          body { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; width: 320px; padding: 12px; color: #111827; }
-          h1 { font-size: 18px; margin: 0 0 8px; text-align: center; }
-          p { margin: 2px 0; font-size: 12px; }
-          table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 12px; }
-          td { padding: 3px 0; vertical-align: top; }
-          .line { border-top: 1px dashed #9ca3af; margin: 8px 0; }
-          .total { font-weight: 700; font-size: 14px; }
-        </style>
-      </head>
-      <body>
-        <h1>KodiGo POS</h1>
-        <p>Receipt: ${escapeHtml(sale.receiptNumber ?? sale.id)}</p>
-        <p>Cashier: ${escapeHtml(sale.cashierName)}</p>
-        <p>Time: ${escapeHtml(formatDateTime(sale.createdAt))}</p>
-        <div class="line"></div>
-        <table>${itemRows}</table>
-        <div class="line"></div>
-        <table>
-          <tr><td>Subtotal</td><td style="text-align:right">${formatCurrency(sale.subtotal)}</td></tr>
-          <tr><td>Discount</td><td style="text-align:right">-${formatCurrency(sale.discount)}</td></tr>
-          <tr><td>Tax (${sale.taxRate}%)</td><td style="text-align:right">${formatCurrency(sale.tax)}</td></tr>
-          <tr class="total"><td>Total</td><td style="text-align:right">${formatCurrency(sale.total)}</td></tr>
-          <tr><td>Payment</td><td style="text-align:right">${escapeHtml(sale.paymentMethod)}</td></tr>
-          <tr><td>Tendered</td><td style="text-align:right">${formatCurrency(sale.cashReceived)}</td></tr>
-          <tr><td>Change</td><td style="text-align:right">${formatCurrency(sale.change)}</td></tr>
-        </table>
-      </body>
-    </html>
-  `);
-  receipt.document.close();
-  receipt.focus();
-  receipt.print();
-}
-
 export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const {
     items,
@@ -95,19 +43,29 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     discountValue,
     clearCart,
   } = useCartStore();
-  const { user, profile } = useAuthStore();
-  const orderSubtotal = subtotal();
-  const orderDiscount = discountAmount();
-  const orderTaxRate = taxRate();
-  const orderTax = taxAmount();
-  const orderTotal = total();
+  const { user, profile, stores } = useAuthStore();
 
   const [cashInput, setCashInput] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [paymentReference, setPaymentReference] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerTin, setCustomerTin] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [discountCategory, setDiscountCategory] = useState<'regular' | 'senior' | 'pwd' | 'other'>('regular');
   const [step, setStep] = useState<Step>('payment');
   const [processing, setProcessing] = useState(false);
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
+  const [receiptSnapshot, setReceiptSnapshot] = useState<ReceiptSnapshot | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  const orderSubtotal = subtotal();
+  const orderDiscount = discountAmount();
+  const orderTaxRate = taxRate();
+  const isSpecialDiscount = discountCategory === 'senior' || discountCategory === 'pwd';
+  const orderTax = isSpecialDiscount ? 0 : taxAmount();
+  const orderTotal = isSpecialDiscount
+    ? Math.max(0, orderSubtotal - orderDiscount)
+    : total();
 
   const cashAmount = parseFloat(cashInput) || 0;
   const isCash = paymentMethod === 'cash';
@@ -169,6 +127,11 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       change,
       paymentMethod,
       paymentReference: paymentReference.trim() || undefined,
+      customerName: customerName.trim() || undefined,
+      customerTin: customerTin.trim() || undefined,
+      customerAddress: customerAddress.trim() || undefined,
+      terminalIdentifier: stores.find((store) => store.id === storeId)?.terminalIdentifier,
+      discountCategory,
       cashierId: user?.id || null,
       cashierName: profile?.name || user?.user_metadata?.name || user?.email || 'Unknown Cashier',
       createdAt: new Date().toISOString(),
@@ -196,6 +159,33 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       }));
       if (paymentMethod === 'cash') await openCashDrawer();
       setCompletedSale(recordedSale);
+      const activeStore = stores.find((store) => store.id === storeId);
+      if (activeStore) {
+        try {
+          const receipt = await fetchReceiptBySaleId(recordedSale.id);
+          setReceiptSnapshot(receipt.payload);
+        } catch {
+          setReceiptSnapshot(receiptSnapshotFromSale(recordedSale, {
+            id: activeStore.id,
+            name: activeStore.name,
+            registeredName: activeStore.registeredName || activeStore.name,
+            businessName: activeStore.businessName || activeStore.name,
+            address: activeStore.address,
+            tin: activeStore.tin,
+            branchCode: activeStore.branchCode,
+            vatStatus: activeStore.vatStatus,
+            taxRate: activeStore.taxRate,
+            documentLabel: activeStore.documentLabel,
+            terminalIdentifier: activeStore.terminalIdentifier,
+            birRegistrationInfo: activeStore.birRegistrationInfo,
+            accreditationInfo: activeStore.accreditationInfo,
+            permitInfo: activeStore.permitInfo,
+            logoPath: activeStore.logoPath,
+            phone: activeStore.phone,
+            email: activeStore.email,
+          }));
+        }
+      }
       setStep('confirmed');
     } catch (err) {
       console.error(err);
@@ -210,8 +200,14 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     setCashInput('');
     setPaymentMethod('cash');
     setPaymentReference('');
+    setCustomerName('');
+    setCustomerTin('');
+    setCustomerAddress('');
+    setDiscountCategory('regular');
     setStep('payment');
     setCompletedSale(null);
+    setReceiptSnapshot(null);
+    setPreviewOpen(false);
     onSuccess();
     onClose();
   };
@@ -250,7 +246,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                   <span className="font-mono">-{formatCurrency(orderDiscount)}</span>
                 </div>
                 <div className="flex justify-between text-xs text-gray-500">
-                  <span>Tax ({orderTaxRate}%)</span>
+                  <span>{isSpecialDiscount ? 'VAT-exempt sale' : `Tax (${orderTaxRate}%)`}</span>
                   <span className="font-mono">{formatCurrency(orderTax)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-gray-900">
@@ -338,6 +334,40 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
               </div>
             )}
 
+            <div className="rounded-xl border border-gray-200 p-3">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Customer & discount details</p>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  value={customerName}
+                  onChange={(event) => setCustomerName(event.target.value)}
+                  placeholder="Customer name (optional)"
+                  className="col-span-2 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                />
+                <input
+                  value={customerTin}
+                  onChange={(event) => setCustomerTin(event.target.value)}
+                  placeholder="Customer TIN"
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                />
+                <select
+                  value={discountCategory}
+                  onChange={(event) => setDiscountCategory(event.target.value as typeof discountCategory)}
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                >
+                  <option value="regular">Regular</option>
+                  <option value="senior">Senior Citizen</option>
+                  <option value="pwd">PWD</option>
+                  <option value="other">Other discount</option>
+                </select>
+                <input
+                  value={customerAddress}
+                  onChange={(event) => setCustomerAddress(event.target.value)}
+                  placeholder="Customer address"
+                  className="col-span-2 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
             <Button
               onClick={handleConfirm}
               disabled={!canConfirm}
@@ -383,11 +413,12 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
 
             <div className="flex gap-3 w-full">
               <button
-                onClick={() => completedSale && printReceipt(completedSale)}
+                onClick={() => receiptSnapshot && setPreviewOpen(true)}
+                disabled={!receiptSnapshot}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
               >
-                <Printer className="w-4 h-4" />
-                Print Receipt
+                <Eye className="w-4 h-4" />
+                Preview / Print
               </button>
             </div>
 
@@ -399,6 +430,12 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
           </div>
         )}
       </div>
+      <ReceiptPreviewModal
+        open={previewOpen}
+        snapshot={receiptSnapshot}
+        saleId={completedSale?.id ?? ''}
+        onClose={() => setPreviewOpen(false)}
+      />
     </div>
   );
 }

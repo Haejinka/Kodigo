@@ -530,7 +530,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
         throw new Error('Product SKU or barcode already exists in this store.');
       }
       if (err?.code === '42501') {
-        throw new Error('Update blocked by permissions (RLS). Ensure you are an admin mapped to this store.');
+        throw new Error('Update blocked by permissions (RLS). Ensure your admin or inventory account is mapped to this store.');
       }
 
       throw err;
@@ -614,42 +614,18 @@ export const useProductStore = create<ProductStore>((set, get) => ({
 
     set(s => ({ stockAdjustments: [newAdjustment, ...s.stockAdjustments] }));
 
-    // Queue in background
-    await executeOrQueueMutation('stock_adjustments', 'INSERT', {
-      id: entryId,
-      store_id: storeId,
-      product_id: id,
-      selling_option_id: usesSellingOption ? selectedOption?.id : null,
-      selling_option_label: selectedOption?.label || null,
-      unit_label: selectedOption?.unitLabel || product.unit,
-      package_size: selectedOption?.quantityValue ?? null,
-      package_unit: selectedOption?.quantityUnit ?? null,
-      stock_source: usesSellingOption ? 'selling_option' : 'product',
-      reason,
-      quantity_delta: actualDelta,
-      stock_before: stockBefore,
-      stock_after: stockAfter,
-      note,
-      created_by: useAuthStore.getState().user?.id || null,
-    });
-
-    if (usesSellingOption && selectedOption) {
-      await executeOrQueueMutation('product_selling_options', 'UPDATE', {
-        stock_quantity: stockAfter,
-        updated_at: new Date().toISOString()
-      }, 'id', selectedOption.id);
-
-      if (selectedOption.isDefault) {
-        await executeOrQueueMutation('products', 'UPDATE', {
-          current_stock: Math.round(stockAfter),
-          updated_at: new Date().toISOString()
-        }, 'id', id);
-      }
-    } else {
-      await executeOrQueueMutation('products', 'UPDATE', {
-        current_stock: Math.round(stockAfter),
-        updated_at: new Date().toISOString()
-      }, 'id', id);
+    try {
+      const { error } = await supabase.rpc('adjust_inventory_stock', {
+        p_product_id: id,
+        p_selling_option_id: usesSellingOption ? selectedOption?.id ?? null : null,
+        p_quantity_delta: actualDelta,
+        p_reason: reason,
+        p_note: note || null,
+      });
+      if (error) throw error;
+    } catch (error) {
+      await Promise.all([get().fetchProducts(), get().fetchStockAdjustments()]);
+      throw error;
     }
   },
 

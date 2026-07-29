@@ -8,6 +8,7 @@ import { useCartStore } from '@/stores/cartStore';
 import { useThemeStore } from '@/stores/themeStore';
 import type { AppNotification } from '@/types';
 import { MobileSidebarDrawer } from './Sidebar';
+import { useActiveBranding } from '@/lib/branding';
 const typeLabels: Record<string, string> = {
   low_stock: 'Low Stock',
   out_of_stock: 'Out of Stock',
@@ -100,6 +101,7 @@ export function Topbar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navigate = useNavigate();
+  const branding = useActiveBranding();
 
   const handleStoreChange = (storeId: string) => {
     setActiveStoreId(storeId);
@@ -136,8 +138,8 @@ export function Topbar() {
         </button>
 
         <div className="flex items-center gap-2 lg:hidden">
-          <StoreIcon className="w-6 h-6 text-blue-600" />
-          <span className="font-bold text-gray-900 text-base">KodiGo</span>
+          <img src={branding.logoUrl} alt="" className="h-7 w-7 rounded-md object-contain" />
+          <span className="font-bold text-gray-900 text-base">{branding.businessName || branding.name}</span>
         </div>
 
         <div className="flex-1" />
@@ -153,7 +155,7 @@ export function Topbar() {
           <span className="hidden sm:inline capitalize">{mode}</span>
         </button>
 
-        {role === 'admin' && stores.length > 0 && (
+        {(role === 'admin' || role === 'inventory') && stores.length > 0 && (
           <div className="relative mr-2">
             <button
               onClick={() => { setStoreOpen((v) => !v); setAlertOpen(false); setProfileOpen(false); }}
@@ -203,7 +205,7 @@ export function Topbar() {
           </div>
         )}
 
-        <div className="relative">
+        {role !== 'inventory' && <div className="relative">
           <button
             onClick={handleOpenNotifications}
             className="relative p-2 rounded-lg hover:bg-[var(--app-surface-elevated)] transition-colors"
@@ -278,7 +280,7 @@ export function Topbar() {
               </div>
             </>
           )}
-        </div>
+        </div>}
 
         <div className="relative">
           <button

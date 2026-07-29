@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type { User, UserRole } from '@/types';
 
-type ManageableRole = Extract<UserRole, 'admin' | 'cashier'>;
+type ManageableRole = Extract<UserRole, 'admin' | 'cashier' | 'inventory'>;
 
 async function invokeAdminUsers<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke('admin-users', { body });

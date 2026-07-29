@@ -47,6 +47,7 @@ export function ReportsPage() {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const canExport = canAccessReports(role);
+  const inventoryOnly = role === 'inventory';
 
   const inventoryRows = useMemo(() => buildInventoryReport(products), [products]);
   const filteredInventoryRows = useMemo(() => {
@@ -83,12 +84,17 @@ export function ReportsPage() {
     if (!activeStoreId) return;
     setLoading(true);
     try {
-      const [salesReport, movements] = await Promise.all([
-        fetchSalesReport(filters, activeStoreId),
-        fetchStockMovementReport(filters, activeStoreId),
-      ]);
-      setReport(salesReport);
-      setStockMovements(movements);
+      if (inventoryOnly) {
+        setReport(null);
+        setStockMovements(await fetchStockMovementReport(filters, activeStoreId));
+      } else {
+        const [salesReport, movements] = await Promise.all([
+          fetchSalesReport(filters, activeStoreId),
+          fetchStockMovementReport(filters, activeStoreId),
+        ]);
+        setReport(salesReport);
+        setStockMovements(movements);
+      }
     } catch (err) {
       console.error('Failed to load reports:', err);
       toast('error', err instanceof Error ? err.message : 'Failed to load reports.');
@@ -106,11 +112,33 @@ export function ReportsPage() {
   };
 
   const handleExport = async () => {
-    if (!report) return;
     if (!canExport) {
       toast('error', 'Only authorized reporting roles can export reports.');
       return;
     }
+    if (inventoryOnly) {
+      const header = ['Product', 'Category', 'Unit', 'Stock', 'Low Stock Threshold', 'Status'];
+      const rows = filteredInventoryRows.map((row) => [
+        row.productName,
+        row.categoryName,
+        describeSellingUnit(row),
+        row.stockQuantity,
+        row.lowStockThreshold,
+        row.stockStatus,
+      ]);
+      const csv = [header, ...rows]
+        .map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+        .join('\r\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `Inventory-Report-${filters.startDate}-to-${filters.endDate}.csv`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      toast('success', 'Inventory report exported.');
+      return;
+    }
+    if (!report) return;
     const fileName = `Kodigo-Reports-${report.filters.startDate}-to-${report.filters.endDate}.xlsx`;
     const storeId = activeStoreId && activeStoreId !== 'all' ? activeStoreId : null;
 
@@ -155,7 +183,7 @@ export function ReportsPage() {
     <div>
       <PageHeader
         title="Reports"
-        subtitle={loading ? 'Loading report data...' : `${filters.startDate} to ${filters.endDate}`}
+        subtitle={loading ? 'Loading report data...' : inventoryOnly ? 'Inventory history and stock reports' : `${filters.startDate} to ${filters.endDate}`}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" icon={<Printer className="w-4 h-4" />} onClick={() => window.print()}>
@@ -174,7 +202,7 @@ export function ReportsPage() {
               icon={<FileSpreadsheet className="w-4 h-4" />}
               onClick={handleExport}
               loading={exporting}
-              disabled={!report || !canExport}
+              disabled={(!report && !inventoryOnly) || !canExport}
             >
               Export Excel
             </Button>
@@ -216,21 +244,21 @@ export function ReportsPage() {
               ))}
             </select>
           </FilterField>
-          <FilterField label="Payment">
+          {!inventoryOnly && <FilterField label="Payment">
             <select value={filters.paymentMethod || 'all'} onChange={(event) => updateFilter('paymentMethod', event.target.value as PaymentMethod | 'all')} className="report-input">
               {paymentMethods.map((method) => (
                 <option key={method} value={method}>{method === 'all' ? 'All methods' : method}</option>
               ))}
             </select>
-          </FilterField>
-          <FilterField label="Cashier">
+          </FilterField>}
+          {!inventoryOnly && <FilterField label="Cashier">
             <select value={filters.cashierId || ''} onChange={(event) => updateFilter('cashierId', event.target.value || undefined)} className="report-input">
               <option value="">All cashiers</option>
               {cashierOptions.map(([id, name]) => (
                 <option key={id} value={id}>{name}</option>
               ))}
             </select>
-          </FilterField>
+          </FilterField>}
           <FilterField label="Unit">
             <select value={filters.sellingUnitKey || ''} onChange={(event) => updateFilter('sellingUnitKey', event.target.value || undefined)} className="report-input">
               <option value="">All units</option>
@@ -239,20 +267,20 @@ export function ReportsPage() {
               ))}
             </select>
           </FilterField>
-          <FilterField label="Status">
+          {!inventoryOnly && <FilterField label="Status">
             <select value={filters.status || 'all'} onChange={(event) => updateFilter('status', event.target.value as SaleStatus | 'all')} className="report-input">
               {statuses.map((status) => (
                 <option key={status} value={status}>{status === 'all' ? 'All statuses' : status.replace('_', ' ')}</option>
               ))}
             </select>
-          </FilterField>
+          </FilterField>}
           <div className="flex items-end">
             <Button
               variant="secondary"
               icon={<Download className="w-4 h-4" />}
               onClick={handleExport}
               loading={exporting}
-              disabled={!report || !canExport}
+              disabled={(!report && !inventoryOnly) || !canExport}
               className="w-full"
             >
               XLSX
@@ -262,14 +290,25 @@ export function ReportsPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Net Sales" value={formatCurrency(summary?.netSales ?? 0)} change={0} icon={FileSpreadsheet} color="blue" />
-        <StatCard label="Transactions" value={String(summary?.totalTransactions ?? 0)} change={0} icon={FileSpreadsheet} color="green" />
-        <StatCard label="Items Sold" value={String(summary?.netItemsSold ?? 0)} change={0} icon={FileSpreadsheet} color="amber" />
-        <StatCard label="Gross Profit" value={formatCurrency(summary?.grossProfit ?? 0)} change={0} icon={FileSpreadsheet} color="purple" />
+        {inventoryOnly ? (
+          <>
+            <StatCard label="Products" value={String(products.length)} change={0} icon={FileSpreadsheet} color="blue" />
+            <StatCard label="Stock Units" value={String(filteredInventoryRows.reduce((sum, row) => sum + Number(row.stockQuantity), 0))} change={0} icon={FileSpreadsheet} color="green" />
+            <StatCard label="Low / Out of Stock" value={String(filteredInventoryRows.filter((row) => row.stockStatus !== 'in-stock').length)} change={0} icon={FileSpreadsheet} color="amber" />
+            <StatCard label="Movements" value={String(stockMovements.length)} change={0} icon={FileSpreadsheet} color="purple" />
+          </>
+        ) : (
+          <>
+            <StatCard label="Net Sales" value={formatCurrency(summary?.netSales ?? 0)} change={0} icon={FileSpreadsheet} color="blue" />
+            <StatCard label="Transactions" value={String(summary?.totalTransactions ?? 0)} change={0} icon={FileSpreadsheet} color="green" />
+            <StatCard label="Items Sold" value={String(summary?.netItemsSold ?? 0)} change={0} icon={FileSpreadsheet} color="amber" />
+            <StatCard label="Gross Profit" value={formatCurrency(summary?.grossProfit ?? 0)} change={0} icon={FileSpreadsheet} color="purple" />
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
-        <ReportSection title="Sales by Date">
+        {!inventoryOnly && <ReportSection title="Sales by Date">
           <SimpleTable
             headers={['Date', 'Transactions', 'Items', 'Net Sales', 'Profit']}
             rows={(report?.salesByDate ?? []).map((row) => [
@@ -280,17 +319,17 @@ export function ReportsPage() {
               formatCurrency(row.grossProfit),
             ])}
           />
-        </ReportSection>
+        </ReportSection>}
 
-        <ReportSection title="Product Sales">
+        {!inventoryOnly && <ReportSection title="Product Sales">
           <ProductGroupTable rows={report?.salesByProduct ?? []} />
-        </ReportSection>
+        </ReportSection>}
 
-        <ReportSection title="Sales by Category">
+        {!inventoryOnly && <ReportSection title="Sales by Category">
           <ProductGroupTable rows={report?.salesByCategory ?? []} compact />
-        </ReportSection>
+        </ReportSection>}
 
-        <ReportSection title="Sales by Payment Method">
+        {!inventoryOnly && <ReportSection title="Sales by Payment Method">
           <SimpleTable
             headers={['Method', 'Transactions', 'Captured', 'Refunds', 'Net']}
             rows={(report?.salesByPaymentMethod ?? []).map((row) => [
@@ -301,9 +340,9 @@ export function ReportsPage() {
               formatCurrency(row.net),
             ])}
           />
-        </ReportSection>
+        </ReportSection>}
 
-        <ReportSection title="Cashier Sales">
+        {!inventoryOnly && <ReportSection title="Cashier Sales">
           <SimpleTable
             headers={['Cashier', 'Transactions', 'Items', 'Net Sales']}
             rows={(report?.salesByCashier ?? []).map((row) => [
@@ -313,11 +352,11 @@ export function ReportsPage() {
               formatCurrency(row.netSales),
             ])}
           />
-        </ReportSection>
+        </ReportSection>}
 
-        <ReportSection title="Rice Unit Sales">
+        {!inventoryOnly && <ReportSection title="Rice Unit Sales">
           <ProductGroupTable rows={report?.riceUnitSales ?? []} />
-        </ReportSection>
+        </ReportSection>}
 
         <ReportSection title="Inventory Report">
           <SimpleTable

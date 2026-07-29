@@ -5,6 +5,20 @@ export interface Store {
   name: string;
   address: string;
   taxRate: number;
+  registeredName?: string;
+  businessName?: string;
+  tin?: string;
+  branchCode?: string;
+  vatStatus: 'vat' | 'non_vat';
+  documentLabel: string;
+  terminalIdentifier?: string;
+  birRegistrationInfo?: string;
+  accreditationInfo?: string;
+  permitInfo?: string;
+  invoicePrefix: string;
+  logoPath?: string;
+  phone?: string;
+  email?: string;
 }
 
 export interface StoreUser {
@@ -14,7 +28,7 @@ export interface StoreUser {
   store: Store;
 }
 
-export type UserRole = 'admin' | 'cashier' | 'super_admin';
+export type UserRole = 'admin' | 'cashier' | 'inventory' | 'super_admin';
 
 export interface User {
   id: string;
@@ -227,6 +241,11 @@ export interface Sale {
   paymentMethod: PaymentMethod;
   paymentReference?: string;
   receiptNumber?: string;
+  customerName?: string;
+  customerTin?: string;
+  customerAddress?: string;
+  terminalIdentifier?: string;
+  discountCategory?: 'regular' | 'senior' | 'pwd' | 'other';
   status?: SaleStatus;
   cashierId: string | null;
   cashierName: string;
@@ -249,8 +268,90 @@ export interface SaleRecord {
   discountValue: number;
   taxRate: number;
   receiptNumber?: string;
+  customerName?: string;
+  customerTin?: string;
+  customerAddress?: string;
+  terminalIdentifier?: string;
+  discountCategory?: 'regular' | 'senior' | 'pwd' | 'other';
   status: SaleStatus;
   createdAt: string;
+}
+
+export interface ReceiptStoreSnapshot {
+  id: string;
+  name: string;
+  registeredName: string;
+  businessName: string;
+  address: string;
+  tin?: string;
+  branchCode?: string;
+  vatStatus: 'vat' | 'non_vat';
+  taxRate: number;
+  documentLabel: string;
+  terminalIdentifier?: string;
+  birRegistrationInfo?: string;
+  accreditationInfo?: string;
+  permitInfo?: string;
+  logoPath?: string;
+  phone?: string;
+  email?: string;
+}
+
+export interface ReceiptSnapshot {
+  version: number;
+  sale: Record<string, unknown> & {
+    id: string;
+    receipt_number?: string;
+    created_at: string;
+    payment_method?: PaymentMethod;
+    payment_reference?: string;
+    status?: SaleStatus;
+  };
+  store: ReceiptStoreSnapshot;
+  cashier: { id?: string; name: string };
+  customer: { name?: string; tin?: string; address?: string };
+  items: Array<Record<string, unknown> & {
+    id?: string;
+    product_name: string;
+    selling_option_label?: string;
+    unit_label?: string;
+    package_size?: number;
+    package_unit?: string;
+    quantity: number;
+    unit_price: number;
+    line_total: number;
+  }>;
+  payment: Record<string, unknown> & {
+    method?: PaymentMethod;
+    amount_tendered?: number;
+    change_amount?: number;
+    reference_number?: string;
+  };
+  totals: {
+    subtotal: number;
+    discount: number;
+    discountType?: DiscountType;
+    discountValue?: number;
+    discountCategory?: 'regular' | 'senior' | 'pwd' | 'other';
+    vatableSales: number;
+    vatAmount: number;
+    vatExemptSales: number;
+    zeroRatedSales: number;
+    nonVatSales: number;
+    total: number;
+    amountTendered: number;
+    change: number;
+  };
+}
+
+export interface ReceiptRecord {
+  id: string;
+  saleId: string;
+  storeId: string;
+  receiptNumber: string;
+  issuedBy?: string;
+  issuedAt: string;
+  payload: ReceiptSnapshot;
 }
 
 export interface CashierCloseout {

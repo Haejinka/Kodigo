@@ -73,6 +73,13 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function RequireBackOffice({ children }: { children: React.ReactNode }) {
+  const role = useAuthStore((s) => s.role);
+  if (role === 'admin' || role === 'inventory') return <>{children}</>;
+  if (role === 'super_admin') return <Navigate to="/super-admin" replace />;
+  return <Navigate to="/pos" replace />;
+}
+
 // Require super admin
 function RequireSuperAdmin({ children }: { children: React.ReactNode }) {
   const role = useAuthStore((s) => s.role);
@@ -90,6 +97,7 @@ function RequirePOSAccess({ children }: { children: React.ReactNode }) {
 
   // If super_admin, do not force them into POS
   if (role === 'super_admin') return <Navigate to="/super-admin" replace />;
+  if (role === 'inventory') return <Navigate to="/inventory" replace />;
 
   if (role === 'admin' && isMobile) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
@@ -98,6 +106,7 @@ function RequirePOSAccess({ children }: { children: React.ReactNode }) {
 function DefaultAdminRoute() {
   const role = useAuthStore((s) => s.role);
   if (role === 'super_admin') return <Navigate to="/super-admin" replace />;
+  if (role === 'inventory') return <Navigate to="/inventory" replace />;
   return <Navigate to="/dashboard" replace />;
 }
 
@@ -105,6 +114,7 @@ function AppRoutes() {
   const initialize = useAuthStore((s) => s.initialize);
   const activeStoreId = useAuthStore((s) => s.activeStoreId);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const role = useAuthStore((s) => s.role);
   const fetchProducts = useProductStore((s) => s.fetchProducts);
   const fetchSuppliers = useSupplierStore((s) => s.fetchSuppliers);
   const fetchPurchaseOrders = useSupplierStore((s) => s.fetchPurchaseOrders);
@@ -114,8 +124,10 @@ function AppRoutes() {
     // Allow supplier and purchase order fetches even when no specific store is selected.
     if (!isAuthenticated) return;
     // Flush offline queues first so subsequent fetches include just-synced writes.
-    await syncPendingSales();
-    await syncPendingMutations();
+    if (role !== 'inventory') {
+      await syncPendingSales();
+      await syncPendingMutations();
+    }
 
     // Only fetch products when a specific store is selected
     if (activeStoreId) {
@@ -123,9 +135,11 @@ function AppRoutes() {
     }
 
     // Suppliers and purchase orders can be global — fetch regardless of selected store
-    fetchSuppliers();
-    fetchPurchaseOrders();
-    fetchAlerts();
+    if (role !== 'inventory') {
+      fetchSuppliers();
+      fetchPurchaseOrders();
+      fetchAlerts();
+    }
   };
 
   useEffect(() => {
@@ -141,15 +155,15 @@ function AppRoutes() {
 
   useEffect(() => {
     void revalidateData();
-  }, [activeStoreId, isAuthenticated, fetchProducts, fetchSuppliers, fetchPurchaseOrders, fetchAlerts]);
+  }, [activeStoreId, isAuthenticated, role, fetchProducts, fetchSuppliers, fetchPurchaseOrders, fetchAlerts]);
 
   useEffect(() => {
-    if (!isAuthenticated) return undefined;
+    if (!isAuthenticated || role === 'inventory') return undefined;
     const intervalId = window.setInterval(() => {
       void fetchAlerts();
     }, 30000);
     return () => window.clearInterval(intervalId);
-  }, [activeStoreId, isAuthenticated, fetchAlerts]);
+  }, [activeStoreId, isAuthenticated, role, fetchAlerts]);
 
   useEffect(() => {
     const onFocus = () => { void revalidateData(); };
@@ -172,7 +186,7 @@ function AppRoutes() {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('pageshow', onPageShow);
     };
-  }, [activeStoreId, isAuthenticated, fetchProducts, fetchSuppliers, fetchPurchaseOrders, fetchAlerts]);
+  }, [activeStoreId, isAuthenticated, role, fetchProducts, fetchSuppliers, fetchPurchaseOrders, fetchAlerts]);
 
   return (
     <Routes>
@@ -215,24 +229,24 @@ function AppRoutes() {
         path="/*"
         element={
           <RequireAuth>
-            <RequireAdmin>
+            <RequireBackOffice>
               <AppShell>
                 <Routes>
                   <Route path="/" element={<DefaultAdminRoute />} />
-                  <Route path="/dashboard" element={<DashboardPage />} />
-                  <Route path="/notifications" element={<NotificationsPage />} />
+                  <Route path="/dashboard" element={<RequireAdmin><DashboardPage /></RequireAdmin>} />
+                  <Route path="/notifications" element={<RequireAdmin><NotificationsPage /></RequireAdmin>} />
                   <Route path="/inventory" element={<InventoryPage />} />
                   <Route path="/inventory/products/new" element={<AddProductPage />} />
                   <Route path="/inventory/products/:id" element={<EditProductPage />} />
-                  <Route path="/restocking" element={<RestockingPage />} />
-                  <Route path="/suppliers" element={<SuppliersPage />} />
-                  <Route path="/suppliers/new" element={<AddSupplierPage />} />
-                  <Route path="/suppliers/:id" element={<SupplierDetailPage />} />
-                  <Route path="/suppliers/:id/edit" element={<EditSupplierPage />} />
-                  <Route path="/analytics" element={<AnalyticsPage />} />
-                  <Route path="/rankings" element={<RankingsPage />} />
+                  <Route path="/restocking" element={<RequireAdmin><RestockingPage /></RequireAdmin>} />
+                  <Route path="/suppliers" element={<RequireAdmin><SuppliersPage /></RequireAdmin>} />
+                  <Route path="/suppliers/new" element={<RequireAdmin><AddSupplierPage /></RequireAdmin>} />
+                  <Route path="/suppliers/:id" element={<RequireAdmin><SupplierDetailPage /></RequireAdmin>} />
+                  <Route path="/suppliers/:id/edit" element={<RequireAdmin><EditSupplierPage /></RequireAdmin>} />
+                  <Route path="/analytics" element={<RequireAdmin><AnalyticsPage /></RequireAdmin>} />
+                  <Route path="/rankings" element={<RequireAdmin><RankingsPage /></RequireAdmin>} />
                   <Route path="/reports" element={<ReportsPage />} />
-                  <Route path="/settings" element={<SettingsLayout />}>
+                  <Route path="/settings" element={<RequireAdmin><SettingsLayout /></RequireAdmin>}>
                     <Route index element={<GeneralSettingsPage />} />
                     <Route path="users" element={<UserManagementPage />} />
                     <Route path="notifications" element={<NotificationsSettingsPage />} />
@@ -240,7 +254,7 @@ function AppRoutes() {
                   </Route>
                 </Routes>
               </AppShell>
-            </RequireAdmin>
+            </RequireBackOffice>
           </RequireAuth>
         }
       />

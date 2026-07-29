@@ -17,6 +17,11 @@ const toSaleRecord = (row: any): SaleRecord => ({
   discountValue: Number(row.discount_value ?? 0),
   taxRate: Number(row.tax_rate ?? 0),
   receiptNumber: row.receipt_number ?? undefined,
+  customerName: row.customer_name ?? undefined,
+  customerTin: row.customer_tin ?? undefined,
+  customerAddress: row.customer_address ?? undefined,
+  terminalIdentifier: row.terminal_identifier ?? undefined,
+  discountCategory: row.discount_category ?? 'regular',
   status: row.status ?? 'completed',
   createdAt: row.created_at,
 });

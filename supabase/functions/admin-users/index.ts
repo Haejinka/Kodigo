@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-type UserRole = "admin" | "cashier";
+type UserRole = "admin" | "cashier" | "inventory";
 
 type RequestBody = {
   action: "list" | "create" | "update" | "remove";
@@ -34,8 +34,8 @@ function requireText(value: unknown, label: string) {
 }
 
 function requireRole(value: unknown): UserRole {
-  if (value === "admin" || value === "cashier") return value;
-  throw new Error("Role must be admin or cashier");
+  if (value === "admin" || value === "cashier" || value === "inventory") return value;
+  throw new Error("Role must be admin, cashier, or inventory");
 }
 
 function normalizeStoreIds(value: unknown): string[] {
@@ -112,7 +112,7 @@ serve(async (req) => {
         .from("profiles")
         .select("id, name, role")
         .in("id", profileIds)
-        .in("role", ["admin", "cashier"]);
+        .in("role", ["admin", "cashier", "inventory"]);
       if (profilesError) throw profilesError;
 
       const { data: authUsers, error: authError } = await adminClient.auth.admin.listUsers({

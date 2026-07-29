@@ -253,7 +253,7 @@ const zeroSummary: SalesReportSummary = {
 };
 
 export function canAccessReports(role: UserRole | null): boolean {
-  return role === 'admin';
+  return role === 'admin' || role === 'inventory';
 }
 
 export function getDefaultReportFilters(): ReportFilters {

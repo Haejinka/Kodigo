@@ -11,6 +11,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useAlertStore } from '@/stores/alertStore';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import type { UserRole } from '@/types';
+import { useActiveBranding } from '@/lib/branding';
 
 interface NavItem {
   label: string;
@@ -26,12 +27,12 @@ const navItems: NavItem[] = [
   { label: 'Notifications', path: '/notifications', icon: Bell, roles: ['admin'], badgeKey: 'notifications' },
   { label: 'Notifications', path: '/super-admin/notifications', icon: Bell, roles: ['super_admin'], badgeKey: 'notifications' },
   { label: 'POS Terminal', path: '/pos', icon: ShoppingCart, roles: ['admin', 'cashier'] },
-  { label: 'Inventory', path: '/inventory', icon: Package, roles: ['admin'] },
+  { label: 'Inventory', path: '/inventory', icon: Package, roles: ['admin', 'inventory'] },
   { label: 'Restocking', path: '/restocking', icon: RefreshCw, roles: ['admin'], badgeKey: 'stockAlerts' },
   { label: 'Suppliers', path: '/suppliers', icon: Truck, roles: ['admin'] },
   { label: 'Analytics', path: '/analytics', icon: BarChart2, roles: ['admin'] },
   { label: 'Rankings', path: '/rankings', icon: Trophy, roles: ['admin'] },
-  { label: 'Reports', path: '/reports', icon: FileSpreadsheet, roles: ['admin'] },
+  { label: 'Reports', path: '/reports', icon: FileSpreadsheet, roles: ['admin', 'inventory'] },
   { label: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
 ];
 
@@ -46,6 +47,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const stockUnreadCount = alerts.filter((alert) => !alert.isRead).length;
+  const branding = useActiveBranding();
 
   const filtered = navItems.filter((item) => {
     if (!role || !item.roles.includes(role)) return false;
@@ -69,12 +71,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Logo area on mobile only */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--app-border-subtle)]">
         <img
-          src="/kodigo-icon.png"
-          alt="KodiGo"
+          src={branding.logoUrl}
+          alt={branding.businessName || branding.name}
           className="w-5 h-5 rounded-md shrink-0 object-cover"
         />
         {!collapsed && (
-          <span className="font-bold text-gray-900 text-sm">KodiGo</span>
+          <span className="font-bold text-gray-900 text-sm">{branding.businessName || branding.name}</span>
         )}
       </div>
 
@@ -161,6 +163,7 @@ export function MobileSidebarDrawer({ open, onClose }: MobileDrawerProps) {
   const navigate = useNavigate();
   const filtered = navItems.filter((item) => role && item.roles.includes(role));
   const stockUnreadCount = alerts.filter((alert) => !alert.isRead).length;
+  const branding = useActiveBranding();
 
   const handleLogout = async () => {
     await logout();
@@ -176,11 +179,11 @@ export function MobileSidebarDrawer({ open, onClose }: MobileDrawerProps) {
       <aside className="fixed left-0 top-0 bottom-0 z-40 w-64 shadow-xl flex flex-col bg-[var(--app-surface-nav)] border-r border-[var(--app-border)]">
         <div className="flex items-center gap-3 px-4 py-4 border-b border-[var(--app-border)]">
           <img
-            src="/kodigo-icon.png"
-            alt="KodiGo"
+            src={branding.logoUrl}
+            alt={branding.businessName || branding.name}
             className="w-5 h-5 rounded-md object-cover"
           />
-          <span className="font-bold text-gray-900">KodiGo</span>
+          <span className="font-bold text-gray-900">{branding.businessName || branding.name}</span>
         </div>
         <nav className="flex-1 overflow-y-auto py-2">
           {filtered.map((item) => {

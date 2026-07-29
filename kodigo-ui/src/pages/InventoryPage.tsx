@@ -32,6 +32,7 @@ function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onCl
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [loading, setLoading] = useState(false);
+  const role = useAuthStore((state) => state.role);
   const inputRef = useRef<HTMLInputElement>(null);
   const usedCategoryIds = useMemo(() => {
     return new Set(products.filter((product) => product.storeId === storeId).map((product) => product.categoryId));
@@ -145,22 +146,22 @@ function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onCl
         </div>
 
         <div className="flex flex-wrap gap-2 mb-4">
-          <button
+          {role === 'admin' && <button
             type="button"
             className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             onClick={handleRestoreDefaults}
             disabled={loading}
           >
             Restore defaults
-          </button>
-          <button
+          </button>}
+          {role === 'admin' && <button
             type="button"
             className="px-3 py-1.5 rounded-lg border border-red-200 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
             onClick={handleRemoveUnusedDefaults}
             disabled={loading || defaultCategories.length === 0}
           >
             Remove unused defaults
-          </button>
+          </button>}
         </div>
 
         <div className="mb-4 max-h-72 overflow-y-auto rounded-lg border border-gray-100 divide-y divide-gray-100">
@@ -192,7 +193,7 @@ function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onCl
                     {isDefault && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">Default</span>}
                     {isUsed && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">In use</span>}
                     <button className="text-xs font-semibold text-blue-600" onClick={() => { setEditingId(cat.id); setEditingName(cat.name); }}>Rename</button>
-                    <button className="text-xs font-semibold text-red-600 disabled:text-gray-300" onClick={() => handleDelete(cat.id, isUsed)} disabled={loading || isUsed}>Delete</button>
+                    {role === 'admin' && <button className="text-xs font-semibold text-red-600 disabled:text-gray-300" onClick={() => handleDelete(cat.id, isUsed)} disabled={loading || isUsed}>Delete</button>}
                   </>
                 )}
               </div>
@@ -359,7 +360,7 @@ export function InventoryPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { products, deleteProduct, adjustStock, openSackToKilo, stockAdjustments } = useProductStore();
-  const { activeStoreId, stores } = useAuthStore();
+  const { activeStoreId, stores, role } = useAuthStore();
   const [tab, setTab] = useState<Tab>('products');
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState('all');
@@ -494,7 +495,8 @@ export function InventoryPage() {
               >
                 <Sliders className="w-4 h-4" />
               </button>
-              {getProductSellingOptions(p).some((option) => option.kind === 'sack' && option.quantityValue) &&
+              {role === 'admin' &&
+                getProductSellingOptions(p).some((option) => option.kind === 'sack' && option.quantityValue) &&
                 getProductSellingOptions(p).some((option) => option.kind === 'kilo' || option.unitLabel.toLowerCase() === 'kg') && (
                   <button
                     onClick={() => setConvertTarget(p)}
@@ -511,13 +513,13 @@ export function InventoryPage() {
               >
                 <Edit className="w-4 h-4" />
               </button>
-              <button
+              {role === 'admin' && <button
                 onClick={() => setDeleteTarget(p)}
                 className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
                 title="Delete"
               >
                 <Trash2 className="w-4 h-4" />
-              </button>
+              </button>}
             </>
           )}
         </div>
@@ -678,7 +680,7 @@ export function InventoryPage() {
         <StockAdjustmentLog adjustments={stockAdjustments} />
       )}
 
-      <ConfirmDialog
+      {role === 'admin' && <ConfirmDialog
         open={!!deleteTarget}
         title="Delete Product"
         description={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
@@ -687,7 +689,7 @@ export function InventoryPage() {
         loading={deleting}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
-      />
+      />}
 
       <StockAdjustmentModal
         open={!!adjustTarget}

@@ -142,7 +142,7 @@ try {
 
   const cashier = await signIn(cashierEmail);
   const saleId = crypto.randomUUID();
-  await unwrap('process checkout', cashier.rpc('process_pos_sale_v2', {
+  await unwrap('process checkout', cashier.rpc('process_pos_sale_v3', {
     p_id: saleId,
     p_store_id: storeA.id,
     p_cashier_id: cashierUserId,
@@ -257,7 +257,7 @@ try {
     .single());
 
   const riceSaleId = crypto.randomUUID();
-  await unwrap('process rice unit checkout', cashier.rpc('process_pos_sale_v2', {
+  await unwrap('process rice unit checkout', cashier.rpc('process_pos_sale_v3', {
     p_id: riceSaleId,
     p_store_id: storeA.id,
     p_cashier_id: cashierUserId,

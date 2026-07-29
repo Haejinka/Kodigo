@@ -13,8 +13,10 @@ import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import { createManagedUser, listManagedUsers, removeManagedUser, updateManagedUser } from '@/lib/admin-users';
 import { supabase } from '@/lib/supabase';
+import { StoreBrandingEditor } from '@/components/settings/StoreBrandingEditor';
 
 const inputCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
+type ManagedRole = 'admin' | 'cashier' | 'inventory';
 
 const settingsSections = [
   { label: 'General', path: '/settings', icon: Settings, end: true },
@@ -130,7 +132,7 @@ function EditStoreModal({ store, onSave, onClose }: EditStoreModalProps) {
 
 export function GeneralSettingsPage() {
   const { toast } = useToast();
-  const { stores, addStore, updateStore, deleteStore, role } = useAuthStore();
+  const { stores, activeStoreId, addStore, updateStore, deleteStore, role } = useAuthStore();
 
   const isOwner = role === 'admin';
   const [newStoreName, setNewStoreName] = useState('');
@@ -139,6 +141,9 @@ export function GeneralSettingsPage() {
 
   const [addingStore, setAddingStore] = useState(false);
   const [editingStore, setEditingStore] = useState<StoreType | null>(null);
+  const activeBrandingStore = activeStoreId && activeStoreId !== 'all'
+    ? stores.find((store) => store.id === activeStoreId)
+    : undefined;
 
   const handleUpdate = async (name: string, address: string, taxRate: number) => {
     if (!editingStore) return false;
@@ -182,6 +187,9 @@ export function GeneralSettingsPage() {
 
   return (
     <div className="space-y-6">
+      {isOwner && activeBrandingStore && (
+        <StoreBrandingEditor store={activeBrandingStore} />
+      )}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Store className="w-5 h-5 text-gray-500" /> My Stores
@@ -323,7 +331,9 @@ function EditUserModal({ user, onSave, onClose }: EditUserModalProps) {
   const { stores } = useAuthStore();
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
-  const [role, setRole] = useState<'admin' | 'cashier'>(user.role === 'admin' ? 'admin' : 'cashier');
+  const [role, setRole] = useState<ManagedRole>(
+    user.role === 'admin' || user.role === 'inventory' ? user.role : 'cashier'
+  );
   const [storeId, setStoreId] = useState(user.storeId || '');
   const [adminStoreIds, setAdminStoreIds] = useState<string[]>(user.storeIds?.length ? user.storeIds : user.storeId ? [user.storeId] : []);
   const [saving, setSaving] = useState(false);
@@ -341,7 +351,7 @@ function EditUserModal({ user, onSave, onClose }: EditUserModalProps) {
     if (!name.trim()) { toast('error', 'Name is required.'); return; }
     if (!email.trim() || !email.includes('@')) { toast('error', 'A valid email is required.'); return; }
     if (role === 'admin' && adminStoreIds.length === 0) { toast('error', 'At least one store assignment is required.'); return; }
-    if (role === 'cashier' && !storeId) { toast('error', 'Store assignment is required.'); return; }
+    if (role !== 'admin' && !storeId) { toast('error', 'Store assignment is required.'); return; }
     setSaving(true);
     try {
       await onSave({
@@ -411,7 +421,7 @@ function EditUserModal({ user, onSave, onClose }: EditUserModalProps) {
                 className={selectCls}
                 value={role}
                 onChange={(e) => {
-                  const nextRole = e.target.value as 'admin' | 'cashier';
+                  const nextRole = e.target.value as ManagedRole;
                   setRole(nextRole);
                   if (nextRole === 'admin') {
                     setAdminStoreIds((prev) => prev.length ? prev : (storeId ? [storeId] : []));
@@ -421,10 +431,11 @@ function EditUserModal({ user, onSave, onClose }: EditUserModalProps) {
                 }}
               >
                 <option value="cashier">Cashier — POS access only</option>
+                <option value="inventory">Inventory — products and stock only</option>
                 <option value="admin">Admin — Full access</option>
               </select>
             </div>
-            {role === 'cashier' ? (
+            {role !== 'admin' ? (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Assignment</label>
                 <select
@@ -465,7 +476,7 @@ function EditUserModal({ user, onSave, onClose }: EditUserModalProps) {
 }
 
 interface CreateUserModalProps {
-  onCreate: (input: { name: string; email: string; password: string; role: 'admin' | 'cashier'; storeId: string; storeIds?: string[] }) => Promise<void>;
+  onCreate: (input: { name: string; email: string; password: string; role: ManagedRole; storeId: string; storeIds?: string[] }) => Promise<void>;
   onClose: () => void;
 }
 
@@ -476,7 +487,7 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<'admin' | 'cashier'>('cashier');
+  const [role, setRole] = useState<ManagedRole>('cashier');
   const [storeId, setStoreId] = useState(activeStoreId && activeStoreId !== 'all' ? activeStoreId : stores[0]?.id ?? '');
   const [adminStoreIds, setAdminStoreIds] = useState<string[]>(storeId ? [storeId] : []);
   const [creating, setCreating] = useState(false);
@@ -496,7 +507,7 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
     if (!password) { toast('error', 'Password is required.'); return; }
     if (password.length < 6) { toast('error', 'Password must be at least 6 characters.'); return; }
     if (password !== confirmPassword) { toast('error', 'Passwords do not match.'); return; }
-    if (role === 'cashier' && (!storeId || storeId === 'all')) { toast('error', 'Store assignment is required.'); return; }
+    if (role !== 'admin' && (!storeId || storeId === 'all')) { toast('error', 'Store assignment is required.'); return; }
     if (role === 'admin' && adminStoreIds.length === 0) { toast('error', 'At least one store assignment is required.'); return; }
     
     setCreating(true);
@@ -583,7 +594,7 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
                 className={selectCls}
                 value={role}
                 onChange={(e) => {
-                  const nextRole = e.target.value as 'admin' | 'cashier';
+                  const nextRole = e.target.value as ManagedRole;
                   setRole(nextRole);
                   if (nextRole === 'admin') {
                     setAdminStoreIds((prev) => prev.length ? prev : (storeId ? [storeId] : []));
@@ -593,10 +604,11 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
                 }}
               >
                 <option value="cashier">Cashier • POS access only</option>
+                <option value="inventory">Inventory • products and stock only</option>
                 <option value="admin">Admin • Full system access</option>
               </select>
             </div>
-            {role === 'cashier' ? (
+            {role !== 'admin' ? (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Assignment</label>
                 <select
@@ -664,7 +676,7 @@ export function UserManagementPage() {
   }, [scopedStoreId]);
 
   const handleEditSave = async (updated: User) => {
-    if (updated.role !== 'admin' && updated.role !== 'cashier') return;
+    if (updated.role !== 'admin' && updated.role !== 'cashier' && updated.role !== 'inventory') return;
     const saved = await updateManagedUser({
       userId: updated.id,
       name: updated.name,
@@ -677,7 +689,7 @@ export function UserManagementPage() {
     toast('success', 'User updated successfully.');
   };
 
-  const handleCreate = async (input: { name: string; email: string; password: string; role: 'admin' | 'cashier'; storeId: string; storeIds?: string[] }) => {
+  const handleCreate = async (input: { name: string; email: string; password: string; role: ManagedRole; storeId: string; storeIds?: string[] }) => {
     const created = await createManagedUser(input);
     setUsers((prev) => [created, ...prev]);
     toast('success', `${created.role === 'admin' ? 'Admin' : 'User'} created successfully.`);

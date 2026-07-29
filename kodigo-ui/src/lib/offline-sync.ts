@@ -119,6 +119,11 @@ function mapSaleResponse(sale: Sale, row: any | null): Sale {
     change: Number(row.change ?? sale.change),
     paymentMethod: row.payment_method ?? sale.paymentMethod,
     paymentReference: row.payment_reference ?? sale.paymentReference,
+    customerName: row.customer_name ?? sale.customerName,
+    customerTin: row.customer_tin ?? sale.customerTin,
+    customerAddress: row.customer_address ?? sale.customerAddress,
+    terminalIdentifier: row.terminal_identifier ?? sale.terminalIdentifier,
+    discountCategory: row.discount_category ?? sale.discountCategory,
     receiptNumber: row.receipt_number ?? sale.receiptNumber,
     status: row.status ?? sale.status,
     createdAt: row.created_at ?? sale.createdAt,
@@ -143,9 +148,14 @@ async function pushSaleToSupabase(sale: Sale): Promise<Sale> {
     items,
     paymentMethod,
     paymentReference,
+    customerName,
+    customerTin,
+    customerAddress,
+    terminalIdentifier,
+    discountCategory,
   } = sale;
 
-  const { data, error } = await supabase.rpc('process_pos_sale_v2', {
+  const { data, error } = await supabase.rpc('process_pos_sale_v3', {
     p_id: id,
     p_store_id: storeId,
     p_cashier_id: cashierId,
@@ -161,6 +171,11 @@ async function pushSaleToSupabase(sale: Sale): Promise<Sale> {
     p_discount_type: discountType,
     p_discount_value: discountValue,
     p_tax_rate: taxRate,
+    p_customer_name: customerName ?? null,
+    p_customer_tin: customerTin ?? null,
+    p_customer_address: customerAddress ?? null,
+    p_terminal_identifier: terminalIdentifier ?? null,
+    p_discount_category: discountCategory ?? 'regular',
   });
 
   if (error) throw error;

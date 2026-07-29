@@ -3,10 +3,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/shared/Button';
+import { useActiveBranding } from '@/lib/branding';
 
 export function LoginPage() {
   const { login, isLoading, error, isAuthenticated, role } = useAuthStore();
   const navigate = useNavigate();
+  const branding = useActiveBranding();
 
   // If already logged in, redirect them immediately 
   useEffect(() => {
@@ -14,7 +16,7 @@ export function LoginPage() {
       if (role === 'super_admin') {
         navigate('/super-admin');
       } else {
-        navigate(role === 'cashier' ? '/pos' : '/dashboard');
+        navigate(role === 'cashier' ? '/pos' : role === 'inventory' ? '/inventory' : '/dashboard');
       }
     }
   }, [isAuthenticated, role, navigate]);
@@ -35,11 +37,11 @@ export function LoginPage() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <img
-            src="/kodigo-icon.png"
-            alt="KodiGo"
+            src={branding.logoUrl}
+            alt={branding.businessName || branding.name}
             className="w-14 h-14 rounded-2xl mb-3 shadow-lg object-cover"
           />
-          <h1 className="text-2xl font-bold text-gray-900">KodiGo</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{branding.businessName || branding.name}</h1>
           <p className="text-sm text-gray-500 mt-1">Point of Sale & Inventory System</p>
         </div>
 

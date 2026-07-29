@@ -75,7 +75,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   const fetchCategories = useProductStore((s) => s.fetchCategories);
   const addCategory = useProductStore((s) => s.addCategory);
   const seedDefaultCategories = useProductStore((s) => s.seedDefaultCategories);
-  const { stores, activeStoreId } = useAuthStore();
+  const { stores, activeStoreId, role } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [storeCategories, setStoreCategories] = useState<Category[]>([]);
@@ -138,7 +138,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
 
     void Promise.all([
       fetchCategoriesForStore(targetStoreId),
-      fetchSuppliersForStore(targetStoreId),
+      role === 'admin' ? fetchSuppliersForStore(targetStoreId) : Promise.resolve([]),
     ]).then(([categories, suppliers]) => {
       if (cancelled) return;
       setStoreCategories(categories);
@@ -146,7 +146,9 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       setForm((prev) => ({
         ...prev,
         categoryId: categories.some((category) => category.id === prev.categoryId) ? prev.categoryId : '',
-        supplierId: suppliers.some((supplier) => supplier.id === prev.supplierId) ? prev.supplierId : '',
+        supplierId: role === 'admin'
+          ? (suppliers.some((supplier) => supplier.id === prev.supplierId) ? prev.supplierId : '')
+          : prev.supplierId,
       }));
     }).catch((err) => {
       if (cancelled) return;
@@ -160,7 +162,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     return () => {
       cancelled = true;
     };
-  }, [form.storeId, activeStoreId]);
+  }, [form.storeId, activeStoreId, role]);
 
   useEffect(() => {
     const targetStoreId = form.storeId || (activeStoreId === 'all' ? 'all' : activeStoreId);
@@ -477,19 +479,21 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
                 </div>
                 {errors.categoryId && <p className="text-xs text-red-500 mt-1">{errors.categoryId}</p>}
               </Field>
-              <Field label="Supplier" hint="Optional. Leave blank if this product has no supplier yet.">
-                <select
-                  className={selectCls}
-                  value={form.supplierId}
-                  onChange={(e) => set('supplierId', e.target.value)}
-                  disabled={!form.storeId}
-                >
-                  <option value="">No supplier assigned</option>
-                  {storeSuppliers.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </Field>
+              {role === 'admin' && (
+                <Field label="Supplier" hint="Optional. Leave blank if this product has no supplier yet.">
+                  <select
+                    className={selectCls}
+                    value={form.supplierId}
+                    onChange={(e) => set('supplierId', e.target.value)}
+                    disabled={!form.storeId}
+                  >
+                    <option value="">No supplier assigned</option>
+                    {storeSuppliers.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
             </div>
           </div>
 
@@ -590,12 +594,17 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
                           <label className="block text-xs font-medium text-gray-500 mb-1">Stock</label>
                           <input
                             type="number"
-                            className={inputCls + ' font-mono'}
+                            className={`${inputCls} font-mono disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed`}
                             value={option.stockQuantity}
                             onChange={(e) => updateSellingOption(index, { stockQuantity: parseFloat(e.target.value) || 0 })}
+                            disabled={mode === 'edit' && Boolean(initial?.sellingOptions?.some((existing) => existing.id === option.id))}
+                            title={mode === 'edit' ? 'Use Adjust stock from the inventory list to record a stock change.' : undefined}
                             min={0}
                             step="0.001"
                           />
+                          {mode === 'edit' && initial?.sellingOptions?.some((existing) => existing.id === option.id) && (
+                            <p className="text-[11px] leading-snug text-gray-400 mt-0.5">Use Adjust stock to change this quantity.</p>
+                          )}
                           {errors[`${prefix}-stock`] && <p className="text-xs text-red-500 mt-1">{errors[`${prefix}-stock`]}</p>}
                         </div>
                         <div className="col-span-1">

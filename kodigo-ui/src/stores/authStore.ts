@@ -8,6 +8,20 @@ type StoreRow = {
   address: string | null;
   tax_rate?: number | string | null;
   taxRate?: number | string | null;
+  registered_name?: string | null;
+  business_name?: string | null;
+  tin?: string | null;
+  branch_code?: string | null;
+  vat_status?: 'vat' | 'non_vat' | null;
+  document_label?: string | null;
+  terminal_identifier?: string | null;
+  bir_registration_info?: string | null;
+  accreditation_info?: string | null;
+  permit_info?: string | null;
+  invoice_prefix?: string | null;
+  logo_path?: string | null;
+  phone?: string | null;
+  email?: string | null;
 };
 
 const toStore = (row: StoreRow): Store => ({
@@ -15,6 +29,20 @@ const toStore = (row: StoreRow): Store => ({
   name: row.name,
   address: row.address ?? '',
   taxRate: Number(row.taxRate ?? row.tax_rate ?? 0),
+  registeredName: row.registered_name ?? undefined,
+  businessName: row.business_name ?? undefined,
+  tin: row.tin ?? undefined,
+  branchCode: row.branch_code ?? undefined,
+  vatStatus: row.vat_status === 'vat' ? 'vat' : 'non_vat',
+  documentLabel: row.document_label || 'Sales Invoice',
+  terminalIdentifier: row.terminal_identifier ?? undefined,
+  birRegistrationInfo: row.bir_registration_info ?? undefined,
+  accreditationInfo: row.accreditation_info ?? undefined,
+  permitInfo: row.permit_info ?? undefined,
+  invoicePrefix: row.invoice_prefix || 'INV',
+  logoPath: row.logo_path ?? undefined,
+  phone: row.phone ?? undefined,
+  email: row.email ?? undefined,
 });
 
 const toStores = (rows: StoreRow[] | null | undefined): Store[] => (rows ?? []).map(toStore);
@@ -24,7 +52,7 @@ const resolveRole = (user: any, profile: any): UserRole | null => {
   const checkRole = (r: any): UserRole | null => {
     if (!r) return null;
     const normalized = String(r).toLowerCase().trim();
-    if (['admin', 'cashier', 'super_admin'].includes(normalized)) {
+    if (['admin', 'cashier', 'inventory', 'super_admin'].includes(normalized)) {
       return normalized as UserRole;
     }
     return null;
@@ -52,7 +80,9 @@ const fetchUserStores = async (role: string | null) => {
   } else {
     // Note: Due to RLS, they only see stores they are mapped to. 
     // We can just fetch from 'stores' and RLS will filter it.
-    const { data: stores } = await supabase.from('stores').select('id, name, address, tax_rate');
+    const { data: stores } = await supabase.from('stores').select(
+      'id, name, address, tax_rate, registered_name, business_name, tin, branch_code, vat_status, document_label, terminal_identifier, bir_registration_info, accreditation_info, permit_info, invoice_prefix, logo_path, phone, email'
+    );
     return toStores(stores);
   }
 };
@@ -70,6 +100,7 @@ interface AuthState {
   addStore: (name: string, address: string, taxRate: number) => Promise<Store | null>;
   updateStore: (id: string, name: string, address: string, taxRate: number) => Promise<boolean>;
   deleteStore: (id: string) => Promise<boolean>;
+  refreshStores: () => Promise<void>;
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -101,6 +132,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setActiveStoreId: (storeId: string | 'all') => {
     localStorage.setItem('kodigo_active_store_id', storeId);
+    if (storeId !== 'all') localStorage.setItem('kodigo_last_store_id', storeId);
     set({ activeStoreId: storeId });
   },
 
@@ -136,7 +168,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .from('stores')
       .update({ name, address, tax_rate: taxRate })
       .eq('id', id)
-      .select('id, name, address, tax_rate')
+      .select('id, name, address, tax_rate, registered_name, business_name, tin, branch_code, vat_status, document_label, terminal_identifier, bir_registration_info, accreditation_info, permit_info, invoice_prefix, logo_path, phone, email')
       .maybeSingle();
 
     if (error || !updatedStore) {
@@ -183,6 +215,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ stores, activeStoreId: newActiveStoreId });
     return true;
   },
+  refreshStores: async () => {
+    const { user, profile, activeStoreId } = get();
+    if (!user) return;
+    const role = resolveRole(user, profile);
+    const stores = await fetchUserStores(role);
+    const nextActiveStoreId = activeStoreId === 'all' || stores.some((store) => store.id === activeStoreId)
+      ? activeStoreId
+      : stores[0]?.id ?? null;
+    set({ stores, activeStoreId: nextActiveStoreId });
+  },
   initialize: async () => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -212,6 +254,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           initialStoreId = savedStoreId;
         } else if (stores?.length) {
           initialStoreId = stores[0].id;
+        }
+        if (initialStoreId && initialStoreId !== 'all') {
+          localStorage.setItem('kodigo_last_store_id', initialStoreId);
         }
         
         set({
@@ -250,6 +295,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               activeStoreId: stores?.length ? stores[0].id : null,
               isAuthenticated: true
             });
+            if (stores?.[0]?.id) localStorage.setItem('kodigo_last_store_id', stores[0].id);
           }
         } else if (event === 'SIGNED_OUT') {
           set(resetAuthState);
@@ -297,6 +343,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isAuthenticated: true,
           isLoading: false
         });
+        if (stores?.[0]?.id) localStorage.setItem('kodigo_last_store_id', stores[0].id);
       } else {
         set({ isLoading: false });
       }

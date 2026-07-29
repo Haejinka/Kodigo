@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Banknote, RotateCcw, Undo2, X, ReceiptText, LockKeyhole, RefreshCw } from 'lucide-react';
+import { Banknote, RotateCcw, Undo2, X, ReceiptText, LockKeyhole, RefreshCw, Printer } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { useToast } from '@/components/shared/Toast';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
@@ -13,6 +13,9 @@ import {
 } from '@/lib/transactions';
 import { useAuthStore } from '@/stores/authStore';
 import type { PaymentMethod, SaleItem, SaleRecord } from '@/types';
+import type { ReceiptSnapshot } from '@/types';
+import { fetchReceiptBySaleId } from '@/lib/receipts';
+import { ReceiptPreviewModal } from '@/components/receipts/ReceiptPreviewModal';
 
 interface TransactionLifecyclePanelProps {
   open: boolean;
@@ -48,6 +51,7 @@ export function TransactionLifecyclePanel({ open, storeId, onClose }: Transactio
   const [countedCash, setCountedCash] = useState('');
   const [closeoutNotes, setCloseoutNotes] = useState('');
   const [closeoutOpen, setCloseoutOpen] = useState(false);
+  const [receiptPreview, setReceiptPreview] = useState<{ saleId: string; snapshot: ReceiptSnapshot } | null>(null);
 
   const isAdmin = role === 'admin';
 
@@ -98,6 +102,18 @@ export function TransactionLifecyclePanel({ open, storeId, onClose }: Transactio
       } finally {
         setProcessing(false);
       }
+    }
+  };
+
+  const openReceipt = async (sale: SaleRecord) => {
+    setProcessing(true);
+    try {
+      const receipt = await fetchReceiptBySaleId(sale.id);
+      setReceiptPreview({ saleId: sale.id, snapshot: receipt.payload });
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Failed to retrieve receipt.');
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -261,6 +277,13 @@ export function TransactionLifecyclePanel({ open, storeId, onClose }: Transactio
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="font-mono font-bold text-gray-900">{formatCurrency(sale.total)}</span>
+                    <button
+                      onClick={() => void openReceipt(sale)}
+                      className="p-2 rounded-lg text-blue-600 hover:bg-blue-50"
+                      title="Preview or reprint receipt"
+                    >
+                      <Printer className="w-4 h-4" />
+                    </button>
                     {isAdmin ? (
                       <div className="flex gap-1">
                         <button
@@ -409,6 +432,13 @@ export function TransactionLifecyclePanel({ open, storeId, onClose }: Transactio
           </div>
         )}
       </section>
+      <ReceiptPreviewModal
+        open={Boolean(receiptPreview)}
+        snapshot={receiptPreview?.snapshot ?? null}
+        saleId={receiptPreview?.saleId ?? ''}
+        trackReprint
+        onClose={() => setReceiptPreview(null)}
+      />
     </div>
   );
 }
