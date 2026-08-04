@@ -205,7 +205,7 @@ export function Topbar() {
           </div>
         )}
 
-        {role !== 'inventory' && <div className="relative">
+        {role !== 'inventory' && role !== 'super_admin' && <div className="relative">
           <button
             onClick={handleOpenNotifications}
             className="relative p-2 rounded-lg hover:bg-[var(--app-surface-elevated)] transition-colors"
@@ -240,7 +240,7 @@ export function Topbar() {
                     <button
                       onClick={() => {
                         setAlertOpen(false);
-                        navigate(role === 'super_admin' ? '/super-admin/notifications' : '/notifications');
+                        navigate('/notifications');
                       }}
                       className="p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-[var(--app-accent-soft)]"
                       aria-label="View all notifications"

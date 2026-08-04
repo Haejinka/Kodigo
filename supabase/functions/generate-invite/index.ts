@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.100.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,46 +21,68 @@ serve(async (req) => {
   }
 
   try {
-    // 1. Initialize Supabase client using headers to read the requesting user
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-    );
-
-    // 2. Authenticate the user making the request
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) {
-      throw new Error('Unauthorized');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error('Function environment is missing Supabase credentials.');
     }
 
-    // 3. Verify the user is a super_admin
-    const { data: profile } = await supabaseClient
+    const authorization = req.headers.get('Authorization') ?? '';
+    const accessToken = authorization.replace(/^Bearer\s+/i, '').trim();
+    if (!accessToken) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: missing access token.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      });
+    }
+
+    // Use a server-only client for both JWT verification and authorization.
+    // The role decision comes from profiles, never user-editable metadata.
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(accessToken);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: invalid or expired session.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      });
+    }
+
+    const { data: assurance, error: assuranceError } =
+      await supabaseAdmin.auth.mfa.getAuthenticatorAssuranceLevel(accessToken);
+    if (assuranceError) throw assuranceError;
+    if (assurance.nextLevel === 'aal2' && assurance.currentLevel !== 'aal2') {
+      return new Response(JSON.stringify({ error: 'Complete MFA verification before generating invite codes.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 403,
+      });
+    }
+
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    if (!profile || profile.role !== 'super_admin') {
+    if (profileError || profile?.role !== 'super_admin') {
       return new Response(JSON.stringify({ error: 'Access Denied: Only Super Admins can generate codes.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 403,
       });
     }
 
-    // 4. Generate the invite code
-    const inviteCode = generateInviteCode();
-
-    // 5. Insert into database bypassing RLS (using Service Role Key because it's a secured backend environment)
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    const { error: insertError } = await supabaseAdmin
-      .from('invite_codes')
-      .insert([{ code: inviteCode, role: 'admin', created_by: user.id }]);
-
+    let inviteCode = '';
+    let insertError: { code?: string; message?: string } | null = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      inviteCode = generateInviteCode();
+      const result = await supabaseAdmin
+        .from('invite_codes')
+        .insert({ code: inviteCode, role: 'admin', created_by: user.id });
+      insertError = result.error;
+      if (!insertError) break;
+      if (insertError.code !== '23505') throw insertError;
+    }
     if (insertError) throw insertError;
 
     return new Response(JSON.stringify({ success: true, code: inviteCode }), {
@@ -68,11 +90,12 @@ serve(async (req) => {
       status: 200,
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('generate-invite failed', error);
-    return new Response(JSON.stringify({ error: 'Failed to generate invite code.' }), {
+    const message = error instanceof Error ? error.message : 'Failed to generate invite code.';
+    return new Response(JSON.stringify({ error: message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
+      status: 500,
     });
   }
 });

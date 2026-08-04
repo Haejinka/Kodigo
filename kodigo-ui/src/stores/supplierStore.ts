@@ -158,6 +158,10 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
   },
 
   addSupplier: async (data) => {
+    const ownerProfileId = useAuthStore.getState().user?.id;
+    if (!ownerProfileId) {
+      throw new Error('Your session has expired. Sign in again before creating a supplier.');
+    }
     const selectedStoreIds = [...new Set((data.storeIds || []).filter((storeId) => storeId && storeId !== 'all'))];
     if (selectedStoreIds.length === 0) {
        console.warn("Please select at least one store first.");
@@ -176,6 +180,7 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
       phone: data.phone,
       address: data.address,
       lead_time_days: data.leadTimeDays,
+      owner_profile_id: ownerProfileId,
     };
 
     const optimistic: Supplier = {

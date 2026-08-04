@@ -57,10 +57,23 @@ export function SuperAdminPage() {
     setCopied(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('generate-invite');
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error('Your session has expired. Sign in again.');
+
+      const { data, error } = await supabase.functions.invoke('generate-invite', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
       if (error) {
         console.error("Invite generation error:", error);
-        throw new Error(error.message || "Failed to generate invite code");
+        let message = error.message || 'Failed to generate invite code';
+        try {
+          const body = await error.context?.json();
+          if (body?.error) message = body.error;
+        } catch {
+          // The platform error text is still useful when the response has no JSON body.
+        }
+        throw new Error(message);
       }
 
       const inviteCode = data?.code;

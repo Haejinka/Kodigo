@@ -89,8 +89,8 @@ export function StockAdjustmentModal({
       setDelta('');
       setNote('');
       setBulkMode(false);
-    } catch {
-      toast('error', 'Failed to adjust stock.');
+    } catch (error: unknown) {
+      toast('error', error instanceof Error ? error.message : 'Failed to adjust stock.');
     } finally {
       setLoading(false);
     }

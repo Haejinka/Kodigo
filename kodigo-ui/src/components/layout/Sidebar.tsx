@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingCart, Package, RefreshCw,
-  Truck, BarChart2, Trophy, Settings, LogOut, ChevronLeft,
+  Truck, BarChart2, Trophy, Settings, ChevronLeft,
   ChevronRight,
   FileSpreadsheet, Bell,
 } from 'lucide-react';
@@ -25,7 +25,6 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['admin'] },
   { label: 'Super Admin', path: '/super-admin', icon: LayoutDashboard, roles: ['super_admin'] },
   { label: 'Notifications', path: '/notifications', icon: Bell, roles: ['admin'], badgeKey: 'notifications' },
-  { label: 'Notifications', path: '/super-admin/notifications', icon: Bell, roles: ['super_admin'], badgeKey: 'notifications' },
   { label: 'POS Terminal', path: '/pos', icon: ShoppingCart, roles: ['admin', 'cashier'] },
   { label: 'Inventory', path: '/inventory', icon: Package, roles: ['admin', 'inventory'] },
   { label: 'Restocking', path: '/restocking', icon: RefreshCw, roles: ['admin'], badgeKey: 'stockAlerts' },
@@ -43,9 +42,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
-  const { role, logout } = useAuthStore();
+  const { role } = useAuthStore();
   const { alerts, unreadCount } = useAlertStore();
-  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const stockUnreadCount = alerts.filter((alert) => !alert.isRead).length;
   const branding = useActiveBranding();
@@ -56,11 +54,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     if (item.path === '/pos' && role === 'admin' && isMobile) return false;
     return true;
   });
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true });
-  };
 
   return (
     <aside
@@ -120,17 +113,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         })}
       </nav>
 
-      {/* Bottom actions */}
-      <div className="border-t border-[var(--app-border)] py-2">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-[var(--app-surface-elevated)] hover:text-gray-900 transition-colors"
-        >
-          <LogOut className="w-5 h-5 shrink-0" />
-          {!collapsed && <span>Logout</span>}
-        </button>
-      </div>
-
       {/* Collapse toggle */}
       <button
         onClick={onToggle}
@@ -159,18 +141,11 @@ interface MobileDrawerProps {
 }
 
 export function MobileSidebarDrawer({ open, onClose }: MobileDrawerProps) {
-  const { role, logout } = useAuthStore();
+  const { role } = useAuthStore();
   const { alerts, unreadCount } = useAlertStore();
-  const navigate = useNavigate();
   const filtered = navItems.filter((item) => role && item.roles.includes(role));
   const stockUnreadCount = alerts.filter((alert) => !alert.isRead).length;
   const branding = useActiveBranding();
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true });
-    onClose();
-  };
 
   if (!open) return null;
 
@@ -219,15 +194,6 @@ export function MobileSidebarDrawer({ open, onClose }: MobileDrawerProps) {
             );
           })}
         </nav>
-        <div className="border-t border-[var(--app-border)] py-2">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-gray-600 hover:bg-[var(--app-surface-elevated)]"
-          >
-            <LogOut className="w-5 h-5" />
-            <span>Logout</span>
-          </button>
-        </div>
       </aside>
     </>
   );

@@ -6,7 +6,7 @@ import { formatCurrency } from '@/lib/utils';
 import { RevenueChart } from '@/components/analytics/RevenueChart';
 import { HourlySalesChart } from '@/components/analytics/HourlySalesChart';
 import { CategorySalesChart } from '@/components/analytics/CategorySalesChart';
-import type { CategorySalesPoint, DashboardStats, HourlySalesPoint, RevenueDataPoint } from '@/types';
+import type { CategorySalesPoint, DashboardStats, HourlySalesPoint, PaymentMethod, RevenueDataPoint, SaleStatus } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
 import {
   describeSellingUnit,
@@ -15,8 +15,10 @@ import {
 } from '@/lib/reporting';
 import type { SalesGroupReportRow, SalesReportData, SalesTransactionReportRow } from '@/lib/reporting';
 
-const periods = ['Today', '7 days', '30 days', '90 days'] as const;
+const periods = ['Today', '7 days', '30 days', '90 days', 'Custom'] as const;
 type Period = typeof periods[number];
+
+const initialRange = getDateRangeForDays(30);
 
 const emptyStats: DashboardStats = {
   todayRevenue: 0,
@@ -31,13 +33,31 @@ const emptyStats: DashboardStats = {
 
 export function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>('30 days');
+  const [startDate, setStartDate] = useState(initialRange.startDate);
+  const [endDate, setEndDate] = useState(initialRange.endDate);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | 'all'>('all');
+  const [status, setStatus] = useState<SaleStatus | 'all'>('all');
   const { activeStoreId } = useAuthStore();
   const [report, setReport] = useState<SalesReportData | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setPeriod('30 days');
+    const range = getDateRangeForDays(30);
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
+    setPaymentMethod('all');
+    setStatus('all');
   }, [activeStoreId]);
+
+  const selectPeriod = (nextPeriod: Period) => {
+    setPeriod(nextPeriod);
+    if (nextPeriod === 'Custom') return;
+    const days = nextPeriod === 'Today' ? 1 : nextPeriod === '7 days' ? 7 : nextPeriod === '90 days' ? 90 : 30;
+    const range = getDateRangeForDays(days);
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -45,10 +65,8 @@ export function AnalyticsPage() {
       if (!activeStoreId) return;
       setLoading(true);
       try {
-        const days = period === 'Today' ? 1 : period === '7 days' ? 7 : period === '90 days' ? 90 : 30;
-        const range = getDateRangeForDays(days);
         const nextReport = await fetchSalesReport(
-          { ...range, paymentMethod: 'all', status: 'all' },
+          { startDate, endDate, paymentMethod, status },
           activeStoreId,
         );
         if (mounted) setReport(nextReport);
@@ -62,7 +80,7 @@ export function AnalyticsPage() {
 
     void loadReport();
     return () => { mounted = false; };
-  }, [period, activeStoreId]);
+  }, [activeStoreId, endDate, paymentMethod, startDate, status]);
 
   const stats = useMemo<DashboardStats>(() => {
     if (!report) return emptyStats;
@@ -120,7 +138,7 @@ export function AnalyticsPage() {
             {periods.map((p) => (
               <button
                 key={p}
-                onClick={() => setPeriod(p)}
+                onClick={() => selectPeriod(p)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                   period === p ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
                 }`}
@@ -131,6 +149,60 @@ export function AnalyticsPage() {
           </div>
         }
       />
+
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <label className="text-xs font-medium text-gray-600">
+            Start date
+            <input
+              type="date"
+              value={startDate}
+              max={endDate}
+              onChange={(event) => { setStartDate(event.target.value); setPeriod('Custom'); }}
+              className="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </label>
+          <label className="text-xs font-medium text-gray-600">
+            End date
+            <input
+              type="date"
+              value={endDate}
+              min={startDate}
+              onChange={(event) => { setEndDate(event.target.value); setPeriod('Custom'); }}
+              className="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </label>
+          <label className="text-xs font-medium text-gray-600">
+            Payment method
+            <select
+              value={paymentMethod}
+              onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod | 'all')}
+              className="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All payment methods</option>
+              <option value="cash">Cash</option>
+              <option value="gcash">GCash</option>
+              <option value="card">Card</option>
+              <option value="bank_transfer">Bank transfer</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label className="text-xs font-medium text-gray-600">
+            Transaction status
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value as SaleStatus | 'all')}
+              className="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All statuses</option>
+              <option value="completed">Completed</option>
+              <option value="voided">Voided</option>
+              <option value="partially_refunded">Partially refunded</option>
+              <option value="refunded">Refunded</option>
+            </select>
+          </label>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard label="Net Sales" value={formatCurrency(stats.todayRevenue)} change={stats.revenueChange} icon={DollarSign} color="blue" />

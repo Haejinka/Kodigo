@@ -20,6 +20,7 @@ import {
 } from '@/lib/admin-users';
 import { supabase } from '@/lib/supabase';
 import { StoreBrandingEditor } from '@/components/settings/StoreBrandingEditor';
+import { MfaSettings } from '@/components/settings/MfaSettings';
 
 const inputCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
 type ManagedRole = 'admin' | 'cashier' | 'inventory';
@@ -1044,8 +1045,11 @@ export function SecuritySettingsPage() {
 export function AccountSecurityPage() {
   return (
     <div>
-      <PageHeader title="Account Security" subtitle="Manage the password for your signed-in account" />
-      <SecuritySettingsPage />
+      <PageHeader title="Account Security" subtitle="Manage your password and two-factor authentication" />
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
+        <SecuritySettingsPage />
+        <MfaSettings />
+      </div>
     </div>
   );
 }

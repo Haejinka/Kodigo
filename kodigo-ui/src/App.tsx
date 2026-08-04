@@ -7,6 +7,8 @@ import { useThemeStore } from '@/stores/themeStore';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { syncPendingMutations, syncPendingSales } from '@/lib/offline-sync';
 import { installGlobalErrorLogging } from '@/lib/error-logging';
+import { getMfaRequirement } from '@/lib/mfa';
+import { MfaGate } from '@/components/auth/MfaGate';
 
 import { useProductStore } from '@/stores/productStore';
 import { useSupplierStore } from '@/stores/supplierStore';
@@ -63,7 +65,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
       </button>
     </div>
   );
-  return <>{children}</>;
+  return <MfaGate>{children}</MfaGate>;
 }
 
 // Require true admin (managerial)
@@ -126,6 +128,13 @@ function AppRoutes() {
   const revalidateData = async () => {
     // Allow supplier and purchase order fetches even when no specific store is selected.
     if (!isAuthenticated) return;
+    try {
+      const { required } = await getMfaRequirement();
+      if (required) return;
+    } catch (error) {
+      console.error('MFA assurance check failed:', error);
+      return;
+    }
     // Flush offline queues first so subsequent fetches include just-synced writes.
     if (role !== 'inventory') {
       await syncPendingSales();
@@ -163,7 +172,12 @@ function AppRoutes() {
   useEffect(() => {
     if (!isAuthenticated || role === 'inventory') return undefined;
     const intervalId = window.setInterval(() => {
-      void fetchAlerts();
+      void getMfaRequirement()
+        .then(({ required }) => {
+          if (!required) return fetchAlerts();
+          return undefined;
+        })
+        .catch((error) => console.error('MFA assurance check failed:', error));
     }, 30000);
     return () => window.clearInterval(intervalId);
   }, [activeStoreId, isAuthenticated, role, fetchAlerts]);
@@ -231,7 +245,6 @@ function AppRoutes() {
               <AppShell>
                 <Routes>
                   <Route path="/" element={<SuperAdminPage />} />
-                  <Route path="notifications" element={<NotificationsPage />} />
                   <Route path="*" element={<Navigate to="/super-admin" replace />} />
                 </Routes>
               </AppShell>

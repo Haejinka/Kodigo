@@ -65,8 +65,17 @@ serve(async (req) => {
 
   try {
     const body = await req.json() as RequestBody;
+    const authorization = req.headers.get("Authorization") ?? "";
+    const accessToken = authorization.replace(/^Bearer\s+/i, "").trim();
     const { data: { user }, error: userError } = await userClient.auth.getUser();
     if (userError || !user) return json({ error: "Unauthorized" }, 401);
+
+    const { data: assurance, error: assuranceError } =
+      await adminClient.auth.mfa.getAuthenticatorAssuranceLevel(accessToken);
+    if (assuranceError) throw assuranceError;
+    if (assurance.nextLevel === "aal2" && assurance.currentLevel !== "aal2") {
+      return json({ error: "Complete MFA verification before managing users." }, 403);
+    }
 
     const { data: callerProfile, error: profileError } = await adminClient
       .from("profiles")

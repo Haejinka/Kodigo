@@ -149,8 +149,8 @@ export const useAlertStore = create<AlertState>((set, get) => ({
   error: null,
 
   fetchNotifications: async () => {
-    const { isAuthenticated, user } = useAuthStore.getState();
-    if (!isAuthenticated || !user) {
+    const { isAuthenticated, user, role } = useAuthStore.getState();
+    if (!isAuthenticated || !user || role === 'super_admin') {
       set({ notifications: [], alerts: [], unreadCount: 0, isLoading: false, error: null });
       return;
     }

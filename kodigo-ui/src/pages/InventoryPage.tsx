@@ -545,14 +545,9 @@ export function InventoryPage() {
 
   const handleAdjust = async (sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string) => {
     await new Promise((r) => setTimeout(r, 600));
-    if (!adjustTarget) return;
-    try {
-      await adjustStock(adjustTarget.id, sellingOptionId, delta, reason, note);
-      toast('success', 'Stock adjustment recorded.');
-      setAdjustTarget(null);
-    } catch (err: any) {
-      toast('error', err?.message || 'Failed to adjust stock.');
-    }
+    if (!adjustTarget) throw new Error('Select a product before adjusting stock.');
+    await adjustStock(adjustTarget.id, sellingOptionId, delta, reason, note);
+    setAdjustTarget(null);
   };
 
   const handleConvert = async (sackOptionId: string, kiloOptionId: string, sacks: number, note: string) => {
