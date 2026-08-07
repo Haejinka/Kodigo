@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ComponentType } from 'react';
-import { CheckCircle, X, User, CreditCard, Smartphone, Banknote, Landmark, Eye } from 'lucide-react';
+import { CheckCircle, X, User, CreditCard, Smartphone, Banknote, Landmark, Eye, Printer } from 'lucide-react';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { openCashDrawer } from '@/lib/hardware';
 import { Button } from '@/components/shared/Button';
@@ -13,7 +13,7 @@ import {
   isLegacySellingOption,
 } from '@/types';
 import type { PaymentMethod, ReceiptSnapshot, Sale } from '@/types';
-import { fetchReceiptBySaleId, receiptSnapshotFromSale } from '@/lib/receipts';
+import { fetchReceiptBySaleId, printReceipt, receiptSnapshotFromSale } from '@/lib/receipts';
 import { ReceiptPreviewModal } from '@/components/receipts/ReceiptPreviewModal';
 
 interface PaymentModalProps {
@@ -160,12 +160,13 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       if (paymentMethod === 'cash') await openCashDrawer();
       setCompletedSale(recordedSale);
       const activeStore = stores.find((store) => store.id === storeId);
+      let nextReceiptSnapshot: ReceiptSnapshot | null = null;
       if (activeStore) {
         try {
           const receipt = await fetchReceiptBySaleId(recordedSale.id);
-          setReceiptSnapshot(receipt.payload);
+          nextReceiptSnapshot = receipt.payload;
         } catch {
-          setReceiptSnapshot(receiptSnapshotFromSale(recordedSale, {
+          nextReceiptSnapshot = receiptSnapshotFromSale(recordedSale, {
             id: activeStore.id,
             name: activeStore.name,
             registeredName: activeStore.registeredName || activeStore.name,
@@ -183,8 +184,12 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
             logoPath: activeStore.logoPath,
             phone: activeStore.phone,
             email: activeStore.email,
-          }));
+          });
         }
+      }
+      if (nextReceiptSnapshot) {
+        setReceiptSnapshot(nextReceiptSnapshot);
+        printReceipt(nextReceiptSnapshot, 'thermal');
       }
       setStep('confirmed');
     } catch (err) {
@@ -418,7 +423,15 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
               >
                 <Eye className="w-4 h-4" />
-                Preview / Print
+                Preview
+              </button>
+              <button
+                onClick={() => receiptSnapshot && printReceipt(receiptSnapshot, 'thermal')}
+                disabled={!receiptSnapshot}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
+              >
+                <Printer className="w-4 h-4" />
+                Reprint Receipt
               </button>
             </div>
 

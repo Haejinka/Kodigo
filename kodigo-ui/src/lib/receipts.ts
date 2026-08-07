@@ -16,6 +16,8 @@ const dateTime = (value: string) =>
     timeZone: 'Asia/Manila',
   }).format(new Date(value));
 
+const THERMAL_FEED_SPACE_MM = 9;
+
 const escapeHtml = (value: unknown) => String(value ?? '').replace(
   /[&<>"']/g,
   (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char] ?? char)
@@ -111,8 +113,21 @@ export function buildReceiptHtml(snapshot: ReceiptSnapshot, layout: ReceiptLayou
   const invoiceNumber = sale.receipt_number || sale.id;
   const logoUrl = getStoreLogoUrl(store.logoPath);
   const isVat = store.vatStatus === 'vat';
-  const width = layout === 'thermal' ? '80mm' : '190mm';
-  const itemRows = items.map((item) => `
+  const isThermal = layout === 'thermal';
+  const width = isThermal ? '58mm' : '190mm';
+  const itemRows = items.map((item) => isThermal ? `
+    <tr class="thermal-item">
+      <td colspan="3">
+        <strong>${escapeHtml(item.product_name)}</strong>
+        ${item.selling_option_label ? `<div class="muted">${escapeHtml(item.selling_option_label)}</div>` : ''}
+      </td>
+    </tr>
+    <tr class="thermal-line">
+      <td>${escapeHtml(item.quantity)} x ${money(item.unit_price)}</td>
+      <td></td>
+      <td class="num">${money(item.line_total)}</td>
+    </tr>
+  ` : `
     <tr>
       <td>
         <strong>${escapeHtml(item.product_name)}</strong>
@@ -138,27 +153,31 @@ export function buildReceiptHtml(snapshot: ReceiptSnapshot, layout: ReceiptLayou
     <meta charset="utf-8" />
     <title>${escapeHtml(invoiceNumber)}</title>
     <style>
-      @page { size: ${layout === 'thermal' ? '80mm auto' : 'A4'}; margin: ${layout === 'thermal' ? '4mm' : '12mm'}; }
+      @page { size: ${isThermal ? '58mm auto' : 'A4'}; margin: ${isThermal ? '0' : '12mm'}; }
       * { box-sizing: border-box; }
-      body { margin: 0; background: #fff; color: #111; font-family: Arial, Helvetica, sans-serif; font-size: ${layout === 'thermal' ? '10px' : '12px'}; }
-      .receipt { width: ${width}; max-width: 100%; margin: 0 auto; padding: ${layout === 'thermal' ? '3mm' : '8mm'}; }
+      html, body { width: ${isThermal ? '58mm' : 'auto'}; margin: 0; padding: 0; background: #fff; color: #111; }
+      body { font-family: ${isThermal ? "'Arial', 'Helvetica', sans-serif" : 'Arial, Helvetica, sans-serif'}; font-size: ${isThermal ? '10px' : '12px'}; font-weight: ${isThermal ? '600' : '400'}; line-height: ${isThermal ? '1.28' : 'normal'}; }
+      .receipt { width: ${width}; max-width: 100%; margin: 0 auto; padding: ${isThermal ? '2.5mm 3.5mm 0' : '8mm'}; }
       .brand { text-align: center; }
-      .logo { display: block; max-width: ${layout === 'thermal' ? '34mm' : '45mm'}; max-height: 24mm; margin: 0 auto 5px; object-fit: contain; }
-      h1 { margin: 2px 0; font-size: ${layout === 'thermal' ? '15px' : '22px'}; }
-      .doc-label { margin: 10px 0 4px; font-weight: 800; font-size: ${layout === 'thermal' ? '13px' : '18px'}; text-align: center; text-transform: uppercase; }
+      .logo { display: ${isThermal ? 'none' : 'block'}; max-width: ${isThermal ? '0' : '45mm'}; max-height: ${isThermal ? '0' : '24mm'}; margin: 0 auto 5px; object-fit: contain; }
+      h1 { margin: 2px 0; font-size: ${isThermal ? '12px' : '22px'}; font-weight: 800; overflow-wrap: anywhere; }
+      .doc-label { margin: 7px 0 4px; font-weight: 800; font-size: ${isThermal ? '11px' : '18px'}; text-align: center; text-transform: uppercase; }
       .meta, .party { border-top: 1px dashed #777; margin-top: 8px; padding-top: 7px; line-height: 1.45; }
-      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
+      .grid { display: grid; grid-template-columns: ${isThermal ? 'auto minmax(0, 1fr)' : '1fr 1fr'}; gap: 2px ${isThermal ? '6px' : '12px'}; }
       table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-      th, td { padding: 4px 2px; vertical-align: top; border-bottom: 1px dotted #bbb; }
-      th { text-align: left; font-size: .9em; }
+      th, td { padding: ${isThermal ? '3px 1px' : '4px 2px'}; vertical-align: top; border-bottom: 1px dotted ${isThermal ? '#222' : '#bbb'}; }
+      th { text-align: left; font-size: .95em; font-weight: 800; }
       .num { text-align: right; white-space: nowrap; }
-      .totals { margin-left: auto; width: ${layout === 'thermal' ? '100%' : '54%'}; }
+      .totals { margin-left: auto; width: ${isThermal ? '100%' : '54%'}; }
       .totals td { border: 0; padding: 2px; }
       .grand td { border-top: 1px solid #111; padding-top: 5px; font-size: 1.15em; font-weight: 800; }
-      .muted { color: #555; font-size: .9em; }
+      .muted { color: ${isThermal ? '#111' : '#555'}; font-size: .95em; font-weight: ${isThermal ? '600' : '400'}; }
       .notice { margin-top: 10px; padding: 6px; border: 1px solid #111; text-align: center; font-weight: 800; }
       .footer { margin-top: 10px; border-top: 1px dashed #777; padding-top: 7px; text-align: center; line-height: 1.45; }
-      @media print { body { print-color-adjust: exact; } .receipt { box-shadow: none; } }
+      .feed-space { display: ${isThermal ? 'block' : 'none'}; height: ${THERMAL_FEED_SPACE_MM}mm; }
+      .thermal-item td { border-bottom: 0; padding-bottom: 0; }
+      .thermal-line td { padding-top: 1px; }
+      @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } .receipt { box-shadow: none; } }
     </style>
   </head>
   <body>
@@ -169,7 +188,7 @@ export function buildReceiptHtml(snapshot: ReceiptSnapshot, layout: ReceiptLayou
         <div>${escapeHtml(store.registeredName || store.name)}</div>
         <div>${escapeHtml(store.address)}</div>
         ${store.phone ? `<div>${escapeHtml(store.phone)}</div>` : ''}
-        <div>TIN: ${escapeHtml(store.tin || 'Not configured')} ${store.branchCode ? `• Branch: ${escapeHtml(store.branchCode)}` : ''}</div>
+        <div>TIN: ${escapeHtml(store.tin || 'Not configured')} ${store.branchCode ? `- Branch: ${escapeHtml(store.branchCode)}` : ''}</div>
         <div>${isVat ? 'VAT Registered' : 'Non-VAT Registered'}</div>
       </header>
       <div class="doc-label">${escapeHtml(store.documentLabel || 'Sales Invoice')}</div>
@@ -182,7 +201,9 @@ export function buildReceiptHtml(snapshot: ReceiptSnapshot, layout: ReceiptLayou
       </section>
       ${optionalCustomer}
       <table>
-        <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Amount</th></tr></thead>
+        <thead>${isThermal
+          ? '<tr><th>Item</th><th></th><th class="num">Amount</th></tr>'
+          : '<tr><th>Description</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Amount</th></tr>'}</thead>
         <tbody>${itemRows}</tbody>
       </table>
       <table class="totals">
@@ -207,21 +228,44 @@ export function buildReceiptHtml(snapshot: ReceiptSnapshot, layout: ReceiptLayou
         ${store.permitInfo ? `<div>${escapeHtml(store.permitInfo)}</div>` : ''}
         <div>Thank you for your purchase.</div>
       </footer>
+      <div class="feed-space" aria-hidden="true"></div>
     </main>
   </body>
   </html>`;
 }
 
 export function printReceipt(snapshot: ReceiptSnapshot, layout: ReceiptLayout = 'thermal') {
-  const popup = window.open('', '_blank', layout === 'thermal' ? 'width=420,height=720' : 'width=960,height=800');
-  if (!popup) throw new Error('Pop-up blocked. Allow pop-ups to print the receipt.');
-  popup.document.open();
-  popup.document.write(buildReceiptHtml(snapshot, layout));
-  popup.document.close();
-  popup.addEventListener('load', () => {
-    popup.focus();
-    popup.print();
-  }, { once: true });
+  const existingFrame = document.getElementById('receipt-print-frame');
+  existingFrame?.remove();
+
+  const frame = document.createElement('iframe');
+  frame.id = 'receipt-print-frame';
+  frame.title = 'Receipt print';
+  frame.style.position = 'fixed';
+  frame.style.left = '-10000px';
+  frame.style.top = '0';
+  frame.style.width = layout === 'thermal' ? '58mm' : '210mm';
+  frame.style.height = layout === 'thermal' ? '1200px' : '297mm';
+  frame.style.border = '0';
+  frame.style.opacity = '0';
+  frame.style.pointerEvents = 'none';
+  document.body.appendChild(frame);
+
+  const receiptDocument = frame.contentWindow?.document;
+  if (!receiptDocument || !frame.contentWindow) {
+    frame.remove();
+    throw new Error('Unable to prepare the receipt for printing.');
+  }
+
+  receiptDocument.open();
+  receiptDocument.write(buildReceiptHtml(snapshot, layout));
+  receiptDocument.close();
+
+  frame.onload = () => {
+    frame.contentWindow?.focus();
+    frame.contentWindow?.print();
+    window.setTimeout(() => frame.remove(), 1000);
+  };
 }
 
 async function imageAsDataUrl(url: string): Promise<string | null> {
@@ -249,17 +293,17 @@ export async function downloadReceiptPdf(snapshot: ReceiptSnapshot, layout: Rece
   ].filter(Boolean).length;
   const thermalHeight = Math.max(
     180,
-    145 + snapshot.items.length * 13 + configuredInfoLines * 8
+    145 + THERMAL_FEED_SPACE_MM + snapshot.items.length * 13 + configuredInfoLines * 8
       + (snapshot.customer.name || snapshot.customer.tin || snapshot.customer.address ? 18 : 0),
   );
   const doc = new jsPDF({
     unit: 'mm',
-    format: thermal ? [80, thermalHeight] : 'a4',
+    format: thermal ? [58, thermalHeight] : 'a4',
     orientation: 'portrait',
   });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = thermal ? 5 : 16;
+  const margin = thermal ? 3 : 16;
   const contentWidth = pageWidth - margin * 2;
   let y = margin;
   const ensureSpace = (height: number) => {
@@ -305,12 +349,12 @@ export async function downloadReceiptPdf(snapshot: ReceiptSnapshot, layout: Rece
     }
   }
 
-  line(snapshot.store.businessName || snapshot.store.name, thermal ? 13 : 17, 'center', true);
+  line(snapshot.store.businessName || snapshot.store.name, thermal ? 11 : 17, 'center', true);
   line(snapshot.store.registeredName || snapshot.store.name, 8, 'center');
   for (const addressLine of doc.splitTextToSize(snapshot.store.address || '', contentWidth)) line(addressLine, 8, 'center');
   line(`TIN: ${snapshot.store.tin || 'Not configured'}${snapshot.store.branchCode ? `  Branch: ${snapshot.store.branchCode}` : ''}`, 8, 'center');
   line(snapshot.store.vatStatus === 'vat' ? 'VAT Registered' : 'Non-VAT Registered', 8, 'center');
-  line(snapshot.store.documentLabel || 'Sales Invoice', thermal ? 11 : 14, 'center', true);
+  line(snapshot.store.documentLabel || 'Sales Invoice', thermal ? 10 : 14, 'center', true);
   rule();
   twoCol('Invoice No.', String(snapshot.sale.receipt_number || snapshot.sale.id));
   twoCol('Date / Time', dateTime(snapshot.sale.created_at));
@@ -360,6 +404,7 @@ export async function downloadReceiptPdf(snapshot: ReceiptSnapshot, layout: Rece
     for (const textLine of doc.splitTextToSize(String(info), contentWidth)) line(textLine, 7, 'center');
   }
   line('Thank you for your purchase.', 8, 'center');
+  if (thermal) y += THERMAL_FEED_SPACE_MM;
 
   doc.save(`${String(snapshot.sale.receipt_number || snapshot.sale.id)}.pdf`);
 }
