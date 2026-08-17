@@ -30,7 +30,7 @@ export function computePriceScore(
   allSuppliers: Supplier[],
   allProducts: Product[],
 ): number {
-  // Build supplierId → average cost price of assigned products
+  // Build supplierId → average purchase price of assigned products
   const avgCosts = new Map<string, number>();
   for (const sup of allSuppliers) {
     const supProducts = allProducts.filter((p) => p.supplierId === sup.id);

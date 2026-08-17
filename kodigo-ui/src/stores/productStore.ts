@@ -22,7 +22,7 @@ interface ProductStore {
   addProduct: (data: ProductFormData, supplierName?: string) => Promise<Product | undefined>;
   updateProduct: (id: string, data: ProductFormData, supplierName?: string) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
-  adjustStock: (id: string, sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string) => Promise<void>;
+  adjustStock: (id: string, sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { quantity: number; purchaseUnit: string; piecesPerUnit: number; purchasePricePerUnit: number }) => Promise<void>;
   openSackToKilo: (id: string, sackOptionId: string, kiloOptionId: string, sacks: number, note: string) => Promise<void>;
 }
 
@@ -92,6 +92,8 @@ const mapSellingOption = (row: any): ProductSellingOption => ({
   stockQuantity: Number(row.stock_quantity ?? 0),
   sellingPrice: Number(row.selling_price ?? 0),
   lowStockThreshold: Number(row.low_stock_threshold ?? 0),
+  inventoryMultiplier: Math.max(1, Number(row.inventory_multiplier ?? 1)),
+  sharesBaseStock: Boolean(row.shares_base_stock),
   isDefault: Boolean(row.is_default),
   isActive: row.is_active !== false,
   createdAt: row.created_at,
@@ -119,6 +121,8 @@ const normalizeSellingOptions = (
         stockQuantity: data.currentStock,
         sellingPrice: data.sellingPrice,
         lowStockThreshold: data.minStockLevel,
+        inventoryMultiplier: 1,
+        sharesBaseStock: true,
         isDefault: true,
         isActive: true,
       }];
@@ -130,9 +134,13 @@ const normalizeSellingOptions = (
     storeId,
     label: optionLabel(option),
     unitLabel: option.unitLabel.trim() || data.unit || 'unit',
-    stockQuantity: Math.max(0, Number(option.stockQuantity) || 0),
+    stockQuantity: option.sharesBaseStock
+      ? Math.floor(Math.max(0, Number(data.currentStock) || 0) / Math.max(1, Number(option.inventoryMultiplier) || 1))
+      : Math.max(0, Number(option.stockQuantity) || 0),
     sellingPrice: Math.max(0, Number(option.sellingPrice) || 0),
     lowStockThreshold: Math.max(0, Number(option.lowStockThreshold) || 0),
+    inventoryMultiplier: Math.max(1, Number(option.inventoryMultiplier) || 1),
+    sharesBaseStock: Boolean(option.sharesBaseStock),
     quantityValue: option.quantityValue == null || Number(option.quantityValue) <= 0 ? undefined : Number(option.quantityValue),
     quantityUnit: option.quantityUnit?.trim() || undefined,
     isDefault: Boolean(option.isDefault),
@@ -162,6 +170,8 @@ const toSellingOptionRow = (option: ProductSellingOption) => ({
   stock_quantity: option.stockQuantity,
   selling_price: option.sellingPrice,
   low_stock_threshold: option.lowStockThreshold,
+  inventory_multiplier: option.inventoryMultiplier,
+  shares_base_stock: option.sharesBaseStock,
   is_default: option.isDefault,
   is_active: option.isActive,
 });
@@ -303,6 +313,9 @@ export const useProductStore = create<ProductStore>((set, get) => ({
           unit: p.unit || 'unit',
           purchaseUnit: p.purchase_unit || undefined,
           conversionFactor: p.conversion_factor || 1,
+          bulkPurchasePrice: p.bulk_purchase_price == null ? undefined : Number(p.bulk_purchase_price),
+          autoPricingEnabled: Boolean(p.auto_pricing_enabled),
+          marginPercentage: p.margin_percentage == null ? undefined : Number(p.margin_percentage),
           costPrice: p.cost_price,
           sellingPrice: p.selling_price,
           currentStock: p.current_stock,
@@ -398,6 +411,9 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       unit: compatibilityOption.unitLabel,
       purchase_unit: data.purchaseUnit || null,
       conversion_factor: data.conversionFactor || 1,
+      bulk_purchase_price: data.bulkPurchasePrice ?? null,
+      auto_pricing_enabled: Boolean(data.autoPricingEnabled),
+      margin_percentage: data.marginPercentage ?? null,
       supplier_id: data.supplierId || null,
       image_url: data.imageUrl || null,
     };
@@ -465,6 +481,9 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       unit: compatibilityOption.unitLabel,
       purchase_unit: data.purchaseUnit || null,
       conversion_factor: data.conversionFactor || 1,
+      bulk_purchase_price: data.bulkPurchasePrice ?? null,
+      auto_pricing_enabled: Boolean(data.autoPricingEnabled),
+      margin_percentage: data.marginPercentage ?? null,
       supplier_id: data.supplierId || null,
       image_url: data.imageUrl || null,
       updated_at: new Date().toISOString(),
@@ -510,6 +529,8 @@ export const useProductStore = create<ProductStore>((set, get) => ({
               stock_quantity: row.stock_quantity,
               selling_price: row.selling_price,
               low_stock_threshold: row.low_stock_threshold,
+              inventory_multiplier: row.inventory_multiplier,
+              shares_base_stock: row.shares_base_stock,
               is_default: row.is_default,
               is_active: row.is_active,
             }, 'id', option.id);
@@ -561,7 +582,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     }
   },
 
-  adjustStock: async (id, sellingOptionId, delta, reason, note) => {
+  adjustStock: async (id, sellingOptionId, delta, reason, note, restock) => {
     let storeId = useAuthStore.getState().activeStoreId;
     const product = get().products.find((p) => p.id === id);
     if (!product) return;
@@ -615,14 +636,26 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     set(s => ({ stockAdjustments: [newAdjustment, ...s.stockAdjustments] }));
 
     try {
-      const { error } = await supabase.rpc('adjust_inventory_stock', {
-        p_product_id: id,
-        p_selling_option_id: usesSellingOption ? selectedOption?.id ?? null : null,
-        p_quantity_delta: actualDelta,
-        p_reason: reason,
-        p_note: note || null,
-      });
+      const { error } = reason === 'restock' && restock
+        ? await supabase.rpc('restock_product_inventory', {
+            p_product_id: id,
+            p_quantity_in_purchase_units: restock.quantity,
+            p_purchase_unit: restock.purchaseUnit,
+            p_pieces_per_purchase_unit: restock.piecesPerUnit,
+            p_purchase_price_per_unit: restock.purchasePricePerUnit,
+            p_note: note || null,
+          })
+        : await supabase.rpc('adjust_inventory_stock', {
+            p_product_id: id,
+            p_selling_option_id: usesSellingOption ? selectedOption?.id ?? null : null,
+            p_quantity_delta: actualDelta,
+            p_reason: reason,
+            p_note: note || null,
+          });
       if (error) throw error;
+      if (reason === 'restock' && restock) {
+        await Promise.all([get().fetchProducts(), get().fetchStockAdjustments()]);
+      }
     } catch (error) {
       await Promise.all([get().fetchProducts(), get().fetchStockAdjustments()]);
       throw error;

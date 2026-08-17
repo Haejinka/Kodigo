@@ -40,7 +40,7 @@ export function EditProductPage() {
         subtitle={`SKU: ${product.sku}`}
         actions={
           <Button variant="ghost" icon={<ArrowLeft className="w-4 h-4" />} onClick={() => navigate('/inventory')}>
-            Back to Inventory
+            Back to Product Management
           </Button>
         }
       />

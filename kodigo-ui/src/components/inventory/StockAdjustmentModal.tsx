@@ -16,9 +16,10 @@ interface StockAdjustmentModalProps {
   purchaseUnit?: string;
   /** How many selling units are in one purchase unit */
   conversionFactor?: number;
+  bulkPurchasePrice?: number;
   sellingOptions?: ProductSellingOption[];
   onClose: () => void;
-  onSubmit: (sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string) => Promise<void>;
+  onSubmit: (sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { quantity: number; purchaseUnit: string; piecesPerUnit: number; purchasePricePerUnit: number }) => Promise<void>;
 }
 
 const reasons: { value: AdjustmentReason; label: string }[] = [
@@ -37,6 +38,7 @@ export function StockAdjustmentModal({
   unit = 'piece',
   purchaseUnit,
   conversionFactor = 1,
+  bulkPurchasePrice = 0,
   sellingOptions = [],
   onClose,
   onSubmit,
@@ -49,6 +51,7 @@ export function StockAdjustmentModal({
   const [selectedOptionId, setSelectedOptionId] = useState<string | undefined>(undefined);
   /** When true and reason===restock, the user enters qty in purchase units (packs/boxes) */
   const [bulkMode, setBulkMode] = useState(false);
+  const [purchasePrice, setPurchasePrice] = useState(String(bulkPurchasePrice || ''));
 
   const options = sellingOptions.length > 0
     ? sellingOptions.filter((option) => option.isActive)
@@ -80,7 +83,12 @@ export function StockAdjustmentModal({
     if (newStock < 0) { toast('error', 'Resulting stock cannot be negative.'); return; }
     setLoading(true);
     try {
-      await onSubmit(selectedOption?.id, deltaNum, reason, note);
+      await onSubmit(selectedOption?.id, deltaNum, reason, note, isRestock ? {
+        quantity: bulkMode ? rawNum : deltaNum,
+        purchaseUnit: bulkMode ? purchaseUnit! : effectiveUnit,
+        piecesPerUnit: bulkMode ? conversionFactor : 1,
+        purchasePricePerUnit: parseFloat(purchasePrice) || 0,
+      } : undefined);
       const label = bulkMode && isRestock
         ? `+${rawNum} ${purchaseUnit}${rawNum !== 1 ? 's' : ''} (${deltaNum} ${unit}s)`
         : `${deltaNum > 0 ? '+' : ''}${deltaNum} ${effectiveUnit}`;
@@ -171,6 +179,25 @@ export function StockAdjustmentModal({
                 Enter quantity in <strong>{purchaseUnit}s</strong> (1 {purchaseUnit} = {conversionFactor} {unit}s)
               </span>
             </label>
+          )}
+
+          {isRestock && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Purchase Price per {bulkMode ? purchaseUnit : effectiveUnit}
+              </label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                required
+                value={purchasePrice}
+                onChange={(e) => setPurchasePrice(e.target.value)}
+                className="w-full px-3 py-2 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0.00"
+              />
+              <p className="mt-1 text-xs text-gray-400">Updates the product purchase price and recalculates automatic selling prices.</p>
+            </div>
           )}
 
           {/* Quantity */}

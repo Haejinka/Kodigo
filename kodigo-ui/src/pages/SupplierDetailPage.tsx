@@ -220,7 +220,7 @@ export function SupplierDetailPage() {
               <EmptyState
                 icon={ShoppingCart}
                 title="No purchase orders yet"
-                description="Create a purchase order from the Restocking page to start tracking deliveries."
+                description="Create a purchase order from Product Management → Restocking to start tracking deliveries."
               />
             ) : (
               <div className="space-y-3">
@@ -303,7 +303,7 @@ export function SupplierDetailPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold font-mono text-gray-900">{formatCurrency(p.costPrice)}</p>
-                      <p className="text-xs text-gray-400">cost price</p>
+                      <p className="text-xs text-gray-400">purchase price</p>
                     </div>
                   </div>
                 ))}

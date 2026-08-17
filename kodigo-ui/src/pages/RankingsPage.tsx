@@ -11,16 +11,19 @@ import {
 } from '@/lib/reporting';
 import type { SalesGroupReportRow } from '@/lib/reporting';
 
-const periods = ['Daily', 'Weekly', 'Monthly', 'Yearly'] as const;
+const periods = ['Today', 'This week', 'This month', 'Custom'] as const;
 type Period = typeof periods[number];
 
 export function RankingsPage() {
-  const [period, setPeriod] = useState<Period>('Weekly');
+  const [period, setPeriod] = useState<Period>('This week');
+  const today = new Date().toISOString().slice(0, 10);
+  const [customStart, setCustomStart] = useState(today);
+  const [customEnd, setCustomEnd] = useState(today);
   const { activeStoreId } = useAuthStore();
   const [rankings, setRankings] = useState<SalesGroupReportRow[]>([]);
 
   useEffect(() => {
-    setPeriod('Weekly');
+    setPeriod('This week');
   }, [activeStoreId]);
 
   useEffect(() => {
@@ -28,15 +31,16 @@ export function RankingsPage() {
     const fetchRankings = async () => {
       try {
         if (!activeStoreId) return;
-        const days = period === 'Daily'
+        const days = period === 'Today'
           ? 1
-          : period === 'Weekly'
+          : period === 'This week'
             ? 7
-            : period === 'Monthly'
-              ? 30
-              : 365;
+            : 30;
+        const dateRange = period === 'Custom'
+          ? { startDate: customStart, endDate: customEnd }
+          : getDateRangeForDays(days);
         const report = await fetchSalesReport(
-          { ...getDateRangeForDays(days), paymentMethod: 'all', status: 'all' },
+          { ...dateRange, paymentMethod: 'all', status: 'all' },
           activeStoreId,
         );
         if (mounted) setRankings(report.salesByProduct);
@@ -48,7 +52,7 @@ export function RankingsPage() {
 
     void fetchRankings();
     return () => { mounted = false; };
-  }, [period, activeStoreId]);
+  }, [period, activeStoreId, customStart, customEnd]);
 
   return (
     <div>
@@ -56,7 +60,7 @@ export function RankingsPage() {
         title="Product Rankings"
         subtitle="Top selling products by revenue and units"
         actions={
-          <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
+          <div className="flex flex-wrap gap-1 p-1 bg-gray-100 rounded-xl">
             {periods.map((p) => (
               <button
                 key={p}
@@ -68,6 +72,12 @@ export function RankingsPage() {
                 {p}
               </button>
             ))}
+            {period === 'Custom' && (
+              <>
+                <input type="date" value={customStart} max={customEnd} onChange={(e) => setCustomStart(e.target.value)} className="px-2 py-1 text-xs border border-gray-200 rounded-lg" />
+                <input type="date" value={customEnd} min={customStart} onChange={(e) => setCustomEnd(e.target.value)} className="px-2 py-1 text-xs border border-gray-200 rounded-lg" />
+              </>
+            )}
           </div>
         }
       />
@@ -108,29 +118,33 @@ export function RankingsPage() {
           />
         ) : (
           <div className="p-4">
-            <div className="grid grid-cols-12 gap-3 text-xs text-gray-500 font-semibold border-b pb-2">
+            <div className="grid grid-cols-16 gap-3 text-xs text-gray-500 font-semibold border-b pb-2">
               <div className="col-span-1">#</div>
-              <div className="col-span-5">Product / Option</div>
-              <div className="col-span-2">Category</div>
+              <div className="col-span-4">Product / Option</div>
               <div className="col-span-2 text-right">Units Sold</div>
-              <div className="col-span-2 text-right">Revenue</div>
+              <div className="col-span-2 text-right">Gross Sales</div>
+              <div className="col-span-2 text-right">Net Sales</div>
+              <div className="col-span-2 text-right">Gross Profit</div>
+              <div className="col-span-3 text-right">Net Profit</div>
             </div>
             <div className="space-y-3 mt-3">
               {(() => {
                 const totalRevenue = rankings.reduce((sum, row) => sum + row.netRevenue, 0) || 0.000001;
                 return rankings.map((row, index) => (
-                  <div key={row.key} className="grid grid-cols-12 gap-3 items-center text-sm">
+                  <div key={row.key} className="grid grid-cols-16 gap-3 items-center text-sm">
                     <div className="col-span-1 text-gray-600">{index + 1}</div>
-                    <div className="col-span-5 truncate">
+                    <div className="col-span-4 truncate">
                       <div>{row.productName}</div>
                       <div className="text-xs text-gray-400">
                         {row.sellingOptionLabel || row.unitLabel} - {describeSellingUnit(row)}
                       </div>
                     </div>
-                    <div className="col-span-2 text-gray-500">{row.categoryName || '-'}</div>
                     <div className="col-span-2 text-right">{row.netQuantity}</div>
+                    <div className="col-span-2 text-right font-mono">{formatCurrency(row.grossRevenue)}</div>
                     <div className="col-span-2 text-right font-mono">{formatCurrency(row.netRevenue)}</div>
-                    <div className="col-span-12 mt-1">
+                    <div className="col-span-2 text-right font-mono">{formatCurrency(row.grossRevenue - row.cost)}</div>
+                    <div className="col-span-3 text-right font-mono font-semibold text-green-700">{formatCurrency(row.grossProfit)}</div>
+                    <div className="col-span-16 mt-1">
                       <div className="w-full bg-gray-100 rounded-full h-2">
                         <div
                           className="bg-blue-500 h-2 rounded-full"

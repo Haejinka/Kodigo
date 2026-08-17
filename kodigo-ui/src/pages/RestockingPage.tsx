@@ -50,7 +50,7 @@ function useRestockItems(): RestockItem[] {
           suggestedQty,
           suggestedSupplierId: p.supplierId ?? '',
           suggestedSupplierName: p.supplierName ?? 'No supplier assigned',
-          estimatedCost: suggestedQty * (p.costPrice / (p.conversionFactor ?? 1)),
+          estimatedCost: suggestedQty * p.costPrice,
           urgency,
           unit: defaultOption.unitLabel,
           purchaseUnit: p.purchaseUnit,
@@ -64,7 +64,7 @@ function useRestockItems(): RestockItem[] {
   }, [products]);
 }
 
-export function RestockingPage() {
+export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
   const { toast } = useToast();
   const items = useRestockItems();
   const products = useProductStore((s) => s.products);
@@ -150,7 +150,7 @@ export function RestockingPage() {
 
   return (
     <div>
-      <PageHeader
+      {!embedded && <PageHeader
         title="Restocking"
         subtitle={`${items.length} product${items.length !== 1 ? 's' : ''} need restocking`}
         actions={
@@ -163,13 +163,13 @@ export function RestockingPage() {
             Create Purchase Order ({selected.size})
           </Button>
         }
-      />
+      />}
 
       {items.length === 0 ? (
         <EmptyState
           icon={RefreshCw}
           title="All stock levels are healthy"
-          description="No products are currently below their reorder level. Check back later or adjust reorder levels in the Inventory settings."
+          description="No products are currently below their reorder level. Check back later or adjust reorder levels in Product Management."
         />
       ) : (
         <>

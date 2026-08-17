@@ -194,7 +194,7 @@ export function DashboardPage() {
       <div className="mt-6 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-gray-900">7-Day Sales Trend</h3>
-          <a href="/reports" className="text-xs text-blue-600 hover:underline font-medium">Open reports</a>
+          <a href="/reports" className="text-xs text-blue-600 hover:underline font-medium">Open Sales Reports</a>
         </div>
         {trend.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-6">No sales trend available yet</p>

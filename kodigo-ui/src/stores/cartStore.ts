@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getDefaultSellingOption, isLegacySellingOption } from '@/types';
+import { getAvailableSellingUnits, getDefaultSellingOption, isLegacySellingOption } from '@/types';
 import type { CartItem, DiscountType, Product, ProductSellingOption } from '@/types';
 import { useAuthStore } from './authStore';
 
@@ -39,7 +39,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   discountValue: 0,
 
   addItem: (product: Product, option = getDefaultSellingOption(product), qty = 1) => {
-    const maxStock = Math.max(0, option.stockQuantity);
+    const maxStock = getAvailableSellingUnits(product, option);
     if (maxStock === 0) return;
     const safeQty = Math.min(Math.max(1, qty), maxStock);
     const lineId = getLineId(product, option);
@@ -76,7 +76,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
     const existing = get().items.find((i) => i.id === lineId);
     if (!existing) return;
-    const maxStock = Math.max(0, existing.sellingOption.stockQuantity);
+    const maxStock = getAvailableSellingUnits(existing.product, existing.sellingOption);
     if (maxStock === 0) {
       get().removeItem(lineId);
       return;

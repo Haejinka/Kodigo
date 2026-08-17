@@ -82,6 +82,10 @@ export interface ProductSellingOption {
   stockQuantity: number;
   sellingPrice: number;
   lowStockThreshold: number;
+  /** Number of base pieces removed when one of this option is sold. */
+  inventoryMultiplier: number;
+  /** When true, availability comes from the product's base-piece stock. */
+  sharesBaseStock: boolean;
   isDefault: boolean;
   isActive: boolean;
   createdAt?: string;
@@ -109,6 +113,11 @@ export interface Product {
    * Defaults to 1 (no conversion needed) when purchaseUnit is not set.
    */
   conversionFactor?: number;
+  /** Supplier price for one configured purchase unit (case/pack/box). */
+  bulkPurchasePrice?: number;
+  autoPricingEnabled?: boolean;
+  /** Desired gross margin percentage (profit divided by selling price). */
+  marginPercentage?: number;
   costPrice: number;
   sellingPrice: number;
   currentStock: number;
@@ -152,9 +161,24 @@ export function buildLegacySellingOption(product: Product): ProductSellingOption
     stockQuantity: product.currentStock,
     sellingPrice: product.sellingPrice,
     lowStockThreshold: product.minStockLevel,
+    inventoryMultiplier: 1,
+    sharesBaseStock: true,
     isDefault: true,
     isActive: true,
   };
+}
+
+export function getOptionInventoryMultiplier(option: ProductSellingOption): number {
+  return option.sharesBaseStock ? Math.max(1, Number(option.inventoryMultiplier) || 1) : 1;
+}
+
+export function getAvailableSellingUnits(product: Product, option: ProductSellingOption): number {
+  if (!option.sharesBaseStock) return Math.max(0, option.stockQuantity);
+  return Math.floor(Math.max(0, product.currentStock) / getOptionInventoryMultiplier(option));
+}
+
+export function getOptionPurchaseCost(product: Product, option: ProductSellingOption): number {
+  return product.costPrice * getOptionInventoryMultiplier(option);
 }
 
 export function getProductSellingOptions(product: Product): ProductSellingOption[] {
@@ -183,6 +207,12 @@ export function getSellingOptionStockLabel(option: ProductSellingOption): string
   const qty = formatQty(option.stockQuantity);
   if (option.kind === 'sack') return `${qty} ${option.unitLabel}${option.stockQuantity === 1 ? '' : 's'}`;
   return `${qty} ${option.unitLabel}`;
+}
+
+export function getProductOptionStockLabel(product: Product, option: ProductSellingOption): string {
+  const available = getAvailableSellingUnits(product, option);
+  const qty = formatQty(available);
+  return `${qty} ${option.unitLabel}${available === 1 ? '' : 's'}`;
 }
 
 export function getSaleItemUnitLabel(item: Pick<SaleItem, 'unitLabel' | 'packageSize' | 'packageUnit'>): string {

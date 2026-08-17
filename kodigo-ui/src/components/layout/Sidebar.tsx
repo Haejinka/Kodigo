@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard, ShoppingCart, Package, RefreshCw,
+  LayoutDashboard, ShoppingCart, Package,
   Truck, BarChart2, Trophy, Settings, ChevronLeft,
   ChevronRight,
   FileSpreadsheet, Bell,
@@ -26,12 +26,11 @@ const navItems: NavItem[] = [
   { label: 'Super Admin', path: '/super-admin', icon: LayoutDashboard, roles: ['super_admin'] },
   { label: 'Notifications', path: '/notifications', icon: Bell, roles: ['admin'], badgeKey: 'notifications' },
   { label: 'POS Terminal', path: '/pos', icon: ShoppingCart, roles: ['admin', 'cashier'] },
-  { label: 'Inventory', path: '/inventory', icon: Package, roles: ['admin', 'inventory'] },
-  { label: 'Restocking', path: '/restocking', icon: RefreshCw, roles: ['admin'], badgeKey: 'stockAlerts' },
+  { label: 'Product Management', path: '/inventory', icon: Package, roles: ['admin', 'inventory'], badgeKey: 'stockAlerts' },
   { label: 'Suppliers', path: '/suppliers', icon: Truck, roles: ['admin'] },
   { label: 'Analytics', path: '/analytics', icon: BarChart2, roles: ['admin'] },
   { label: 'Rankings', path: '/rankings', icon: Trophy, roles: ['admin'] },
-  { label: 'Reports', path: '/reports', icon: FileSpreadsheet, roles: ['admin', 'inventory'] },
+  { label: 'Sales Reports', path: '/reports', icon: FileSpreadsheet, roles: ['admin', 'inventory'] },
   { label: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
   { label: 'Account Security', path: '/account/security', icon: Settings, roles: ['admin', 'cashier', 'inventory', 'super_admin'] },
 ];

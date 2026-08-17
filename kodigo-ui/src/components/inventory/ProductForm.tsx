@@ -62,6 +62,8 @@ const createSellingOption = (
     stockQuantity: seed?.stockQuantity ?? 0,
     sellingPrice: seed?.sellingPrice ?? 0,
     lowStockThreshold: seed?.lowStockThreshold ?? 0,
+    inventoryMultiplier: seed?.inventoryMultiplier ?? 1,
+    sharesBaseStock: seed?.sharesBaseStock ?? kind === 'unit',
     isDefault: seed?.isDefault ?? false,
     isActive: seed?.isActive ?? true,
     createdAt: seed?.createdAt,
@@ -95,6 +97,9 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     unit: initial?.unit ?? 'piece',
     purchaseUnit: initial?.purchaseUnit ?? '',
     conversionFactor: initial?.conversionFactor ?? 1,
+    bulkPurchasePrice: initial?.bulkPurchasePrice,
+    autoPricingEnabled: initial?.autoPricingEnabled ?? false,
+    marginPercentage: initial?.marginPercentage ?? 20,
     costPrice: initial?.costPrice ?? 0,
     sellingPrice: initial?.sellingPrice ?? 0,
     currentStock: initial?.currentStock ?? 0,
@@ -112,9 +117,38 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
           stockQuantity: initial?.currentStock ?? 0,
           sellingPrice: initial?.sellingPrice ?? 0,
           lowStockThreshold: initial?.minStockLevel ?? 0,
+          inventoryMultiplier: 1,
+          sharesBaseStock: true,
           isDefault: true,
         })],
   });
+
+  useEffect(() => {
+    if (mode !== 'create' || !activeStoreId || activeStoreId === 'all') return;
+
+    setForm((prev) => {
+      if (prev.storeId === activeStoreId) return prev;
+
+      return {
+        ...prev,
+        storeId: activeStoreId,
+        categoryId: '',
+        supplierId: '',
+        sellingOptions: prev.sellingOptions.map((option) => ({
+          ...option,
+          storeId: activeStoreId,
+        })),
+      };
+    });
+    setNewCategoryName('');
+    setErrors((current) => {
+      if (!current.storeId && !current.categoryId) return current;
+      const next = { ...current };
+      delete next.storeId;
+      delete next.categoryId;
+      return next;
+    });
+  }, [activeStoreId, mode]);
 
   const set = (key: keyof ProductFormData, value: string | number) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -175,9 +209,26 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   const defaultSellingIndex = form.sellingOptions.findIndex((option) => option.id === defaultSellingOption?.id);
   const defaultSellingUnit = defaultSellingOption?.unitLabel || form.unit || 'unit';
   const defaultSellingPrice = defaultSellingOption?.sellingPrice ?? 0;
-  const costPerDefaultUnit = form.costPrice / (form.conversionFactor ?? 1);
+  const costPerDefaultUnit = form.costPrice;
   const margin = defaultSellingPrice > 0 ? defaultSellingPrice - costPerDefaultUnit : 0;
   const marginPct = defaultSellingPrice > 0 ? (margin / defaultSellingPrice) * 100 : 0;
+
+  useEffect(() => {
+    if (!form.autoPricingEnabled || defaultSellingIndex < 0) return;
+    const targetMargin = Math.min(99.99, Math.max(0, Number(form.marginPercentage) || 0));
+    const nextPrice = Math.round((form.costPrice / (1 - targetMargin / 100) + Number.EPSILON) * 100) / 100;
+    if (Number.isFinite(nextPrice)) {
+      setForm((prev) => ({
+        ...prev,
+        sellingOptions: prev.sellingOptions.map((option, index) => {
+          const target = option.sharesBaseStock
+            ? Math.round(nextPrice * Math.max(1, option.inventoryMultiplier) * 100) / 100
+            : index === defaultSellingIndex ? nextPrice : option.sellingPrice;
+          return target === option.sellingPrice ? option : { ...option, sellingPrice: target };
+        }),
+      }));
+    }
+  }, [form.autoPricingEnabled, form.marginPercentage, form.costPrice, defaultSellingIndex]);
 
   const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -216,12 +267,12 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     });
   };
 
-  const addSellingOption = (kind: SellingOptionKind = 'sack') => {
+  const addSellingOption = (kind: SellingOptionKind = 'sack', seed?: Partial<ProductSellingOption>) => {
     setForm((prev) => ({
       ...prev,
       sellingOptions: [
         ...prev.sellingOptions,
-        createSellingOption(prev.storeId, kind, { isDefault: prev.sellingOptions.every((option) => !option.isActive) }),
+        createSellingOption(prev.storeId, kind, { isDefault: prev.sellingOptions.every((option) => !option.isActive), ...seed }),
       ],
     }));
   };
@@ -256,7 +307,10 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     if (!form.sku.trim()) errs.sku = 'SKU is required';
     if (!form.categoryId) errs.categoryId = 'Category is required';
     if (form.storeId && storeCategories.length === 0) errs.categoryId = 'No categories available for this store yet';
-    if (form.costPrice < 0) errs.costPrice = 'Cost price cannot be negative';
+    if (form.costPrice < 0) errs.costPrice = 'Purchase price cannot be negative';
+    if (form.autoPricingEnabled && ((form.marginPercentage ?? 0) < 0 || (form.marginPercentage ?? 0) >= 100)) {
+      errs.marginPercentage = 'Margin must be between 0% and 99.99%';
+    }
     if (activeSellingOptions.length === 0) errs.sellingOptions = 'At least one active selling option is required';
     form.sellingOptions.forEach((option, index) => {
       if (!option.isActive) return;
@@ -266,6 +320,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       if (option.sellingPrice <= 0) errs[`${prefix}-price`] = 'Price must be > 0';
       if (option.stockQuantity < 0) errs[`${prefix}-stock`] = 'Stock cannot be negative';
       if (option.lowStockThreshold < 0) errs[`${prefix}-threshold`] = 'Low stock threshold cannot be negative';
+      if (option.sharesBaseStock && option.inventoryMultiplier < 1) errs[`${prefix}-multiplier`] = 'Pieces deducted must be at least 1';
       if (option.kind === 'sack' && (!option.quantityValue || option.quantityValue <= 0)) {
         errs[`${prefix}-quantity`] = 'Sack size is required';
       }
@@ -372,7 +427,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px] gap-4 items-start">
         <div className="space-y-4 min-w-0">
           <div className={cardCls}>
-            <h3 className={`${titleCls} mb-3`}>Basic Information</h3>
+            <h3 className={`${titleCls} mb-3`}>Product Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
               <Field label="Store" required>
                 <select
@@ -501,6 +556,24 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
             <div className="flex items-center justify-between gap-3 mb-3">
               <h3 className={titleCls}>Selling Options</h3>
               <div className="flex items-center gap-2">
+                {form.purchaseUnit && (
+                  <button
+                    type="button"
+                    onClick={() => addSellingOption('custom', {
+                      label: form.purchaseUnit,
+                      unitLabel: form.purchaseUnit,
+                      quantityValue: form.conversionFactor,
+                      quantityUnit: defaultSellingUnit,
+                      inventoryMultiplier: form.conversionFactor ?? 1,
+                      sharesBaseStock: true,
+                      sellingPrice: defaultSellingPrice * (form.conversionFactor ?? 1),
+                    })}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-700"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Case/Pack
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => addSellingOption('kilo')}
@@ -591,13 +664,13 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
                           {errors[`${prefix}-quantity`] && <p className="text-xs text-red-500 mt-1">{errors[`${prefix}-quantity`]}</p>}
                         </div>
                         <div className="col-span-1">
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Stock</label>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">{option.sharesBaseStock ? 'Available' : 'Stock'}</label>
                           <input
                             type="number"
                             className={`${inputCls} font-mono disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed`}
                             value={option.stockQuantity}
                             onChange={(e) => updateSellingOption(index, { stockQuantity: parseFloat(e.target.value) || 0 })}
-                            disabled={mode === 'edit' && Boolean(initial?.sellingOptions?.some((existing) => existing.id === option.id))}
+                            disabled={mode === 'edit' && (option.sharesBaseStock || Boolean(initial?.sellingOptions?.some((existing) => existing.id === option.id)))}
                             title={mode === 'edit' ? 'Use Adjust stock from the inventory list to record a stock change.' : undefined}
                             min={0}
                             step="0.001"
@@ -661,6 +734,29 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
                       />
                       Active
                     </label>
+                    <label className="mt-2 ml-4 inline-flex items-center gap-2 text-xs font-medium text-gray-600">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-gray-300 accent-blue-600"
+                        checked={option.sharesBaseStock}
+                        onChange={(e) => updateSellingOption(index, { sharesBaseStock: e.target.checked, inventoryMultiplier: e.target.checked ? Math.max(1, option.inventoryMultiplier) : 1 })}
+                      />
+                      Deduct from piece inventory
+                    </label>
+                    {option.sharesBaseStock && (
+                      <label className="mt-2 ml-4 inline-flex items-center gap-2 text-xs font-medium text-gray-600">
+                        Pieces deducted per sale
+                        <input
+                          type="number"
+                          className="w-20 px-2 py-1 font-mono border border-gray-200 rounded-lg"
+                          value={option.inventoryMultiplier}
+                          min={1}
+                          step={1}
+                          onChange={(e) => updateSellingOption(index, { inventoryMultiplier: parseInt(e.target.value) || 1 })}
+                        />
+                        {errors[`${prefix}-multiplier`] && <span className="text-red-500">{errors[`${prefix}-multiplier`]}</span>}
+                      </label>
+                    )}
                   </div>
                 );
               })}
@@ -730,27 +826,35 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
           </div>
 
           <div className={cardCls}>
-            <h3 className={`${titleCls} mb-3`}>Price & Cost</h3>
+            <h3 className={`${titleCls} mb-3`}>Purchase & Selling Price</h3>
             <div className="grid grid-cols-2 gap-3">
-              <Field label={form.purchaseUnit ? `Cost per ${form.purchaseUnit}` : 'Cost (PHP)'} required>
+              <Field label={`Purchase Price per ${defaultSellingUnit}`} required>
                 <input
                   type="number"
                   className={inputCls + ' font-mono'}
                   value={form.costPrice}
-                  onChange={(e) => set('costPrice', parseFloat(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const purchasePrice = parseFloat(e.target.value) || 0;
+                    setForm((prev) => ({
+                      ...prev,
+                      costPrice: purchasePrice,
+                      bulkPurchasePrice: prev.purchaseUnit ? purchasePrice * (prev.conversionFactor ?? 1) : undefined,
+                    }));
+                  }}
                   min={0}
                   step={0.01}
                 />
                 {errors.costPrice && <p className="text-xs text-red-500 mt-1">{errors.costPrice}</p>}
               </Field>
-              <Field label="Default Price" required>
+              <Field label="Selling Price" required>
                 <input
                   type="number"
-                  className={inputCls + ' font-mono'}
+                  className={`${inputCls} font-mono disabled:bg-gray-100`}
                   value={defaultSellingPrice}
                   onChange={(e) => {
                     if (defaultSellingIndex >= 0) updateSellingOption(defaultSellingIndex, { sellingPrice: parseFloat(e.target.value) || 0 });
                   }}
+                  disabled={form.autoPricingEnabled}
                   min={0}
                   step={0.01}
                 />
@@ -761,11 +865,36 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
             </div>
             {form.costPrice > 0 && defaultSellingPrice > 0 && (
               <div className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
-                {form.purchaseUnit && (form.conversionFactor ?? 1) > 1 && (
-                  <span className="mr-2">Unit cost: <span className="font-mono font-medium">PHP {costPerDefaultUnit.toFixed(2)}</span></span>
-                )}
-                <span>Margin: <span className="font-mono font-medium">PHP {margin.toFixed(2)}</span>{' '}</span>
+                <span>Profit per {defaultSellingUnit}: <span className="font-mono font-medium">PHP {margin.toFixed(2)}</span>{' '}</span>
                 <span className={marginPct < 0 ? 'text-red-500' : 'text-green-600'}>({marginPct.toFixed(1)}%)</span>
+              </div>
+            )}
+            <label className="mt-3 flex items-start gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="mt-0.5 w-4 h-4 rounded border-gray-300 accent-blue-600"
+                checked={Boolean(form.autoPricingEnabled)}
+                onChange={(e) => setForm((prev) => ({ ...prev, autoPricingEnabled: e.target.checked }))}
+              />
+              <span className="text-xs font-medium text-gray-700">
+                Automatic margin-based pricing
+                <span className="block text-[11px] font-normal text-gray-400">Selling price updates whenever the purchase price changes.</span>
+              </span>
+            </label>
+            {form.autoPricingEnabled && (
+              <div className="mt-3">
+                <Field label="Desired Gross Margin (%)" hint="Calculated as profit divided by selling price">
+                  <input
+                    type="number"
+                    className={inputCls + ' font-mono'}
+                    value={form.marginPercentage ?? 0}
+                    onChange={(e) => set('marginPercentage', parseFloat(e.target.value) || 0)}
+                    min={0}
+                    max={99.99}
+                    step={0.01}
+                  />
+                  {errors.marginPercentage && <p className="text-xs text-red-500 mt-1">{errors.marginPercentage}</p>}
+                </Field>
               </div>
             )}
             <label className="mt-3 flex items-start gap-2.5 cursor-pointer select-none">
@@ -775,9 +904,9 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
                 checked={(form.conversionFactor ?? 1) > 1 || !!form.purchaseUnit}
                 onChange={(e) => {
                   if (e.target.checked) {
-                    setForm((prev) => ({ ...prev, purchaseUnit: 'pack', conversionFactor: 1 }));
+                    setForm((prev) => ({ ...prev, purchaseUnit: 'pack', conversionFactor: 12, bulkPurchasePrice: prev.costPrice * 12 }));
                   } else {
-                    setForm((prev) => ({ ...prev, purchaseUnit: '', conversionFactor: 1 }));
+                    setForm((prev) => ({ ...prev, purchaseUnit: '', conversionFactor: 1, bulkPurchasePrice: undefined }));
                   }
                 }}
               />
@@ -808,17 +937,38 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
                       type="number"
                       className={inputCls + ' font-mono'}
                       value={form.conversionFactor}
-                      onChange={(e) => set('conversionFactor', parseInt(e.target.value) || 1)}
+                      onChange={(e) => {
+                        const factor = parseInt(e.target.value) || 1;
+                        setForm((prev) => ({ ...prev, conversionFactor: factor, costPrice: (prev.bulkPurchasePrice ?? 0) / factor }));
+                      }}
                       min={2}
                       step={1}
                     />
                   </Field>
                 </div>
+                <Field label={`Purchase Price per ${form.purchaseUnit}`} hint="Supplier invoice price for one bulk unit">
+                  <input
+                    type="number"
+                    className={inputCls + ' font-mono'}
+                    value={form.bulkPurchasePrice ?? ''}
+                    onChange={(e) => {
+                      const bulkPrice = parseFloat(e.target.value) || 0;
+                      setForm((prev) => ({
+                        ...prev,
+                        bulkPurchasePrice: bulkPrice,
+                        costPrice: bulkPrice / Math.max(1, prev.conversionFactor ?? 1),
+                      }));
+                    }}
+                    min={0}
+                    step={0.01}
+                  />
+                </Field>
                 {(form.conversionFactor ?? 1) >= 2 && (
                   <div className="flex items-start gap-2 bg-blue-50 rounded-lg px-3 py-2">
                     <Package className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
                     <p className="text-xs text-blue-700">
-                      Receiving converts each {form.purchaseUnit} into {defaultSellingUnit} stock.
+                      {form.bulkPurchasePrice ? `Calculated purchase price: PHP ${costPerDefaultUnit.toFixed(2)} per ${defaultSellingUnit}. ` : ''}
+                      Receiving one {form.purchaseUnit} adds {form.conversionFactor} {defaultSellingUnit}s to inventory.
                     </p>
                   </div>
                 )}

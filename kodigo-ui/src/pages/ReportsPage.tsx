@@ -182,7 +182,7 @@ export function ReportsPage() {
   return (
     <div>
       <PageHeader
-        title="Reports"
+        title="Sales Reports"
         subtitle={loading ? 'Loading report data...' : inventoryOnly ? 'Inventory history and stock reports' : `${filters.startDate} to ${filters.endDate}`}
         actions={
           <div className="flex flex-wrap gap-2">

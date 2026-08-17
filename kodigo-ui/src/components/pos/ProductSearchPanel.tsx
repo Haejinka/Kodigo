@@ -8,9 +8,10 @@ import { useProductStore } from '@/stores/productStore';
 import { cn, formatCurrency } from '@/lib/utils';
 import {
   getDefaultSellingOption,
+  getAvailableSellingUnits,
   getProductSellingOptions,
   getSellingOptionLabel,
-  getSellingOptionStockLabel,
+  getProductOptionStockLabel,
 } from '@/types';
 import type { Product, ProductSellingOption } from '@/types';
 
@@ -62,7 +63,7 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
   }, [query, results]);
 
   const firstAvailableIndex = useMemo(() => {
-    return quickLookupResults.findIndex(({ option }) => option.stockQuantity > 0);
+    return quickLookupResults.findIndex(({ product, option }) => getAvailableSellingUnits(product, option) > 0);
   }, [quickLookupResults]);
 
   const highlightedLookup = highlightedIndex >= 0 ? quickLookupResults[highlightedIndex] : undefined;
@@ -76,7 +77,7 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
 
     setHighlightedIndex((current) => {
       const currentProduct = quickLookupResults[current];
-      if (currentProduct?.option.stockQuantity > 0) return current;
+      if (currentProduct && getAvailableSellingUnits(currentProduct.product, currentProduct.option) > 0) return current;
       return firstAvailableIndex;
     });
   }, [quickLookupResults, firstAvailableIndex]);
@@ -84,7 +85,7 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
   const handleScan = (barcode: string) => {
     const found = products.find((p) => p.barcode === barcode);
     if (!found) return;
-    const options = getProductSellingOptions(found).filter((option) => option.stockQuantity > 0);
+    const options = getProductSellingOptions(found).filter((option) => getAvailableSellingUnits(found, option) > 0);
     if (options.length === 1) {
       onAddProduct(found, options[0]);
       return;
@@ -93,7 +94,7 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
   };
 
   const addLookupProduct = useCallback((product: Product, option: ProductSellingOption) => {
-    if (option.stockQuantity <= 0) return;
+    if (getAvailableSellingUnits(product, option) <= 0) return;
     onAddProduct(product, option);
     setQuery('');
     setHighlightedIndex(-1);
@@ -106,7 +107,7 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
     let next = highlightedIndex;
     for (let i = 0; i < quickLookupResults.length; i += 1) {
       next = (next + step + quickLookupResults.length) % quickLookupResults.length;
-      if (quickLookupResults[next]?.option.stockQuantity > 0) {
+      if (quickLookupResults[next] && getAvailableSellingUnits(quickLookupResults[next].product, quickLookupResults[next].option) > 0) {
         setHighlightedIndex(next);
         return;
       }
@@ -136,7 +137,7 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
       e.preventDefault();
       let lastAvailableIndex = -1;
       for (let i = quickLookupResults.length - 1; i >= 0; i -= 1) {
-        if (quickLookupResults[i].option.stockQuantity > 0) {
+        if (getAvailableSellingUnits(quickLookupResults[i].product, quickLookupResults[i].option) > 0) {
           lastAvailableIndex = i;
           break;
         }
@@ -159,7 +160,7 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
         addLookupProduct(lookup.product, lookup.option);
         return;
       }
-      const product = results.find((p) => getDefaultSellingOption(p).stockQuantity > 0);
+      const product = results.find((p) => getAvailableSellingUnits(p, getDefaultSellingOption(p)) > 0);
       if (product) {
         e.preventDefault();
         addLookupProduct(product, getDefaultSellingOption(product));
@@ -201,7 +202,7 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
           </div>
           <div id="pos-quick-lookup-list" role="listbox" aria-label="Quick lookup results" className="grid gap-2 pb-3">
             {quickLookupResults.map(({ product, option }, index) => {
-              const outOfStock = option.stockQuantity <= 0;
+              const outOfStock = getAvailableSellingUnits(product, option) <= 0;
               const isActive = index === highlightedIndex;
 
               return (
@@ -232,7 +233,7 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
                   <span className="shrink-0 text-right">
                     <span className="block font-mono font-semibold text-blue-700">{formatCurrency(option.sellingPrice)}</span>
                     <span className="block text-xs text-gray-500">
-                      {outOfStock ? 'Out of stock' : `${getSellingOptionStockLabel(option)} left`}
+                      {outOfStock ? 'Out of stock' : `${getProductOptionStockLabel(product, option)} left`}
                     </span>
                   </span>
                 </button>

@@ -9,6 +9,8 @@ import { StockStatusBadge } from '@/components/shared/Badge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { StockAdjustmentModal } from '@/components/inventory/StockAdjustmentModal';
 import { StockAdjustmentLog } from '@/components/inventory/StockAdjustmentLog';
+import { SalesVelocityPanel } from '@/components/inventory/SalesVelocityPanel';
+import { RestockingPage } from '@/pages/RestockingPage';
 import { useToast } from '@/components/shared/Toast';
 import { formatCurrency } from '@/lib/utils';
 import { isDefaultCategoryName, useProductStore } from '@/stores/productStore';
@@ -16,6 +18,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 import {
   getDefaultSellingOption,
+  getAvailableSellingUnits,
+  getProductOptionStockLabel,
   getProductSellingOptions,
   getSellingOptionLabel,
   getSellingOptionStockLabel,
@@ -23,7 +27,7 @@ import {
 import type { Product, AdjustmentReason } from '@/types';
 import type { Column } from '@/components/shared/DataTable';
 
-type Tab = 'products' | 'log';
+type Tab = 'products' | 'restocking' | 'velocity' | 'log';
 
 function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onClose: () => void; storeId: string }) {
   const { toast } = useToast();
@@ -385,9 +389,9 @@ export function InventoryPage() {
     const matchesStock = (() => {
       if (stockFilter === 'all') return true;
       const options = getProductSellingOptions(p);
-      if (stockFilter === 'out') return options.some((option) => option.stockQuantity === 0);
-      if (stockFilter === 'low') return options.some((option) => option.stockQuantity > 0 && option.stockQuantity <= option.lowStockThreshold);
-      if (stockFilter === 'ok') return options.every((option) => option.stockQuantity > option.lowStockThreshold);
+      if (stockFilter === 'out') return options.some((option) => getAvailableSellingUnits(p, option) === 0);
+      if (stockFilter === 'low') return options.some((option) => getAvailableSellingUnits(p, option) > 0 && getAvailableSellingUnits(p, option) <= option.lowStockThreshold);
+      if (stockFilter === 'ok') return options.every((option) => getAvailableSellingUnits(p, option) > option.lowStockThreshold);
       return true;
     })();
     return matchesSearch && matchesCategory && matchesStock;
@@ -453,7 +457,7 @@ export function InventoryPage() {
           {getProductSellingOptions(p).map((option) => (
             <div key={option.id} className="flex items-center gap-2">
               <span className="text-xs text-gray-500 min-w-20 truncate">{getSellingOptionLabel(option)}</span>
-              <span className="font-mono font-semibold text-gray-900">{getSellingOptionStockLabel(option)}</span>
+              <span className="font-mono font-semibold text-gray-900">{getProductOptionStockLabel(p, option)}</span>
               {option.id === getDefaultSellingOption(p).id && <StockStatusBadge product={p} className="hidden sm:inline-flex" />}
             </div>
           ))}
@@ -477,7 +481,7 @@ export function InventoryPage() {
     },
     {
       key: 'costPrice',
-      header: 'Cost',
+      header: 'Purchase Price',
       accessor: (p) => <span className="font-mono text-gray-500">{formatCurrency(p.costPrice)}</span>,
       align: 'right',
     },
@@ -543,10 +547,10 @@ export function InventoryPage() {
     }
   };
 
-  const handleAdjust = async (sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string) => {
+  const handleAdjust = async (sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { quantity: number; purchaseUnit: string; piecesPerUnit: number; purchasePricePerUnit: number }) => {
     await new Promise((r) => setTimeout(r, 600));
     if (!adjustTarget) throw new Error('Select a product before adjusting stock.');
-    await adjustStock(adjustTarget.id, sellingOptionId, delta, reason, note);
+    await adjustStock(adjustTarget.id, sellingOptionId, delta, reason, note, restock);
     setAdjustTarget(null);
   };
 
@@ -599,7 +603,7 @@ export function InventoryPage() {
   return (
     <div>
       <PageHeader
-        title="Inventory"
+        title="Product Management"
         subtitle={`${filtered.length} of ${products.length} products`}
         actions={
           <Button
@@ -620,6 +624,24 @@ export function InventoryPage() {
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-gray-200 mb-5">
+        {role === 'admin' && <button
+          onClick={() => setTab('restocking')}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
+            tab === 'restocking' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+          )}
+        >
+          Restocking
+        </button>}
+        <button
+          onClick={() => setTab('velocity')}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
+            tab === 'velocity' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+          )}
+        >
+          Sales Velocity
+        </button>
         <button
           onClick={() => setTab('products')}
           className={cn(
@@ -675,6 +697,9 @@ export function InventoryPage() {
         <StockAdjustmentLog adjustments={stockAdjustments} />
       )}
 
+      {tab === 'velocity' && <SalesVelocityPanel products={products} />}
+      {tab === 'restocking' && role === 'admin' && <RestockingPage embedded />}
+
       {role === 'admin' && <ConfirmDialog
         open={!!deleteTarget}
         title="Delete Product"
@@ -694,6 +719,7 @@ export function InventoryPage() {
         unit={adjustTarget?.unit}
         purchaseUnit={adjustTarget?.purchaseUnit}
         conversionFactor={adjustTarget?.conversionFactor}
+        bulkPurchasePrice={adjustTarget?.bulkPurchasePrice ?? adjustTarget?.costPrice}
         sellingOptions={adjustTarget?.sellingOptions ?? []}
         onClose={() => setAdjustTarget(null)}
         onSubmit={handleAdjust}

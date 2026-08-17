@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase';
 import {
   getProductSellingOptions,
+  getAvailableSellingUnits,
+  getOptionPurchaseCost,
   getSaleItemUnitLabel,
   getSellingOptionLabel,
 } from '@/types';
@@ -307,10 +309,11 @@ export function describeSellingUnit(input: {
 export function buildInventoryReport(products: Product[]): InventoryReportRow[] {
   return products.flatMap((product) =>
     getProductSellingOptions(product).map((option) => {
+      const availableStock = getAvailableSellingUnits(product, option);
       const stockStatus =
-        option.stockQuantity === 0
+        availableStock === 0
           ? 'out-of-stock'
-          : option.stockQuantity <= option.lowStockThreshold
+          : availableStock <= option.lowStockThreshold
             ? 'low-stock'
             : 'in-stock';
 
@@ -329,11 +332,11 @@ export function buildInventoryReport(products: Product[]): InventoryReportRow[] 
         unitLabel: option.unitLabel,
         packageSize: option.quantityValue,
         packageUnit: option.quantityUnit,
-        stockQuantity: option.stockQuantity,
+        stockQuantity: availableStock,
         lowStockThreshold: option.lowStockThreshold,
         stockStatus,
         sellingPrice: option.sellingPrice,
-        costPrice: product.costPrice,
+        costPrice: getOptionPurchaseCost(product, option),
       };
     })
   );
@@ -483,7 +486,7 @@ export async function exportReportsWorkbook(input: {
       'Low Stock Threshold': row.lowStockThreshold,
       Status: row.stockStatus,
       'Selling Price': row.sellingPrice,
-      'Cost Price': row.costPrice,
+      'Purchase Price': row.costPrice,
     }))),
     buildObjectSheet('Stock Movements', input.stockMovements.map((row) => ({
       Date: formatDateTimeForReport(row.dateTime),

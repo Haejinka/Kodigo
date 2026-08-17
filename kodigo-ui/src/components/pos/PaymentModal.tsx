@@ -10,6 +10,9 @@ import { useProductStore } from '@/stores/productStore';
 import { processSale } from '@/lib/offline-sync';
 import {
   getSellingOptionLabel,
+  getAvailableSellingUnits,
+  getOptionInventoryMultiplier,
+  getOptionPurchaseCost,
   isLegacySellingOption,
 } from '@/types';
 import type { PaymentMethod, ReceiptSnapshot, Sale } from '@/types';
@@ -48,9 +51,6 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const [cashInput, setCashInput] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [paymentReference, setPaymentReference] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [customerTin, setCustomerTin] = useState('');
-  const [customerAddress, setCustomerAddress] = useState('');
   const [discountCategory, setDiscountCategory] = useState<'regular' | 'senior' | 'pwd' | 'other'>('regular');
   const [step, setStep] = useState<Step>('payment');
   const [processing, setProcessing] = useState(false);
@@ -71,7 +71,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const isCash = paymentMethod === 'cash';
   const tendered = isCash ? cashAmount : orderTotal;
   const change = isCash ? Math.max(0, cashAmount - orderTotal) : 0;
-  const stockIssue = items.find((i) => i.quantity > i.sellingOption.stockQuantity);
+  const stockIssue = items.find((i) => i.quantity > getAvailableSellingUnits(i.product, i.sellingOption));
   const canConfirm = items.length > 0 && (isCash ? cashAmount >= orderTotal : true) && !stockIssue;
 
   const quickAmounts = [
@@ -91,9 +91,9 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       return;
     }
 
-    const currentStockIssue = items.find((i) => i.quantity > i.sellingOption.stockQuantity);
+    const currentStockIssue = items.find((i) => i.quantity > getAvailableSellingUnits(i.product, i.sellingOption));
     if (currentStockIssue) {
-      alert(`${currentStockIssue.product.name} - ${getSellingOptionLabel(currentStockIssue.sellingOption)} only has ${currentStockIssue.sellingOption.stockQuantity} in stock.`);
+      alert(`${currentStockIssue.product.name} - ${getSellingOptionLabel(currentStockIssue.sellingOption)} only has ${getAvailableSellingUnits(currentStockIssue.product, currentStockIssue.sellingOption)} in stock.`);
       setProcessing(false);
       return;
     }
@@ -110,10 +110,10 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         unitLabel: i.sellingOption.unitLabel,
         packageSize: i.sellingOption.quantityValue,
         packageUnit: i.sellingOption.quantityUnit,
-        stockSource: isLegacySellingOption(i.sellingOption) ? 'product' : 'selling_option',
+        stockSource: i.sellingOption.sharesBaseStock || isLegacySellingOption(i.sellingOption) ? 'product' : 'selling_option',
         quantity: i.quantity,
         unitPrice: i.sellingOption.sellingPrice,
-        costPrice: i.product.costPrice,
+        costPrice: getOptionPurchaseCost(i.product, i.sellingOption),
         lineTotal: i.lineTotal,
       })),
       subtotal: orderSubtotal,
@@ -127,9 +127,6 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       change,
       paymentMethod,
       paymentReference: paymentReference.trim() || undefined,
-      customerName: customerName.trim() || undefined,
-      customerTin: customerTin.trim() || undefined,
-      customerAddress: customerAddress.trim() || undefined,
       terminalIdentifier: stores.find((store) => store.id === storeId)?.terminalIdentifier,
       discountCategory,
       cashierId: user?.id || null,
@@ -143,17 +140,23 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         products: state.products.map((product) => {
           const soldLines = items.filter((line) => line.product.id === product.id);
           if (soldLines.length === 0) return product;
+          const sharedPieceDelta = soldLines
+            .filter((line) => line.sellingOption.sharesBaseStock)
+            .reduce((sum, line) => sum + line.quantity * getOptionInventoryMultiplier(line.sellingOption), 0);
           const sellingOptions = product.sellingOptions.map((option) => {
             const soldForOption = soldLines
               .filter((line) => line.sellingOption.id === option.id)
               .reduce((sum, line) => sum + line.quantity, 0);
+            if (option.sharesBaseStock) return option;
             return soldForOption > 0 ? { ...option, stockQuantity: Math.max(0, option.stockQuantity - soldForOption) } : option;
           });
           const defaultOption = sellingOptions.find((option) => option.isDefault);
           return {
             ...product,
             sellingOptions,
-            currentStock: defaultOption ? Math.round(defaultOption.stockQuantity) : product.currentStock,
+            currentStock: sharedPieceDelta > 0
+              ? Math.max(0, product.currentStock - sharedPieceDelta)
+              : defaultOption ? Math.round(defaultOption.stockQuantity) : product.currentStock,
           };
         }),
       }));
@@ -205,9 +208,6 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     setCashInput('');
     setPaymentMethod('cash');
     setPaymentReference('');
-    setCustomerName('');
-    setCustomerTin('');
-    setCustomerAddress('');
     setDiscountCategory('regular');
     setStep('payment');
     setCompletedSale(null);
@@ -340,36 +340,18 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
             )}
 
             <div className="rounded-xl border border-gray-200 p-3">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Customer & discount details</p>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  value={customerName}
-                  onChange={(event) => setCustomerName(event.target.value)}
-                  placeholder="Customer name (optional)"
-                  className="col-span-2 rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                />
-                <input
-                  value={customerTin}
-                  onChange={(event) => setCustomerTin(event.target.value)}
-                  placeholder="Customer TIN"
-                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                />
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Discount category</p>
+              <div>
                 <select
                   value={discountCategory}
                   onChange={(event) => setDiscountCategory(event.target.value as typeof discountCategory)}
-                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                 >
                   <option value="regular">Regular</option>
                   <option value="senior">Senior Citizen</option>
                   <option value="pwd">PWD</option>
                   <option value="other">Other discount</option>
                 </select>
-                <input
-                  value={customerAddress}
-                  onChange={(event) => setCustomerAddress(event.target.value)}
-                  placeholder="Customer address"
-                  className="col-span-2 rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                />
               </div>
             </div>
 

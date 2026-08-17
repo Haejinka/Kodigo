@@ -1,7 +1,7 @@
 import { Package, AlertCircle } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Product, ProductSellingOption } from '@/types';
-import { getProductSellingOptions, getSellingOptionLabel, getSellingOptionStockLabel, getStockStatus } from '@/types';
+import { getAvailableSellingUnits, getProductOptionStockLabel, getProductSellingOptions, getSellingOptionLabel, getStockStatus } from '@/types';
 
 interface ProductCardProps {
   product: Product;
@@ -10,8 +10,8 @@ interface ProductCardProps {
 
 export function ProductCard({ product, onAdd }: ProductCardProps) {
   const options = getProductSellingOptions(product);
-  const outOfStock = options.every((option) => option.stockQuantity <= 0);
-  const defaultInStockOption = options.find((option) => option.stockQuantity > 0);
+  const outOfStock = options.every((option) => getAvailableSellingUnits(product, option) <= 0);
+  const defaultInStockOption = options.find((option) => getAvailableSellingUnits(product, option) > 0);
 
   const handleCardAdd = () => {
     if (!defaultInStockOption) return;
@@ -51,7 +51,7 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
       <div className="space-y-1.5 mt-2">
         {options.map((option) => {
           const status = getStockStatus(product, option);
-          const optionOut = option.stockQuantity <= 0;
+          const optionOut = getAvailableSellingUnits(product, option) <= 0;
 
           return (
             <button
@@ -84,7 +84,7 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
                   })} />
                 )}
                 <span className="text-[10px] text-gray-400 font-mono">
-                  {optionOut ? 'Out of stock' : `${getSellingOptionStockLabel(option)} left`}
+                  {optionOut ? 'Out of stock' : `${getProductOptionStockLabel(product, option)} left`}
                 </span>
               </span>
             </button>

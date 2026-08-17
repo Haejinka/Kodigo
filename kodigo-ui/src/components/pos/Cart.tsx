@@ -4,7 +4,7 @@ import { useCartStore } from '@/stores/cartStore';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/shared/Button';
 import { useState } from 'react';
-import { getSaleItemUnitLabel, getSellingOptionLabel } from '@/types';
+import { getAvailableSellingUnits, getSaleItemUnitLabel, getSellingOptionLabel } from '@/types';
 
 interface CartProps {
   onCharge: () => void;
@@ -135,17 +135,17 @@ export function Cart({ onCharge }: CartProps) {
                   <QtyCell
                     lineId={item.id}
                     quantity={item.quantity}
-                    maxStock={item.sellingOption.stockQuantity}
+                    maxStock={getAvailableSellingUnits(item.product, item.sellingOption)}
                   />
                   <button
                     onClick={() => updateQty(item.id, item.quantity + 1)}
                     className={cn(
                       'w-6 h-6 rounded-md flex items-center justify-center transition-colors',
-                      item.quantity >= item.sellingOption.stockQuantity
+                      item.quantity >= getAvailableSellingUnits(item.product, item.sellingOption)
                         ? 'bg-gray-50 cursor-not-allowed opacity-40'
                         : 'bg-gray-100 hover:bg-gray-200'
                     )}
-                    disabled={item.quantity >= item.sellingOption.stockQuantity}
+                    disabled={item.quantity >= getAvailableSellingUnits(item.product, item.sellingOption)}
                     aria-label="Increase quantity"
                   >
                     <Plus className="w-3 h-3 text-gray-600" />
