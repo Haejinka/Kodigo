@@ -473,29 +473,24 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
     return optimisticPO;
   },
 
-  receivePurchaseOrder: async (poId, onTime) => {
+  receivePurchaseOrder: async (poId, onTime, products) => {
+    if (!poId) throw new Error('Purchase order id is missing. Refresh the supplier page and try again.');
     const po = get().purchaseOrders.find((p) => p.id === poId);
     if (!po) throw new Error('Purchase order not found.');
+    void products;
 
     const now = new Date().toISOString();
-    const { error } = await supabase.rpc('receive_purchase_order', {
-      p_po_id: poId,
-      p_on_time: onTime,
-    });
-
-    if (error) throw error;
+    await executeOrQueueMutation('purchase_orders', 'UPDATE', {
+      status: 'received',
+      on_time: onTime,
+      received_at: now,
+      updated_at: now,
+    }, 'id', poId);
 
     set(s => ({
       purchaseOrders: s.purchaseOrders.map(p => 
         p.id === poId ? { ...p, status: 'received', onTime, receivedAt: now } : p
       )
-    }));
-
-    useProductStore.setState((state) => ({
-      products: state.products.map((product) => {
-        const item = po.items.find((line) => line.productId === product.id);
-        return item ? { ...product, currentStock: product.currentStock + item.quantity } : product;
-      }),
     }));
 
     // Database triggers/RPC refresh supplier scores and product stock on the backend.

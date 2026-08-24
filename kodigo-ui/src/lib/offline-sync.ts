@@ -274,6 +274,12 @@ export async function syncPendingMutations() {
 
   for (const mut of pending) {
     try {
+      if ((mut.operation === 'UPDATE' || mut.operation === 'DELETE') && (!mut.matchKey || mut.matchValue == null)) {
+        console.warn(`[Sync] Dropping unsafe queued ${mut.operation} on ${mut.table}: missing match condition`, mut);
+        await idbRetry(() => db.delete('generic_mutations', mut.id));
+        continue;
+      }
+
       if (mut.operation === 'INSERT') {
         const { error } = await (supabase as any).from(mut.table).insert(mut.payload).select();
         if (error) throw error;
@@ -302,6 +308,10 @@ export async function executeOrQueueMutation(
   matchKey?: string, 
   matchValue?: any
 ) {
+  if ((operation === 'UPDATE' || operation === 'DELETE') && (!matchKey || matchValue == null)) {
+    throw new Error(`${operation} on ${table} requires a row match.`);
+  }
+
   const withTimeout = async <T>(promise: PromiseLike<T>, timeoutMs = 15000): Promise<T> => {
     return Promise.race([
       promise,

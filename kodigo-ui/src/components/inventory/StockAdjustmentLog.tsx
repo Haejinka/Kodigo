@@ -37,6 +37,8 @@ export function StockAdjustmentLog({ adjustments }: StockAdjustmentLogProps) {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return adjustments.filter((a) => {
+      if (a.reason === 'restock' && a.note.startsWith('Received purchase order ')) return false;
+
       const matchesSearch =
         !search ||
         a.productName.toLowerCase().includes(q) ||
