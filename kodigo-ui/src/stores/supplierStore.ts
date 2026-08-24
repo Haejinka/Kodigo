@@ -44,6 +44,7 @@ const mapSupplierRows = (rows: any[] = []): Supplier[] => {
       contact: s.contact,
       email: s.email,
       phone: s.phone,
+      facebookLink: s.facebook_link || '',
       address: s.address,
       leadTimeDays: s.lead_time_days,
       reliabilityScore: s.reliability_score || 0,
@@ -178,6 +179,7 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
       contact: data.contact,
       email: data.email,
       phone: data.phone,
+      facebook_link: data.facebookLink?.trim() || null,
       address: data.address,
       lead_time_days: data.leadTimeDays,
       owner_profile_id: ownerProfileId,
@@ -250,6 +252,7 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
       contact: data.contact,
       email: data.email,
       phone: data.phone,
+      facebook_link: data.facebookLink?.trim() || null,
       address: data.address,
       lead_time_days: data.leadTimeDays
     };

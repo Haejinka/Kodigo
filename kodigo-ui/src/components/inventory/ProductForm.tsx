@@ -422,6 +422,240 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     }
   };
 
+  if (mode === 'create') {
+    return (
+      <form onSubmit={handleSubmit}>
+        <div className="max-w-4xl">
+          <div className={cardCls}>
+            <h3 className={`${titleCls} mb-4`}>Product Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Store" required>
+                <select
+                  className={selectCls}
+                  value={form.storeId}
+                  onChange={(e) => {
+                    const storeId = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      storeId,
+                      categoryId: '',
+                      supplierId: '',
+                      sellingOptions: prev.sellingOptions.map((option) => ({ ...option, storeId })),
+                    }));
+                    setNewCategoryName('');
+                  }}
+                >
+                  <option value="" disabled>Select a store</option>
+                  {stores.map(store => (
+                    <option key={store.id} value={store.id}>{store.name}</option>
+                  ))}
+                </select>
+                {errors.storeId && <p className="text-xs text-red-500 mt-1">{errors.storeId}</p>}
+              </Field>
+
+              <Field label="Product Name" required>
+                <input
+                  className={inputCls}
+                  value={form.name}
+                  onChange={(e) => set('name', e.target.value)}
+                  placeholder="e.g. Red Horse Beer 500ml"
+                />
+                {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
+              </Field>
+
+              <Field label="SKU" required>
+                <input
+                  className={inputCls + ' font-mono'}
+                  value={form.sku}
+                  onChange={(e) => set('sku', e.target.value)}
+                  placeholder="e.g. RH-500"
+                />
+                {errors.sku && <p className="text-xs text-red-500 mt-1">{errors.sku}</p>}
+              </Field>
+
+              <Field label="Barcode" hint="Optional">
+                <input
+                  className={inputCls + ' font-mono'}
+                  value={form.barcode}
+                  onChange={(e) => set('barcode', e.target.value)}
+                  placeholder="Scan or type barcode"
+                />
+              </Field>
+
+              <Field label="Category" required>
+                <div className="flex gap-2">
+                  <select
+                    className={selectCls}
+                    value={form.categoryId}
+                    onChange={(e) => set('categoryId', e.target.value)}
+                    disabled={!form.storeId}
+                  >
+                    <option value="">Select category...</option>
+                    {storeCategories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleRestoreDefaultCategories}
+                    disabled={!form.storeId || categoryLoading}
+                    className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Defaults
+                  </button>
+                </div>
+                {errors.categoryId && <p className="text-xs text-red-500 mt-1">{errors.categoryId}</p>}
+              </Field>
+
+              {role === 'admin' && (
+                <Field label="Supplier" hint="Optional">
+                  <select
+                    className={selectCls}
+                    value={form.supplierId}
+                    onChange={(e) => set('supplierId', e.target.value)}
+                    disabled={!form.storeId}
+                  >
+                    <option value="">No supplier assigned</option>
+                    {storeSuppliers.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+
+              <Field label="Selling Unit" required>
+                <select
+                  className={selectCls}
+                  value={defaultSellingUnit}
+                  onChange={(e) => {
+                    const unit = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      unit,
+                      sellingOptions: prev.sellingOptions.map((option, index) => index === defaultSellingIndex ? {
+                        ...option,
+                        kind: unit === 'kg' ? 'kilo' : 'unit',
+                        label: unit,
+                        unitLabel: unit,
+                        quantityValue: unit === 'kg' ? 1 : undefined,
+                        quantityUnit: unit === 'kg' ? 'kg' : undefined,
+                      } : option),
+                    }));
+                  }}
+                >
+                  {['piece', 'kg', 'bottle', 'can', 'pack', 'sachet', 'box', 'sack'].map((unit) => (
+                    <option key={unit} value={unit}>{unit}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label={`Purchase Price per ${defaultSellingUnit}`} required>
+                <input
+                  type="number"
+                  className={inputCls + ' font-mono'}
+                  value={form.costPrice}
+                  onChange={(e) => set('costPrice', parseFloat(e.target.value) || 0)}
+                  min={0}
+                  step={0.01}
+                />
+                {errors.costPrice && <p className="text-xs text-red-500 mt-1">{errors.costPrice}</p>}
+              </Field>
+
+              <Field label={`Selling Price per ${defaultSellingUnit}`} required>
+                <input
+                  type="number"
+                  className={`${inputCls} font-mono disabled:bg-gray-100`}
+                  value={defaultSellingPrice}
+                  onChange={(e) => {
+                    if (defaultSellingIndex >= 0) updateSellingOption(defaultSellingIndex, { sellingPrice: parseFloat(e.target.value) || 0 });
+                  }}
+                  disabled={form.autoPricingEnabled}
+                  min={0}
+                  step={0.01}
+                />
+                {defaultSellingIndex >= 0 && errors[`sellingOption-${defaultSellingIndex}-price`] && (
+                  <p className="text-xs text-red-500 mt-1">{errors[`sellingOption-${defaultSellingIndex}-price`]}</p>
+                )}
+              </Field>
+
+              <div className="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                <label className="flex items-center gap-2 text-xs font-medium text-gray-700">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-gray-300 accent-blue-600"
+                    checked={Boolean(form.autoPricingEnabled)}
+                    onChange={(e) => setForm((prev) => ({ ...prev, autoPricingEnabled: e.target.checked }))}
+                  />
+                  Use margin-based pricing
+                </label>
+                {form.autoPricingEnabled && (
+                  <div className="mt-3 max-w-xs">
+                    <Field label="Target Margin (%)">
+                      <input
+                        type="number"
+                        className={inputCls + ' font-mono bg-white'}
+                        value={form.marginPercentage ?? 0}
+                        onChange={(e) => set('marginPercentage', parseFloat(e.target.value) || 0)}
+                        min={0}
+                        max={99.99}
+                        step={0.01}
+                      />
+                      {errors.marginPercentage && <p className="text-xs text-red-500 mt-1">{errors.marginPercentage}</p>}
+                    </Field>
+                  </div>
+                )}
+              </div>
+
+              <Field label="Starting Stock">
+                <input
+                  type="number"
+                  className={inputCls + ' font-mono'}
+                  value={defaultSellingOption?.stockQuantity ?? form.currentStock}
+                  onChange={(e) => {
+                    if (defaultSellingIndex >= 0) updateSellingOption(defaultSellingIndex, { stockQuantity: parseFloat(e.target.value) || 0 });
+                    else set('currentStock', parseInt(e.target.value) || 0);
+                  }}
+                  min={0}
+                />
+              </Field>
+
+              <Field label="Stock Alert Threshold" hint="Optional. Leave blank to skip low-stock alerts.">
+                <input
+                  type="number"
+                  className={inputCls + ' font-mono'}
+                  value={(defaultSellingOption?.lowStockThreshold ?? form.minStockLevel) || ''}
+                  onChange={(e) => {
+                    const threshold = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
+                    if (defaultSellingIndex >= 0) updateSellingOption(defaultSellingIndex, { lowStockThreshold: threshold });
+                    else set('minStockLevel', threshold);
+                  }}
+                  placeholder="e.g. 5"
+                  min={0}
+                />
+              </Field>
+            </div>
+
+            {form.costPrice > 0 && defaultSellingPrice > 0 && (
+              <div className="mt-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                Profit per {defaultSellingUnit}: <span className="font-mono font-medium">PHP {margin.toFixed(2)}</span>{' '}
+                <span className={marginPct < 0 ? 'text-red-500' : 'text-green-600'}>({marginPct.toFixed(1)}%)</span>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 flex items-center justify-end gap-3">
+            <Button variant="secondary" type="button" onClick={() => navigate('/inventory')}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" loading={loading}>
+              Save Product
+            </Button>
+          </div>
+        </div>
+      </form>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit}>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px] gap-4 items-start">
@@ -979,20 +1213,6 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
           <div className={cardCls}>
             <h3 className={`${titleCls} mb-3`}>Stock & Reorder</h3>
             <div className="grid grid-cols-2 gap-3">
-              {mode === 'create' && (
-                <Field label="Default Stock">
-                  <input
-                    type="number"
-                    className={inputCls + ' font-mono'}
-                    value={defaultSellingOption?.stockQuantity ?? form.currentStock}
-                    onChange={(e) => {
-                      if (defaultSellingIndex >= 0) updateSellingOption(defaultSellingIndex, { stockQuantity: parseFloat(e.target.value) || 0 });
-                      else set('currentStock', parseInt(e.target.value) || 0);
-                    }}
-                    min={0}
-                  />
-                </Field>
-              )}
               <Field label="Default Low Stock" hint="Triggers alert">
                 <input
                   type="number"
@@ -1040,7 +1260,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
               Cancel
             </Button>
             <Button variant="primary" type="submit" loading={loading}>
-              {mode === 'create' ? 'Save Product' : 'Update Product'}
+              Update Product
             </Button>
           </div>
         </div>

@@ -123,13 +123,13 @@ export function RankingsPage() {
               <div className="col-span-4">Product / Option</div>
               <div className="col-span-2 text-right">Units Sold</div>
               <div className="col-span-2 text-right">Gross Sales</div>
+              <div className="col-span-2 text-right">Discounts / Returns</div>
               <div className="col-span-2 text-right">Net Sales</div>
-              <div className="col-span-2 text-right">Gross Profit</div>
-              <div className="col-span-3 text-right">Net Profit</div>
+              <div className="col-span-3 text-right">Profit</div>
             </div>
             <div className="space-y-3 mt-3">
               {(() => {
-                const totalRevenue = rankings.reduce((sum, row) => sum + row.netRevenue, 0) || 0.000001;
+                const topRevenue = Math.max(...rankings.map((row) => row.netRevenue), 0) || 0.000001;
                 return rankings.map((row, index) => (
                   <div key={row.key} className="grid grid-cols-16 gap-3 items-center text-sm">
                     <div className="col-span-1 text-gray-600">{index + 1}</div>
@@ -141,14 +141,16 @@ export function RankingsPage() {
                     </div>
                     <div className="col-span-2 text-right">{row.netQuantity}</div>
                     <div className="col-span-2 text-right font-mono">{formatCurrency(row.grossRevenue)}</div>
+                    <div className="col-span-2 text-right font-mono text-gray-500">
+                      {formatCurrency(row.discounts + row.refunds)}
+                    </div>
                     <div className="col-span-2 text-right font-mono">{formatCurrency(row.netRevenue)}</div>
-                    <div className="col-span-2 text-right font-mono">{formatCurrency(row.grossRevenue - row.cost)}</div>
                     <div className="col-span-3 text-right font-mono font-semibold text-green-700">{formatCurrency(row.grossProfit)}</div>
                     <div className="col-span-16 mt-1">
                       <div className="w-full bg-gray-100 rounded-full h-2">
                         <div
                           className="bg-blue-500 h-2 rounded-full"
-                          style={{ width: `${Math.round((row.netRevenue / totalRevenue) * 100)}%` }}
+                          style={{ width: `${Math.round((row.netRevenue / topRevenue) * 100)}%` }}
                         />
                       </div>
                     </div>

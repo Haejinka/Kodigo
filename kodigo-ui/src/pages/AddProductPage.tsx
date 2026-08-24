@@ -23,7 +23,7 @@ export function AddProductPage() {
     <div className="max-w-7xl">
       <PageHeader
         title="Add Product"
-        subtitle="Create a new product in your inventory without leaving the screen"
+        subtitle="Enter the essentials now, then adjust advanced options later"
       />
       <ProductForm mode="create" onSubmit={handleSubmit} />
     </div>

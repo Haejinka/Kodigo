@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, Phone, Mail, MapPin, Package, Edit, Trash2, Clock, CheckCircle, XCircle, ShoppingCart, Info } from 'lucide-react';
+import { ArrowLeft, Star, Phone, Mail, MapPin, Package, Edit, Trash2, Clock, CheckCircle, XCircle, ShoppingCart, Info, ExternalLink } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
 import { Badge } from '@/components/shared/Badge';
@@ -127,6 +127,19 @@ export function SupplierDetailPage() {
                 <Mail className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
                 <span className="text-sm text-gray-700">{supplier.email}</span>
               </div>
+              {supplier.facebookLink && (
+                <div className="flex items-start gap-3">
+                  <ExternalLink className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                  <a
+                    href={supplier.facebookLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-700 break-all"
+                  >
+                    Facebook
+                  </a>
+                </div>
+              )}
               <div className="flex items-start gap-3">
                 <MapPin className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
                 <span className="text-sm text-gray-700">{supplier.address}</span>

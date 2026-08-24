@@ -58,6 +58,7 @@ export interface Supplier {
   contact: string;
   email: string;
   phone: string;
+  facebookLink?: string;
   address: string;
   leadTimeDays: number;
   reliabilityScore: number; // 0–100

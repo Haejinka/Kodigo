@@ -136,6 +136,7 @@ create table public.suppliers (
   contact             text         not null default '',   -- contact person name
   email               text         not null default '',
   phone               text         not null default '',
+  facebook_link       text,
   address             text         not null default '',
   lead_time_days      integer      not null default 1 check (lead_time_days > 0),
   reliability_score   numeric(5,2) not null default 0 check (reliability_score between 0 and 100),

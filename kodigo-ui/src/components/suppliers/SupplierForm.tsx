@@ -64,6 +64,7 @@ export function SupplierForm({ initial, onSubmit, mode, backPath = '/suppliers' 
     contact: initial?.contact ?? '',
     email: initial?.email ?? '',
     phone: initial?.phone ?? '',
+    facebookLink: initial?.facebookLink ?? '',
     address: initial?.address ?? '',
     leadTimeDays: initial?.leadTimeDays ?? 1,
   });
@@ -85,6 +86,9 @@ export function SupplierForm({ initial, onSubmit, mode, backPath = '/suppliers' 
     if (!form.email.trim()) errs.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Enter a valid email address';
     if (!form.phone.trim()) errs.phone = 'Phone number is required';
+    if (form.facebookLink?.trim() && !/^https?:\/\/(www\.)?(facebook\.com|fb\.com)\//i.test(form.facebookLink.trim())) {
+      errs.facebookLink = 'Enter a valid Facebook page link';
+    }
     if (form.leadTimeDays < 1) errs.leadTimeDays = 'Lead time must be at least 1 day';
     return errs;
   };
@@ -179,6 +183,16 @@ export function SupplierForm({ initial, onSubmit, mode, backPath = '/suppliers' 
                 value={form.phone}
                 onChange={(e) => set('phone', e.target.value)}
                 placeholder="e.g. +63 2 8632 3000"
+              />
+            </Field>
+
+            <Field label="Facebook Link" hint="Optional supplier page or profile" error={errors.facebookLink}>
+              <input
+                type="url"
+                className={inputCls}
+                value={form.facebookLink ?? ''}
+                onChange={(e) => set('facebookLink', e.target.value)}
+                placeholder="e.g. https://facebook.com/supplierpage"
               />
             </Field>
 
