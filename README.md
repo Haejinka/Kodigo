@@ -79,7 +79,7 @@ For a new, empty project:
    - `20260803013739_fix_admin_supplier_inventory_workflows.sql`
    - `20260803022414_hide_notifications_from_super_admin.sql`
    - `20260803023252_enforce_mfa_assurance.sql`
-4. Run [`migration_29_base_unit_inventory_margin_velocity.sql`](migration_29_base_unit_inventory_margin_velocity.sql).
+4. Run [`migration_29_base_unit_inventory_margin_velocity.sql`](migration_29_base_unit_inventory_margin_velocity.sql), [`migration_30_supplier_facebook_link.sql`](migration_30_supplier_facebook_link.sql), [`migration_31_receive_po_status_only.sql`](migration_31_receive_po_status_only.sql), and [`migration_32_sales_velocity.sql`](migration_32_sales_velocity.sql) in order.
 5. Review the resulting RLS policies, functions, triggers, grants, Storage configuration, and Auth settings before using real data.
 
 The ordered migration chain is the source of truth for the current database. `supabase_schema.sql` is only a starting snapshot; later migrations intentionally replace earlier policies and functions. Existing environments should apply only migrations that have not already been recorded as applied. Do not rerun the baseline over a populated database.

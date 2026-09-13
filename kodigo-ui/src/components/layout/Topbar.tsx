@@ -44,31 +44,31 @@ function NotificationItem({
   onDismiss: (id: string) => void;
 }) {
   return (
-    <div className={cn('px-4 py-3 border-b border-gray-100 last:border-0', !notification.isRead && 'bg-blue-50/40')}>
+    <div className={cn('border-b border-[var(--border)] px-4 py-3 last:border-0', !notification.isRead && 'bg-[var(--primary-soft)]/50')}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className={cn(
-              'text-[11px] font-semibold px-2 py-0.5 rounded-full border',
+              'rounded-full border px-2 py-0.5 text-[11px] font-semibold',
               severityStyles[notification.severity] ?? severityStyles.info
             )}>
               {notification.severity}
             </span>
-            <span className="text-[11px] font-medium text-gray-500">
+            <span className="text-[11px] font-medium text-[var(--muted-foreground)]">
               {formatType(notification.type)}
             </span>
             {!notification.isRead && <span className="w-2 h-2 rounded-full bg-blue-500" />}
           </div>
-          <p className="text-sm font-semibold text-gray-900 mt-1.5 leading-snug">{notification.title}</p>
-          <p className="text-xs text-gray-600 mt-1 leading-relaxed line-clamp-2">{notification.message}</p>
-          <p className="text-[11px] text-gray-400 mt-1.5">{formatDateTime(notification.createdAt)}</p>
+          <p className="mt-1.5 text-sm font-semibold leading-snug text-[var(--foreground)]">{notification.title}</p>
+          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--muted-foreground)]">{notification.message}</p>
+          <p className="mt-1.5 text-[11px] text-[var(--muted-foreground)]">{formatDateTime(notification.createdAt)}</p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {!notification.isRead && (
             <button
               type="button"
               onClick={() => onRead(notification.id)}
-              className="p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+              className="rounded-md p-2 text-[var(--muted-foreground)] hover:bg-[var(--primary-soft)] hover:text-[var(--primary)]"
               aria-label="Mark notification as read"
               title="Mark as read"
             >
@@ -78,7 +78,7 @@ function NotificationItem({
           <button
             type="button"
             onClick={() => onDismiss(notification.id)}
-            className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50"
+              className="rounded-md p-2 text-[var(--muted-foreground)] hover:bg-[var(--destructive-soft)] hover:text-[var(--destructive)]"
             aria-label="Dismiss notification"
             title="Dismiss"
           >
@@ -128,9 +128,10 @@ export function Topbar() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-30 h-16 flex items-center px-4 gap-4 transition-colors bg-[var(--app-surface-nav)] border-b border-[var(--app-border)]">
+      <header className="fixed left-0 right-0 top-0 z-30 flex h-16 items-center gap-3 border-b border-[var(--border)] bg-[var(--card)] px-4 sm:gap-4">
         <button
-          className="lg:hidden p-2 rounded-lg hover:bg-[var(--app-surface-elevated)] transition-colors"
+          type="button"
+          className="inline-flex size-10 items-center justify-center rounded-lg text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)] lg:hidden"
           onClick={() => setDrawerOpen(true)}
           aria-label="Open menu"
         >
@@ -139,7 +140,7 @@ export function Topbar() {
 
         <div className="flex items-center gap-2 lg:hidden">
           <img src={branding.logoUrl} alt="" className="h-7 w-7 rounded-md object-contain" />
-          <span className="font-bold text-gray-900 text-base">{branding.businessName || branding.name}</span>
+          <span className="text-base font-semibold text-[var(--foreground)]">{branding.businessName || branding.name}</span>
         </div>
 
         <div className="flex-1" />
@@ -147,7 +148,7 @@ export function Topbar() {
         <button
           type="button"
           onClick={toggleMode}
-          className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium text-gray-700 transition-colors border-[var(--app-border)] bg-[var(--app-surface-card)] hover:bg-[var(--app-surface-elevated)]"
+          className="inline-flex h-10 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--muted)]"
           aria-label={`Theme: ${mode}`}
           title={`Theme: ${mode}`}
         >
@@ -159,7 +160,10 @@ export function Topbar() {
           <div className="relative mr-2">
             <button
               onClick={() => { setStoreOpen((v) => !v); setAlertOpen(false); setProfileOpen(false); }}
-              className="flex items-center gap-2 px-3 py-1.5 border rounded-lg transition-colors border-[var(--app-border)] bg-[var(--app-surface-card)] hover:bg-[var(--app-surface-elevated)]"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={storeOpen}
+              className="flex h-10 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 hover:bg-[var(--muted)]"
             >
               <StoreIcon className="w-4 h-4 text-gray-600" />
               <span className="text-sm font-medium text-gray-700 max-w-[120px] truncate">
@@ -170,17 +174,18 @@ export function Topbar() {
             {storeOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setStoreOpen(false)} />
-                <div className="absolute right-0 top-11 z-20 w-56 rounded-xl shadow-xl border overflow-hidden bg-[var(--app-surface-card)] border-[var(--app-border)]">
-                  <div className="px-4 py-2 border-b text-xs font-semibold text-gray-500 uppercase tracking-wide border-[var(--app-border-subtle)] bg-[var(--app-surface-elevated)]">
+                <div role="menu" className="absolute right-0 top-12 z-20 w-56 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-xl">
+                  <div className="border-b border-[var(--border)] bg-[var(--muted)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
                     Switch Store
                   </div>
                   <div className="max-h-60 overflow-y-auto">
                     {stores.length > 1 && (
                       <button
                         onClick={() => handleStoreChange('all')}
+                        type="button"
                         className={cn(
-                          'w-full text-left px-4 py-2.5 text-sm transition-colors border-b border-[var(--app-border-subtle)] hover:bg-[var(--app-accent-soft)]',
-                          activeStoreId === 'all' ? 'bg-[var(--app-accent-soft)] text-blue-700 font-medium' : 'text-gray-700'
+                          'w-full border-b border-[var(--border)] px-4 py-2.5 text-left text-sm hover:bg-[var(--primary-soft)]',
+                          activeStoreId === 'all' ? 'bg-[var(--primary-soft)] font-medium text-[var(--primary)]' : 'text-[var(--foreground)]'
                         )}
                       >
                         All Stores
@@ -190,9 +195,10 @@ export function Topbar() {
                       <button
                         key={store.id}
                         onClick={() => handleStoreChange(store.id)}
+                        type="button"
                         className={cn(
-                          'w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-[var(--app-accent-soft)]',
-                          activeStoreId === store.id ? 'bg-[var(--app-accent-soft)] text-blue-700 font-medium' : 'text-gray-700'
+                          'w-full px-4 py-2.5 text-left text-sm hover:bg-[var(--primary-soft)]',
+                          activeStoreId === store.id ? 'bg-[var(--primary-soft)] font-medium text-[var(--primary)]' : 'text-[var(--foreground)]'
                         )}
                       >
                         {store.name}
@@ -208,8 +214,11 @@ export function Topbar() {
         {role !== 'inventory' && role !== 'super_admin' && <div className="relative">
           <button
             onClick={handleOpenNotifications}
-            className="relative p-2 rounded-lg hover:bg-[var(--app-surface-elevated)] transition-colors"
+            type="button"
+            className="relative inline-flex size-10 items-center justify-center rounded-lg text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
             aria-label="Notifications"
+            aria-haspopup="menu"
+            aria-expanded={alertOpen}
           >
             <Bell className="w-5 h-5 text-gray-600" />
             {unreadCount > 0 && (
@@ -222,17 +231,18 @@ export function Topbar() {
           {alertOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setAlertOpen(false)} />
-              <div className="absolute right-0 top-11 z-20 w-[360px] max-w-[calc(100vw-2rem)] rounded-xl shadow-xl border overflow-hidden bg-[var(--app-surface-card)] border-[var(--app-border)]">
-                <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--app-border-subtle)]">
+              <div role="menu" className="absolute right-0 top-12 z-20 w-[360px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-xl">
+                <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
                   <div>
-                    <span className="font-semibold text-sm text-gray-900">Notifications</span>
-                    <p className="text-xs text-gray-500">{unreadCount} unread</p>
+                    <span className="text-sm font-semibold text-[var(--foreground)]">Notifications</span>
+                    <p className="text-xs text-[var(--muted-foreground)]">{unreadCount} unread</p>
                   </div>
                   <div className="flex items-center gap-3">
                     {unreadCount > 0 && (
                       <button
                         onClick={() => void markAllRead()}
-                        className="text-xs text-blue-600 hover:underline font-medium whitespace-nowrap"
+                        type="button"
+                        className="whitespace-nowrap text-xs font-medium text-[var(--primary)] hover:underline"
                       >
                         Mark all read
                       </button>
@@ -242,7 +252,8 @@ export function Topbar() {
                         setAlertOpen(false);
                         navigate('/notifications');
                       }}
-                      className="p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-[var(--app-accent-soft)]"
+                      type="button"
+                      className="rounded-md p-2 text-[var(--muted-foreground)] hover:bg-[var(--primary-soft)] hover:text-[var(--primary)]"
                       aria-label="View all notifications"
                       title="View all"
                     >
@@ -252,20 +263,20 @@ export function Topbar() {
                 </div>
                 <div className="max-h-96 overflow-y-auto">
                   {isLoading ? (
-                    <p className="text-sm text-gray-500 text-center py-8">Loading notifications...</p>
+                    <p className="py-8 text-center text-sm text-[var(--muted-foreground)]">Loading notifications…</p>
                   ) : error ? (
                     <div className="px-4 py-8 text-center">
                       <p className="text-sm text-red-600">{error}</p>
                       <button
                         type="button"
                         onClick={() => void fetchNotifications()}
-                        className="text-xs text-blue-600 hover:underline font-medium mt-2"
+                        className="mt-2 text-xs font-medium text-[var(--primary)] hover:underline"
                       >
                         Retry
                       </button>
                     </div>
                   ) : notifications.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-8">No notifications</p>
+                    <p className="py-8 text-center text-sm text-[var(--muted-foreground)]">No notifications</p>
                   ) : (
                     notifications.slice(0, 8).map((notification) => (
                       <NotificationItem
@@ -285,34 +296,39 @@ export function Topbar() {
         <div className="relative">
           <button
             onClick={() => { setProfileOpen((v) => !v); setAlertOpen(false); setStoreOpen(false); }}
-            className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-[var(--app-surface-elevated)] transition-colors"
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={profileOpen}
+            className="flex min-h-10 items-center gap-2 rounded-lg p-1.5 hover:bg-[var(--muted)]"
           >
             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-semibold">
               {displayName.charAt(0).toUpperCase()}
             </div>
-            <span className="hidden sm:block text-sm font-medium text-gray-700">{displayName}</span>
+            <span className="hidden max-w-40 truncate text-sm font-medium text-[var(--foreground)] sm:block">{displayName}</span>
           </button>
 
           {profileOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
-              <div className="absolute right-0 top-11 z-20 w-48 rounded-xl shadow-xl border overflow-hidden bg-[var(--app-surface-card)] border-[var(--app-border)]">
-                <div className="px-4 py-3 border-b border-[var(--app-border-subtle)]">
-                  <p className="text-sm font-semibold text-gray-900">{displayName}</p>
-                  <p className="text-xs text-gray-500 capitalize">{String(displayRole).replace('_', ' ')}</p>
+              <div role="menu" className="absolute right-0 top-12 z-20 w-52 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-xl">
+                <div className="border-b border-[var(--border)] px-4 py-3">
+                  <p className="truncate text-sm font-semibold text-[var(--foreground)]">{displayName}</p>
+                  <p className="text-xs capitalize text-[var(--muted-foreground)]">{String(displayRole).replace('_', ' ')}</p>
                 </div>
                 <button
                   onClick={() => {
                     setProfileOpen(false);
-                    navigate('/account/security');
+                    navigate(role === 'admin' ? '/settings/security' : '/account/security');
                   }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-[var(--app-surface-elevated)] transition-colors"
+                  type="button"
+                  className="w-full px-4 py-2.5 text-left text-sm text-[var(--foreground)] hover:bg-[var(--muted)]"
                 >
                   Account security
                 </button>
                 <button
                   onClick={handleLogout}
-                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-[var(--app-surface-elevated)] transition-colors"
+                  type="button"
+                  className="w-full px-4 py-2.5 text-left text-sm text-[var(--foreground)] hover:bg-[var(--muted)]"
                 >
                   Log out
                 </button>

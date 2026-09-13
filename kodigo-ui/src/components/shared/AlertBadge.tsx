@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 type AlertType = 'low' | 'critical' | 'out-of-stock' | 'overstock';
 
@@ -9,10 +10,10 @@ interface AlertBadgeProps {
 }
 
 const styles: Record<AlertType, string> = {
-  low: 'bg-amber-100 text-amber-700',
-  critical: 'bg-orange-100 text-orange-700',
-  'out-of-stock': 'bg-red-100 text-red-700',
-  overstock: 'bg-blue-100 text-blue-700',
+  low: 'border-transparent bg-[var(--warning-soft)] text-[var(--warning-foreground)]',
+  critical: 'border-transparent bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300',
+  'out-of-stock': 'border-transparent bg-[var(--destructive-soft)] text-[var(--destructive)]',
+  overstock: 'border-transparent bg-[var(--primary-soft)] text-[var(--primary)]',
 };
 
 const labels: Record<AlertType, string> = {
@@ -24,9 +25,9 @@ const labels: Record<AlertType, string> = {
 
 export function AlertBadge({ type, count, className }: AlertBadgeProps) {
   return (
-    <span className={cn('inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full', styles[type], className)}>
+    <Badge variant="outline" className={cn('gap-1', styles[type], className)}>
       {labels[type]}
       {count !== undefined && <span>({count})</span>}
-    </span>
+    </Badge>
   );
 }

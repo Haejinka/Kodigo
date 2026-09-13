@@ -134,13 +134,15 @@ export function AnalyticsPage() {
         title="Analytics"
         subtitle={loading ? 'Loading sales data...' : 'Revenue, sales trends, and transaction history'}
         actions={
-          <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
+          <div className="flex flex-wrap gap-1 rounded-xl bg-[var(--muted)] p-1" role="group" aria-label="Analytics period">
             {periods.map((p) => (
               <button
                 key={p}
+                type="button"
                 onClick={() => selectPeriod(p)}
+                aria-pressed={period === p}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                  period === p ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+                  period === p ? 'bg-[var(--card)] text-[var(--foreground)] shadow-sm' : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
                 }`}
               >
                 {p}
@@ -150,34 +152,34 @@ export function AnalyticsPage() {
         }
       />
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
+      <div className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[var(--shadow-card)]">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <label className="text-xs font-medium text-gray-600">
+          <label className="text-sm font-medium text-[var(--foreground)]">
             Start date
             <input
               type="date"
               value={startDate}
               max={endDate}
               onChange={(event) => { setStartDate(event.target.value); setPeriod('Custom'); }}
-              className="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="report-input mt-1"
             />
           </label>
-          <label className="text-xs font-medium text-gray-600">
+          <label className="text-sm font-medium text-[var(--foreground)]">
             End date
             <input
               type="date"
               value={endDate}
               min={startDate}
               onChange={(event) => { setEndDate(event.target.value); setPeriod('Custom'); }}
-              className="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="report-input mt-1"
             />
           </label>
-          <label className="text-xs font-medium text-gray-600">
+          <label className="text-sm font-medium text-[var(--foreground)]">
             Payment method
             <select
               value={paymentMethod}
               onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod | 'all')}
-              className="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="report-input mt-1"
             >
               <option value="all">All payment methods</option>
               <option value="cash">Cash</option>
@@ -187,12 +189,12 @@ export function AnalyticsPage() {
               <option value="other">Other</option>
             </select>
           </label>
-          <label className="text-xs font-medium text-gray-600">
+          <label className="text-sm font-medium text-[var(--foreground)]">
             Transaction status
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value as SaleStatus | 'all')}
-              className="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="report-input mt-1"
             >
               <option value="all">All statuses</option>
               <option value="completed">Completed</option>
@@ -205,10 +207,10 @@ export function AnalyticsPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Net Sales" value={formatCurrency(stats.todayRevenue)} change={stats.revenueChange} icon={DollarSign} color="blue" />
-        <StatCard label="Transactions" value={String(stats.todayTransactions)} change={stats.transactionsChange} icon={ShoppingBag} color="green" />
-        <StatCard label="Avg Order Value" value={formatCurrency(stats.avgOrderValue)} change={stats.avgOrderChange} icon={TrendingUp} color="amber" />
-        <StatCard label="Gross Profit" value={formatCurrency(stats.todayProfit)} change={stats.profitChange} icon={BarChart2} color="purple" />
+        <StatCard label="Net Sales" value={formatCurrency(stats.todayRevenue)} icon={DollarSign} color="blue" />
+        <StatCard label="Transactions" value={String(stats.todayTransactions)} icon={ShoppingBag} color="green" />
+        <StatCard label="Avg Order Value" value={formatCurrency(stats.avgOrderValue)} icon={TrendingUp} color="amber" />
+        <StatCard label="Gross Profit" value={formatCurrency(stats.todayProfit)} icon={BarChart2} color="purple" />
       </div>
 
       <div className="mb-6">
@@ -220,10 +222,10 @@ export function AnalyticsPage() {
         <CategorySalesChart data={categoryData} />
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
-        <h2 className="text-base font-semibold text-gray-900 mb-3">Sales by Selling Option</h2>
+      <div className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[var(--shadow-card)]">
+        <h2 className="mb-3 text-base font-semibold text-[var(--foreground)]">Sales by selling option</h2>
         {optionSales.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-6">No option-level sales recorded for this period.</p>
+          <p className="py-6 text-center text-sm text-[var(--muted-foreground)]">No option-level sales recorded for this period.</p>
         ) : (
           <div className="space-y-3">
             {optionSales.map((row) => (
@@ -234,7 +236,7 @@ export function AnalyticsPage() {
       </div>
 
       <div>
-        <h2 className="text-base font-semibold text-gray-900 mb-3">Transactions</h2>
+          <h2 className="mb-3 text-base font-semibold text-[var(--foreground)]">Transactions</h2>
         <RecentTransactions rows={report?.transactions ?? []} />
       </div>
     </div>
@@ -258,14 +260,14 @@ function SellingOptionRow({ row }: { row: SalesGroupReportRow }) {
 function RecentTransactions({ rows }: { rows: SalesTransactionReportRow[] }) {
   if (rows.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-10 text-center">
-        <p className="text-sm text-gray-400">No transactions recorded yet. Complete a sale in POS to see data here.</p>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-10 text-center shadow-[var(--shadow-card)]">
+          <p className="text-sm text-[var(--muted-foreground)]">No transactions recorded yet. Complete a sale in POS to see data here.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[var(--shadow-card)]">
       <div className="space-y-3">
         {rows.slice(0, 20).map((row) => (
           <div key={row.saleId} className="flex items-center justify-between">

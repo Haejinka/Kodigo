@@ -14,12 +14,12 @@ export function EmptyState({
   action,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-      <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center mb-3">
-        <Icon className="w-6 h-6 text-gray-400" />
+    <div className="flex min-h-40 flex-col items-center justify-center px-4 py-10 text-center">
+      <div className="mb-3 flex size-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--muted)]">
+        <Icon className="size-5 text-[var(--muted-foreground)]" aria-hidden="true" />
       </div>
-      <p className="text-sm font-semibold text-gray-700 mb-1">{title}</p>
-      {description && <p className="text-xs text-gray-400 max-w-xs">{description}</p>}
+      <p className="mb-1 text-sm font-semibold text-[var(--foreground)]">{title}</p>
+      {description && <p className="max-w-sm text-xs leading-5 text-[var(--muted-foreground)]">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
+import { PasswordInput } from '@/components/shared/PasswordInput';
 import { useToast } from '@/components/shared/Toast';
 import type { User, Store as StoreType } from '@/types';
 import { Badge } from '@/components/shared/Badge';
@@ -21,6 +22,9 @@ import {
 import { supabase } from '@/lib/supabase';
 import { StoreBrandingEditor } from '@/components/settings/StoreBrandingEditor';
 import { MfaSettings } from '@/components/settings/MfaSettings';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AssistedPasswordConfirmation } from '@/components/ui/assisted-password-confirmation';
+import { isSecurePassword, PasswordStrength } from '@/components/ui/password-strength';
 
 const inputCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
 type ManagedRole = 'admin' | 'cashier' | 'inventory';
@@ -38,10 +42,10 @@ export function SettingsLayout() {
   return (
     <div>
       <PageHeader title="Settings" subtitle="Manage your store and system preferences" />
-      <div className="flex gap-6">
+      <div className="grid gap-6 lg:grid-cols-[12rem_minmax(0,1fr)]">
         {/* Sidebar nav */}
-        <nav className="w-48 shrink-0">
-          <ul className="space-y-1">
+        <nav aria-label="Settings sections" className="min-w-0">
+          <ul className="grid gap-1 sm:grid-cols-2 lg:grid-cols-1">
             {settingsSections.map((s) => {
               const Icon = s.icon;
               const isActive = s.end
@@ -53,10 +57,10 @@ export function SettingsLayout() {
                     to={s.path}
                     end={s.end}
                     className={cn(
-                      'flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors',
+                      'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                       isActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        ? 'bg-[var(--primary-soft)] text-[var(--primary)]'
+                        : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]'
                     )}
                   >
                     <Icon className="w-4 h-4" />
@@ -512,7 +516,7 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
     if (!name.trim()) { toast('error', 'Name is required.'); return; }
     if (!email.trim() || !email.includes('@')) { toast('error', 'A valid email is required.'); return; }
     if (!password) { toast('error', 'Password is required.'); return; }
-    if (password.length < 6) { toast('error', 'Password must be at least 6 characters.'); return; }
+    if (!isSecurePassword(password)) { toast('error', 'Choose a stronger password that meets all requirements.'); return; }
     if (password !== confirmPassword) { toast('error', 'Passwords do not match.'); return; }
     if (role !== 'admin' && (!storeId || storeId === 'all')) { toast('error', 'Store assignment is required.'); return; }
     if (role === 'admin' && adminStoreIds.length === 0) { toast('error', 'At least one store assignment is required.'); return; }
@@ -572,26 +576,24 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-              <input 
-                type="password"
-                className={inputCls}
+              <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••"
+                visibilityLabel="password"
+                autoComplete="new-password"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
-              <input 
-                type="password"
-                className={inputCls}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••"
-                required
+              <AssistedPasswordConfirmation
+                password={password}
+                confirmPassword={confirmPassword}
+                onConfirmPasswordChange={setConfirmPassword}
+                label="Confirm password"
               />
             </div>
+            <PasswordStrength value={password} className="col-span-2" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -992,7 +994,7 @@ export function SecuritySettingsPage() {
     if (!user?.email) { toast('error', 'Your account email could not be verified.'); return; }
     if (!current) { toast('error', 'Current password is required.'); return; }
     if (newPass !== confirm) { toast('error', 'Passwords do not match.'); return; }
-    if (newPass.length < 8) { toast('error', 'Password must be at least 8 characters.'); return; }
+    if (!isSecurePassword(newPass)) { toast('error', 'Choose a stronger password that meets all requirements.'); return; }
     if (current === newPass) { toast('error', 'Choose a password different from your current password.'); return; }
     setSaving(true);
     try {
@@ -1017,27 +1019,43 @@ export function SecuritySettingsPage() {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 max-w-sm">
-      <h3 className="font-semibold text-gray-900 mb-5 flex items-center gap-2">
-        <Shield className="w-4 h-4" /> Change Password
-      </h3>
-      <form onSubmit={handleChange} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Current Password</label>
-          <input type="password" className={inputCls} value={current} onChange={(e) => setCurrent(e.target.value)} required />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">New Password</label>
-          <input type="password" className={inputCls} value={newPass} onChange={(e) => setNewPass(e.target.value)} required />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm New Password</label>
-          <input type="password" className={inputCls} value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
-        </div>
-        <Button type="submit" variant="primary" loading={saving} className="w-full">
-          Update Password
-        </Button>
-      </form>
+    <div className="grid items-start gap-5 xl:grid-cols-2">
+      <Card className="max-w-xl">
+        <CardHeader className="border-b border-[var(--border)]">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Shield className="h-4 w-4 text-[var(--primary)]" />
+            Change password
+          </CardTitle>
+          <CardDescription>Use a unique password that meets all of the requirements below.</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-5">
+          <form onSubmit={handleChange} className="space-y-4">
+            <div>
+              <label htmlFor="current-password" className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">Current password</label>
+              <PasswordInput id="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} visibilityLabel="current password" autoComplete="current-password" required />
+            </div>
+            <div>
+              <label htmlFor="new-password" className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">New password</label>
+              <PasswordInput id="new-password" value={newPass} onChange={(e) => setNewPass(e.target.value)} visibilityLabel="new password" autoComplete="new-password" required />
+              <PasswordStrength value={newPass} className="mt-3" />
+            </div>
+            <div>
+              <AssistedPasswordConfirmation
+                id="confirm-password"
+                password={newPass}
+                confirmPassword={confirm}
+                onConfirmPasswordChange={setConfirm}
+                label="Confirm new password"
+              />
+            </div>
+            <Button type="submit" variant="primary" loading={saving} className="w-full">
+              Update password
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <MfaSettings />
     </div>
   );
 }
@@ -1046,10 +1064,7 @@ export function AccountSecurityPage() {
   return (
     <div>
       <PageHeader title="Account Security" subtitle="Manage your password and two-factor authentication" />
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
-        <SecuritySettingsPage />
-        <MfaSettings />
-      </div>
+      <SecuritySettingsPage />
     </div>
   );
 }

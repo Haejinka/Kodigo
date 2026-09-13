@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingCart, Package,
@@ -32,7 +32,8 @@ const navItems: NavItem[] = [
   { label: 'Rankings', path: '/rankings', icon: Trophy, roles: ['admin'] },
   { label: 'Sales Reports', path: '/reports', icon: FileSpreadsheet, roles: ['admin', 'inventory'] },
   { label: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
-  { label: 'Account Security', path: '/account/security', icon: Settings, roles: ['admin', 'cashier', 'inventory', 'super_admin'] },
+  // Admins access security from Settings; keep this shortcut for roles without the admin settings area.
+  { label: 'Account Security', path: '/account/security', icon: Settings, roles: ['cashier', 'inventory', 'super_admin'] },
 ];
 
 interface SidebarProps {
@@ -74,7 +75,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-2">
+      <nav className="flex-1 overflow-y-auto py-3" aria-label="Primary navigation">
         {filtered.map((item) => {
           const Icon = item.icon;
           const badge = item.badgeKey === 'stockAlerts'
@@ -86,12 +87,13 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <NavLink
               key={item.path}
               to={item.path}
+              title={collapsed ? item.label : undefined}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors relative',
+                  'relative flex min-h-11 items-center gap-3 px-4 py-2.5 text-sm font-medium transition-[background-color,color] duration-150',
                   isActive
-                    ? 'bg-[var(--app-accent-soft)] text-[#60A5FA] border-r-2 border-[var(--app-accent)]'
-                    : 'text-gray-600 hover:bg-[var(--app-surface-elevated)] hover:text-gray-900'
+                    ? 'border-r-2 border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]'
+                    : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]'
                 )
               }
             >
@@ -100,7 +102,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               {badge > 0 && (
                 <span
                   className={cn(
-                    'ml-auto bg-red-500 text-white text-xs rounded-full font-semibold leading-none px-1.5 py-0.5',
+                    'ml-auto rounded-full bg-[var(--destructive)] px-1.5 py-0.5 text-xs font-semibold leading-none text-white',
                     collapsed && 'absolute top-1 right-1'
                   )}
                 >
@@ -115,7 +117,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Collapse toggle */}
       <button
         onClick={onToggle}
-        className="absolute -right-3 top-6 z-10 w-6 h-6 rounded-full border shadow-sm flex items-center justify-center transition-colors bg-[var(--app-surface-card)] border-[var(--app-border)] hover:bg-[var(--app-surface-elevated)]"
+        className="absolute -right-3 top-6 z-10 flex size-7 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] shadow-sm transition-colors hover:bg-[var(--muted)]"
         aria-label="Toggle sidebar"
       >
         {collapsed ? (
@@ -146,21 +148,30 @@ export function MobileSidebarDrawer({ open, onClose }: MobileDrawerProps) {
   const stockUnreadCount = alerts.filter((alert) => !alert.isRead).length;
   const branding = useActiveBranding();
 
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [onClose, open]);
+
   if (!open) return null;
 
   return (
     <>
-      <div className="fixed inset-0 z-30 bg-black/40" onClick={onClose} />
-      <aside className="fixed left-0 top-0 bottom-0 z-40 w-64 shadow-xl flex flex-col bg-[var(--app-surface-nav)] border-r border-[var(--app-border)]">
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-[var(--app-border)]">
+      <button type="button" aria-label="Close navigation" className="fixed inset-0 z-30 cursor-default bg-black/40" onClick={onClose} />
+      <aside role="dialog" aria-modal="true" aria-label="Navigation menu" className="fixed bottom-0 left-0 top-0 z-40 flex w-72 flex-col border-r border-[var(--border)] bg-[var(--card)] shadow-xl">
+        <div className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-4">
           <img
             src={branding.logoUrl}
             alt={branding.businessName || branding.name}
             className="w-5 h-5 rounded-md object-cover"
           />
-          <span className="font-bold text-gray-900">{branding.businessName || branding.name}</span>
+          <span className="font-semibold text-[var(--foreground)]">{branding.businessName || branding.name}</span>
         </div>
-        <nav className="flex-1 overflow-y-auto py-2">
+        <nav className="flex-1 overflow-y-auto py-3" aria-label="Primary navigation">
           {filtered.map((item) => {
             const Icon = item.icon;
             const badge = item.badgeKey === 'stockAlerts'
@@ -171,21 +182,21 @@ export function MobileSidebarDrawer({ open, onClose }: MobileDrawerProps) {
             return (
               <NavLink
                 key={item.path}
-                to={item.path}
-                onClick={onClose}
+              to={item.path}
+              onClick={onClose}
                 className={({ isActive }) =>
                   cn(
-                  'flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors',
+                  'flex min-h-11 items-center gap-3 px-4 py-3 text-sm font-medium transition-[background-color,color] duration-150',
                   isActive
-                      ? 'bg-[var(--app-accent-soft)] text-[#60A5FA] border-r-2 border-[var(--app-accent)]'
-                      : 'text-gray-600 hover:bg-[var(--app-surface-elevated)] hover:text-gray-900'
+                      ? 'border-r-2 border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]'
+                      : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]'
                   )
                 }
               >
                 <Icon className="w-5 h-5 shrink-0" />
                 <span>{item.label}</span>
                 {badge > 0 && (
-                  <span className="ml-auto bg-red-500 text-white text-xs rounded-full font-semibold px-1.5 py-0.5">
+                  <span className="ml-auto rounded-full bg-[var(--destructive)] px-1.5 py-0.5 text-xs font-semibold text-white">
                     {badge > 99 ? '99+' : badge}
                   </span>
                 )}

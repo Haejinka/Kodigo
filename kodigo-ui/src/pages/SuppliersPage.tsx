@@ -113,21 +113,27 @@ export function SuppliersPage() {
       accessor: (s) => (
         <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
           <button
+            type="button"
             onClick={() => navigate(`/suppliers/${s.id}`)}
+            aria-label={`View details for ${s.name}`}
             className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
             title="View details"
           >
             <ExternalLink className="w-4 h-4" />
           </button>
           <button
+            type="button"
             onClick={() => navigate(`/suppliers/${s.id}/edit`)}
+            aria-label={`Edit ${s.name}`}
             className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
             title="Edit supplier"
           >
             <Edit className="w-4 h-4" />
           </button>
           <button
+            type="button"
             onClick={() => setDeleteTarget(s)}
+            aria-label={`Delete ${s.name}`}
             className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
             title="Delete supplier"
           >

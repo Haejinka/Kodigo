@@ -2,13 +2,14 @@ import { cn } from '@/lib/utils';
 import type { StockStatus } from '@/types';
 import { getStockStatus } from '@/types';
 import type { Product } from '@/types';
+import { Badge as ShadcnBadge } from '@/components/ui/badge';
 
 const statusConfig: Record<StockStatus, { label: string; className: string }> = {
-  'in-stock': { label: 'In Stock', className: 'bg-green-100 text-green-700' },
-  low: { label: 'Low Stock', className: 'bg-amber-100 text-amber-700' },
-  critical: { label: 'Critical', className: 'bg-orange-100 text-orange-700' },
-  'out-of-stock': { label: 'Out of Stock', className: 'bg-red-100 text-red-700' },
-  overstock: { label: 'Overstock', className: 'bg-blue-100 text-blue-700' },
+  'in-stock': { label: 'In Stock', className: 'bg-[var(--success-soft)] text-[var(--success-foreground)]' },
+  low: { label: 'Low Stock', className: 'bg-[var(--warning-soft)] text-[var(--warning-foreground)]' },
+  critical: { label: 'Critical', className: 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300' },
+  'out-of-stock': { label: 'Out of Stock', className: 'bg-[var(--destructive-soft)] text-[var(--destructive)]' },
+  overstock: { label: 'Overstock', className: 'bg-[var(--primary-soft)] text-[var(--primary)]' },
 };
 
 interface StockStatusBadgeProps {
@@ -20,9 +21,9 @@ export function StockStatusBadge({ product, className }: StockStatusBadgeProps) 
   const status = getStockStatus(product);
   const config = statusConfig[status];
   return (
-    <span className={cn('inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full', config.className, className)}>
+    <ShadcnBadge variant="outline" className={cn('border-transparent', config.className, className)}>
       {config.label}
-    </span>
+    </ShadcnBadge>
   );
 }
 
@@ -33,18 +34,14 @@ interface BadgeProps {
   className?: string;
 }
 
-const badgeVariants: Record<string, string> = {
-  default: 'bg-gray-100 text-gray-700',
-  success: 'bg-green-100 text-green-700',
-  warning: 'bg-amber-100 text-amber-700',
-  danger: 'bg-red-100 text-red-700',
-  info: 'bg-blue-100 text-blue-700',
+const badgeVariants: Record<string, 'secondary' | 'success' | 'warning' | 'destructive' | 'default'> = {
+  default: 'secondary',
+  success: 'success',
+  warning: 'warning',
+  danger: 'destructive',
+  info: 'default',
 };
 
 export function Badge({ children, variant = 'default', className }: BadgeProps) {
-  return (
-    <span className={cn('inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full', badgeVariants[variant], className)}>
-      {children}
-    </span>
-  );
+  return <ShadcnBadge variant={badgeVariants[variant]} className={className}>{children}</ShadcnBadge>;
 }

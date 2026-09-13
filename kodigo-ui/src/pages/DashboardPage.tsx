@@ -1,7 +1,9 @@
 import { DollarSign, ShoppingBag, TrendingUp, BarChart2, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard } from '@/components/shared/StatCard';
+import { Button } from '@/components/shared/Button';
 import { AlertBadge } from '@/components/shared/AlertBadge';
+import { Card } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import { useAlertStore } from '@/stores/alertStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -13,6 +15,7 @@ import {
   toDateInput,
 } from '@/lib/reporting';
 import type { DateSalesReportRow, SalesGroupReportRow, SalesTransactionReportRow } from '@/lib/reporting';
+import { Link } from 'react-router-dom';
 
 const emptyStats: DashboardStats = {
   todayRevenue: 0,
@@ -81,15 +84,16 @@ export function DashboardPage() {
         subtitle={today}
         actions={
           <div className="flex items-center gap-2">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
+              icon={<RefreshCw className={loading ? 'animate-spin' : undefined} />}
               onClick={() => void fetchStats()}
               disabled={loading}
-              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors px-3 py-1.5 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               Refresh
-            </button>
+            </Button>
           </div>
         }
       />
@@ -99,28 +103,24 @@ export function DashboardPage() {
         <StatCard
           label="Today's Revenue"
           value={formatCurrency(s.todayRevenue)}
-          change={s.revenueChange}
           icon={DollarSign}
           color="blue"
         />
         <StatCard
           label="Transactions"
           value={String(s.todayTransactions)}
-          change={s.transactionsChange}
           icon={ShoppingBag}
           color="green"
         />
         <StatCard
           label="Avg Order Value"
           value={formatCurrency(s.avgOrderValue)}
-          change={s.avgOrderChange}
           icon={TrendingUp}
           color="amber"
         />
         <StatCard
           label="Today's Profit"
           value={formatCurrency(s.todayProfit)}
-          change={s.profitChange}
           icon={BarChart2}
           color="purple"
         />
@@ -130,56 +130,56 @@ export function DashboardPage() {
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Best-selling products */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Best-selling Products</h3>
-            <a href="/rankings" className="text-xs text-blue-600 hover:underline font-medium">View all</a>
+            <h2 className="text-sm font-semibold text-[var(--foreground)]">Best-selling products</h2>
+            <Link to="/rankings" className="text-xs font-medium text-[var(--primary)] hover:underline">View rankings</Link>
           </div>
           <div className="space-y-3">
             {bestSellers.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-6">No completed sales in the last 7 days</p>
+              <p className="py-6 text-center text-sm text-[var(--muted-foreground)]">No completed sales in the last 7 days</p>
             ) : (
               bestSellers.map((row, i) => (
                 <div key={row.key} className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
+                  <span className="flex size-6 items-center justify-center rounded-full bg-[var(--muted)] text-xs font-bold text-[var(--muted-foreground)]">
                     {i + 1}
                   </span>
                     <div className="flex-1 min-w-0 flex flex-col justify-center">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-gray-900 truncate">{row.productName}</p>
+                        <p className="truncate text-sm font-medium text-[var(--foreground)]">{row.productName}</p>
                       </div>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-[var(--muted-foreground)]">
                       {row.netQuantity} sold - {row.sellingOptionLabel || row.unitLabel}
                     </p>
                   </div>
-                  <span className="text-sm font-semibold font-mono text-gray-900">
+                  <span className="font-mono text-sm font-semibold tabular-nums text-[var(--foreground)]">
                     {formatCurrency(row.netRevenue)}
                   </span>
                 </div>
               ))
             )}
           </div>
-        </div>
+        </Card>
 
         {/* Low Stock Alerts */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Stock Alerts</h3>
-            <a href="/restocking" className="text-xs text-blue-600 hover:underline font-medium">View restocking</a>
+            <h2 className="text-sm font-semibold text-[var(--foreground)]">Stock alerts</h2>
+            <Link to="/restocking" className="text-xs font-medium text-[var(--primary)] hover:underline">View restocking</Link>
           </div>
           <div className="space-y-3 max-h-64 overflow-y-auto">
             {alerts.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-6">No active alerts</p>
+              <p className="py-6 text-center text-sm text-[var(--muted-foreground)]">No active alerts</p>
             ) : (
               alerts.map((alert) => (
                 <div key={alert.id} className="flex items-start gap-3">
                   <AlertBadge type={alert.type} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{alert.productName}</p>
+                    <p className="truncate text-sm font-medium text-[var(--foreground)]">{alert.productName}</p>
                     {alert.sellingOptionLabel && (
-                      <p className="text-xs text-gray-400 truncate">{alert.sellingOptionLabel}</p>
+                      <p className="truncate text-xs text-[var(--muted-foreground)]">{alert.sellingOptionLabel}</p>
                     )}
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-[var(--muted-foreground)]">
                       Stock: {alert.currentStock}{alert.unitLabel ? ` ${alert.unitLabel}` : ''} / Min: {alert.minStockLevel}
                     </p>
                   </div>
@@ -187,55 +187,55 @@ export function DashboardPage() {
               ))
             )}
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* Sales Trend */}
-      <div className="mt-6 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <Card className="mt-6 p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-gray-900">7-Day Sales Trend</h3>
-          <a href="/reports" className="text-xs text-blue-600 hover:underline font-medium">Open Sales Reports</a>
+          <h2 className="text-sm font-semibold text-[var(--foreground)]">7-day sales trend</h2>
+          <Link to="/reports" className="text-xs font-medium text-[var(--primary)] hover:underline">Open sales reports</Link>
         </div>
         {trend.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-6">No sales trend available yet</p>
+          <p className="py-6 text-center text-sm text-[var(--muted-foreground)]">No sales trend available yet</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
             {trend.map((row) => (
-              <div key={row.date} className="rounded-lg border border-gray-100 px-3 py-2">
-                <p className="text-xs text-gray-400">{new Date(row.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}</p>
-                <p className="font-mono text-sm font-bold text-gray-900 mt-1">{formatCurrency(row.netSales)}</p>
-                <p className="text-[11px] text-gray-400">{row.transactions} txns</p>
+              <div key={row.date} className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2">
+                <p className="text-xs text-[var(--muted-foreground)]">{new Date(row.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}</p>
+                <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-[var(--foreground)]">{formatCurrency(row.netSales)}</p>
+                <p className="text-[11px] text-[var(--muted-foreground)]">{row.transactions} txns</p>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Recent Transactions */}
-      <div className="mt-6 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <Card className="mt-6 p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            Recent Transactions
-          </h3>
-          <a href="/analytics" className="text-xs text-blue-600 hover:underline font-medium">View all</a>
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]">
+            <span className="size-2 rounded-full bg-[var(--success)]" aria-hidden="true" />
+            Recent transactions
+          </h2>
+          <Link to="/analytics" className="text-xs font-medium text-[var(--primary)] hover:underline">View analytics</Link>
         </div>
         {recent.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-6">No transactions recorded yet</p>
+          <p className="py-6 text-center text-sm text-[var(--muted-foreground)]">No transactions recorded yet</p>
         ) : (
           <div className="space-y-3">
             {recent.map((r) => (
               <div key={r.saleId} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="text-sm text-gray-700">{new Date(r.dateTime).toLocaleString()}</div>
-                  <div className="text-sm text-gray-500">{r.cashierName}</div>
+                  <div className="text-sm text-[var(--foreground)]">{new Date(r.dateTime).toLocaleString()}</div>
+                  <div className="text-sm text-[var(--muted-foreground)]">{r.cashierName}</div>
                 </div>
-                <div className="text-sm font-mono text-gray-900">{formatCurrency(r.netSales)}</div>
+                <div className="font-mono text-sm font-medium tabular-nums text-[var(--foreground)]">{formatCurrency(r.netSales)}</div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

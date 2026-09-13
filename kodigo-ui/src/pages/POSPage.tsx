@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Store, Hash, LogOut, ReceiptText, LayoutDashboard, Shield } from 'lucide-react';
+import { Clock, Store, Hash, LogOut, ReceiptText, LayoutDashboard, Shield, Moon, Sun } from 'lucide-react';
 import { ProductSearchPanel } from '@/components/pos/ProductSearchPanel';
 import { Cart } from '@/components/pos/Cart';
 import { PaymentModal } from '@/components/pos/PaymentModal';
@@ -8,6 +8,7 @@ import { TransactionLifecyclePanel } from '@/components/pos/TransactionLifecycle
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useThemeStore } from '@/stores/themeStore';
 import type { Product, ProductSellingOption } from '@/types';
 
 function useClock() {
@@ -27,6 +28,8 @@ export function POSPage() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [lifecycleOpen, setLifecycleOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const mode = useThemeStore((s) => s.mode);
+  const toggleMode = useThemeStore((s) => s.toggleMode);
   const clock = useClock();
 
   const handleLogout = async () => {
@@ -162,7 +165,20 @@ export function POSPage() {
         <div className="w-px h-5 bg-gray-200" />
 
         <button
-          onClick={() => navigate('/account/security')}
+          type="button"
+          onClick={toggleMode}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] px-2.5 text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--muted)]"
+          aria-label={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}
+          title={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}
+        >
+          {mode === 'dark' ? <Moon className="h-4 w-4 text-blue-400" /> : <Sun className="h-4 w-4 text-amber-500" />}
+          <span className="hidden sm:inline capitalize">{mode}</span>
+        </button>
+
+        <div className="w-px h-5 bg-gray-200" />
+
+        <button
+          onClick={() => navigate(role === 'admin' ? '/settings/security' : '/account/security')}
           className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-blue-700 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg transition-colors"
           title="Account security"
         >

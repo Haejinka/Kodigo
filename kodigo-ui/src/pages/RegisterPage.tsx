@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
+import { PasswordInput } from '@/components/shared/PasswordInput';
+import { isSecurePassword, PasswordStrength } from '@/components/ui/password-strength';
 import { supabase } from '@/lib/supabase';
 
 export function RegisterPage() {
@@ -12,7 +14,6 @@ export function RegisterPage() {
   const [password, setPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -25,6 +26,9 @@ export function RegisterPage() {
     try {
       if (!inviteCode.trim()) {
         throw new Error("An Admin Invite Code is required to register an owner account.");
+      }
+      if (!isSecurePassword(password)) {
+        throw new Error('Choose a stronger password that meets all requirements.');
       }
 
       const { error: signUpError } = await supabase.auth.signUp({
@@ -112,23 +116,15 @@ export function RegisterPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3 py-2.5 pr-10 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Create a strong password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
+              <PasswordInput
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                visibilityLabel="password"
+                autoComplete="new-password"
+                placeholder="Create a strong password"
+                required
+              />
+              <PasswordStrength value={password} className="mt-3" />
             </div>
 
             <div className="pt-2">

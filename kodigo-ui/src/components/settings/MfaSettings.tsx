@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Check, Copy, KeyRound, ShieldCheck, Smartphone } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
+import { Badge } from '@/components/shared/Badge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/shared/Toast';
 import { supabase } from '@/lib/supabase';
 import { listTotpFactors, verifyTotpFactor, type TotpFactor } from '@/lib/mfa';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 
 interface Enrollment {
   factorId: string;
@@ -110,34 +113,35 @@ export function MfaSettings() {
   const verifiedFactors = factors.filter((factor) => factor.status === 'verified');
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 max-w-xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4" /> Two-Factor Authentication
-          </h3>
-          <p className="text-sm text-gray-500 mt-1">
+    <Card className="max-w-xl">
+      <CardHeader className="flex-row items-start justify-between gap-4 border-b border-[var(--border)]">
+        <div className="min-w-0">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ShieldCheck className="h-4 w-4 text-[var(--primary)]" /> Two-factor authentication
+          </CardTitle>
+          <CardDescription>
             Protect your account with a time-based code from an authenticator app.
-          </p>
+          </CardDescription>
         </div>
         {!loading && (
-          <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${verifiedFactors.length ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+          <Badge variant={verifiedFactors.length ? 'success' : 'default'} className="shrink-0">
             {verifiedFactors.length ? 'Enabled' : 'Not enabled'}
-          </span>
+          </Badge>
         )}
-      </div>
+      </CardHeader>
 
-      {loading ? (
-        <p className="text-sm text-gray-500 py-6">Loading MFA settings...</p>
+      <CardContent>
+        {loading ? (
+        <p className="py-6 text-sm text-[var(--muted-foreground)]">Loading MFA settings…</p>
       ) : enrollment ? (
         <form onSubmit={completeEnrollment} className="mt-5 space-y-4">
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-            <p className="text-sm font-medium text-blue-900">1. Scan this QR code</p>
-            <p className="text-xs text-blue-700 mt-1">Use Google Authenticator, Microsoft Authenticator, Authy, or another TOTP app.</p>
+          <div className="rounded-xl border border-[var(--primary)]/20 bg-[var(--primary-soft)] p-4">
+            <p className="text-sm font-medium text-[var(--primary)]">1. Scan this QR code</p>
+            <p className="mt-1 text-xs text-[var(--muted-foreground)]">Use Google Authenticator, Microsoft Authenticator, Authy, or another TOTP app.</p>
             <img src={enrollment.qrCode} alt="Authenticator enrollment QR code" className="w-48 h-48 mx-auto my-4 bg-white rounded-lg" />
-            <p className="text-xs text-blue-700 mb-1">Cannot scan? Enter this setup key:</p>
-            <div className="flex items-center gap-2 bg-white border border-blue-100 rounded-lg px-3 py-2">
-              <code className="text-xs font-mono break-all flex-1 text-gray-800">{enrollment.secret}</code>
+            <p className="mb-1 text-xs text-[var(--muted-foreground)]">Cannot scan? Enter this setup key:</p>
+            <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2">
+              <code className="flex-1 break-all text-xs font-mono text-[var(--foreground)]">{enrollment.secret}</code>
               <button
                 type="button"
                 onClick={async () => {
@@ -145,7 +149,7 @@ export function MfaSettings() {
                   setCopied(true);
                   window.setTimeout(() => setCopied(false), 1500);
                 }}
-                className="p-1.5 text-gray-500 hover:text-blue-600"
+                className="rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--primary)]"
                 aria-label="Copy setup key"
               >
                 {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
@@ -154,15 +158,16 @@ export function MfaSettings() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">2. Enter the 6-digit code</label>
-            <input
+            <label htmlFor="mfa-code" className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">2. Enter the 6-digit code</label>
+            <Input
+              id="mfa-code"
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
               value={code}
               onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-              className="w-full px-3 py-2.5 text-center text-xl tracking-[0.3em] font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-center text-xl font-mono tracking-[0.3em]"
               placeholder="000000"
             />
           </div>
@@ -174,11 +179,11 @@ export function MfaSettings() {
       ) : verifiedFactors.length > 0 ? (
         <div className="mt-5 space-y-3">
           {verifiedFactors.map((factor) => (
-            <div key={factor.id} className="flex items-center gap-3 border border-gray-100 rounded-xl p-3">
-              <div className="w-9 h-9 rounded-lg bg-green-100 flex items-center justify-center"><Smartphone className="w-4 h-4 text-green-700" /></div>
+            <div key={factor.id} className="flex items-center gap-3 rounded-xl border border-[var(--border)] p-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--success-soft)]"><Smartphone className="h-4 w-4 text-[var(--success-foreground)]" /></div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">{factor.friendlyName || 'Authenticator app'}</p>
-                <p className="text-xs text-gray-500">Verified TOTP factor</p>
+                <p className="text-sm font-medium text-[var(--foreground)]">{factor.friendlyName || 'Authenticator app'}</p>
+                <p className="text-xs text-[var(--muted-foreground)]">Verified TOTP factor</p>
               </div>
               <Button variant="danger" size="sm" onClick={() => setRemoveTarget(factor)}>Disable</Button>
             </div>
@@ -202,6 +207,7 @@ export function MfaSettings() {
         onConfirm={removeFactor}
         onCancel={() => setRemoveTarget(null)}
       />
-    </div>
+      </CardContent>
+    </Card>
   );
 }

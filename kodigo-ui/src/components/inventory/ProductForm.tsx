@@ -28,20 +28,20 @@ function Field({
   hint?: string;
 }) {
   return (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">
+    <div className="space-y-1.5">
+      <label className="block text-sm font-medium text-[var(--foreground)]">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       {children}
-      {hint && <p className="text-[11px] leading-snug text-gray-400 mt-0.5">{hint}</p>}
+      {hint && <p className="text-xs leading-5 text-[var(--muted-foreground)]">{hint}</p>}
     </div>
   );
 }
 
-const inputCls = 'w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+const inputCls = 'h-10 w-full rounded-lg border border-[var(--input)] bg-[var(--background)] px-3 py-2 text-base text-[var(--foreground)] shadow-sm outline-none transition-[border-color,box-shadow] placeholder:text-[var(--muted-foreground)] focus-visible:border-[var(--ring)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]/20 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm';
 const selectCls = inputCls;
-const cardCls = 'bg-white rounded-xl border border-gray-200 shadow-sm p-4';
-const titleCls = 'text-sm font-semibold text-gray-900';
+const cardCls = 'rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[var(--shadow-card)]';
+const titleCls = 'text-sm font-semibold text-[var(--foreground)]';
 
 const createSellingOption = (
   storeId: string,

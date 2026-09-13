@@ -26,9 +26,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const toast = useCallback((type: ToastType, message: string) => {
     const id = Math.random().toString(36).slice(2);
     setToasts((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3500);
+    if (type === 'success' || type === 'info') {
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, 3500);
+    }
   }, []);
 
   const dismiss = (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -50,18 +52,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+      <div className="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2 pointer-events-none" aria-live="polite">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={cn(
-              'flex items-start gap-3 px-4 py-3 rounded-xl border shadow-lg bg-white pointer-events-auto animate-in slide-in-from-right-4',
-              bgColors[t.type]
-            )}
+            role={t.type === 'error' ? 'alert' : 'status'}
+            className={cn('flex items-start gap-3 rounded-xl border bg-[var(--card)] px-4 py-3 shadow-lg pointer-events-auto', bgColors[t.type])}
           >
             <span className="mt-0.5">{icons[t.type]}</span>
             <p className="text-sm font-medium text-gray-800 flex-1">{t.message}</p>
-            <button onClick={() => dismiss(t.id)} className="p-0.5 rounded hover:bg-black/10">
+            <button type="button" onClick={() => dismiss(t.id)} aria-label="Dismiss notification" className="rounded p-1 text-gray-500 hover:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]">
               <X className="w-3.5 h-3.5 text-gray-500" />
             </button>
           </div>

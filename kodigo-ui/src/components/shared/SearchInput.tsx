@@ -1,6 +1,7 @@
 import { Search, X } from 'lucide-react';
 import { useRef, useState, useEffect, type AriaRole, type Ref } from 'react';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
 interface SearchInputProps {
   value?: string;
@@ -80,7 +81,7 @@ export function SearchInput({
   return (
     <div className={cn('relative flex items-center', className)}>
       <Search className="absolute left-3 w-4 h-4 text-gray-400 pointer-events-none" />
-      <input
+      <Input
         id={id}
         ref={inputRef}
         type="text"
@@ -92,12 +93,12 @@ export function SearchInput({
         placeholder={placeholder}
         autoFocus={autoFocus}
         role={role}
-        aria-label={ariaLabel}
+        aria-label={ariaLabel ?? placeholder}
         aria-controls={ariaControls}
         aria-expanded={ariaExpanded}
         aria-activedescendant={ariaActiveDescendant}
         aria-autocomplete={ariaAutocomplete}
-        className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400"
+        className="h-10 pl-9 pr-9"
       />
       {internal && (
         <button

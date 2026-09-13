@@ -3,7 +3,34 @@
 
 :root {
   color-scheme: light;
-  --app-bg: #f9fafb;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --border: #e2e8f0;
+  --input: #cbd5e1;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --primary-soft: #eff6ff;
+  --secondary: #f1f5f9;
+  --secondary-hover: #e2e8f0;
+  --secondary-foreground: #334155;
+  --ring: #2563eb;
+  --success: #15803d;
+  --success-soft: #dcfce7;
+  --success-foreground: #166534;
+  --warning: #b45309;
+  --warning-soft: #fef3c7;
+  --warning-foreground: #92400e;
+  --destructive: #b91c1c;
+  --destructive-hover: #991b1b;
+  --destructive-soft: #fee2e2;
+  --destructive-border: #fecaca;
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 18px rgba(15, 23, 42, 0.04);
+  --app-bg: var(--background);
   --app-surface-nav: #ffffff;
   --app-surface-card: #ffffff;
   --app-surface-elevated: #f8fafc;
@@ -22,7 +49,34 @@
 
 .dark {
   color-scheme: dark;
-  --app-bg: #0b1120;
+  --background: #0b1120;
+  --foreground: #f8fafc;
+  --card: #111827;
+  --card-foreground: #f8fafc;
+  --muted: #182235;
+  --muted-foreground: #94a3b8;
+  --border: #253044;
+  --input: #334155;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-foreground: #ffffff;
+  --primary-soft: rgba(59, 130, 246, 0.14);
+  --secondary: #182235;
+  --secondary-hover: #253044;
+  --secondary-foreground: #e2e8f0;
+  --ring: #60a5fa;
+  --success: #4ade80;
+  --success-soft: rgba(34, 197, 94, 0.16);
+  --success-foreground: #86efac;
+  --warning: #fbbf24;
+  --warning-soft: rgba(245, 158, 11, 0.16);
+  --warning-foreground: #fcd34d;
+  --destructive: #f87171;
+  --destructive-hover: #ef4444;
+  --destructive-soft: rgba(239, 68, 68, 0.16);
+  --destructive-border: rgba(248, 113, 113, 0.34);
+  --shadow-card: 0 1px 2px rgba(2, 6, 23, 0.4), 0 12px 28px rgba(2, 6, 23, 0.18);
+  --app-bg: var(--background);
   --app-surface-nav: #0f172a;
   --app-surface-card: #111827;
   --app-surface-elevated: #182235;
@@ -50,7 +104,46 @@ body {
   background-color: var(--app-bg);
   color: var(--app-text-primary);
   -webkit-font-smoothing: antialiased;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 24%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 #root {
@@ -59,14 +152,15 @@ body {
 
 @layer components {
   .report-input {
-    @apply h-11 w-full rounded-xl border px-3 py-2 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500;
-    border-color: var(--app-border);
-    background-color: var(--app-surface-elevated);
-    color: var(--app-text-primary);
+    @apply h-10 w-full rounded-lg border px-3 py-2 text-base shadow-sm outline-none transition-[border-color,box-shadow] focus-visible:ring-2 sm:text-sm;
+    border-color: var(--input);
+    background-color: var(--background);
+    color: var(--foreground);
+    --tw-ring-color: color-mix(in srgb, var(--ring) 20%, transparent);
   }
 
   .report-input:hover {
-    border-color: color-mix(in srgb, var(--app-border) 65%, var(--app-accent) 35%);
+    border-color: color-mix(in srgb, var(--input) 65%, var(--primary) 35%);
   }
 
   button[data-variant="secondary"] {

@@ -1,34 +1,45 @@
-import { Bell, Check, CheckCheck, RefreshCw, X } from 'lucide-react';
+import { AlertTriangle, Bell, Check, CheckCheck, CircleCheck, CircleX, Info, RefreshCw, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
+import { Badge } from '@/components/shared/Badge';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn, formatDateTime } from '@/lib/utils';
 import { useAlertStore } from '@/stores/alertStore';
 import type { AppNotification } from '@/types';
 
 const typeLabels: Record<string, string> = {
-  low_stock: 'Low Stock',
-  out_of_stock: 'Out of Stock',
-  stock_adjustment: 'Stock Adjustment',
-  sack_conversion: 'Sack Conversion',
-  sale_completed: 'Sale Completed',
-  sale_voided: 'Sale Voided',
-  sale_refunded: 'Refund Processed',
-  sale_returned: 'Return Processed',
-  report_export_completed: 'Export Completed',
-  report_export_failed: 'Export Failed',
-  system_error: 'System Error',
-};
-
-const severityStyles: Record<string, string> = {
-  info: 'bg-blue-50 text-blue-700 border-blue-100',
-  success: 'bg-green-50 text-green-700 border-green-100',
-  warning: 'bg-amber-50 text-amber-700 border-amber-100',
-  critical: 'bg-red-50 text-red-700 border-red-100',
-  error: 'bg-red-50 text-red-700 border-red-100',
+  low_stock: 'Low stock',
+  out_of_stock: 'Out of stock',
+  stock_adjustment: 'Stock adjustment',
+  sack_conversion: 'Sack conversion',
+  sale_completed: 'Sale completed',
+  sale_voided: 'Sale voided',
+  sale_refunded: 'Refund processed',
+  sale_returned: 'Return processed',
+  report_export_completed: 'Export completed',
+  report_export_failed: 'Export failed',
+  system_error: 'System error',
 };
 
 const formatType = (type: string) =>
   typeLabels[type] ?? type.split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+
+type NotificationVariant = 'default' | 'success' | 'warning' | 'danger' | 'info';
+
+const severityConfig: Record<string, {
+  label: string;
+  variant: NotificationVariant;
+  icon: React.ComponentType<{ className?: string }>;
+}> = {
+  info: { label: 'Info', variant: 'info', icon: Info },
+  success: { label: 'Success', variant: 'success', icon: CircleCheck },
+  warning: { label: 'Warning', variant: 'warning', icon: AlertTriangle },
+  critical: { label: 'Critical', variant: 'danger', icon: CircleX },
+  error: { label: 'Error', variant: 'danger', icon: CircleX },
+};
 
 function NotificationRow({
   notification,
@@ -39,54 +50,88 @@ function NotificationRow({
   onRead: (id: string) => void;
   onDismiss: (id: string) => void;
 }) {
+  const severity = severityConfig[notification.severity] ?? severityConfig.info;
+  const SeverityIcon = severity.icon;
+
   return (
-    <article className={cn(
-      'bg-white border border-gray-200 rounded-lg p-4 shadow-sm',
-      !notification.isRead && 'border-blue-200 bg-blue-50/30'
-    )}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <Card
+      role="listitem"
+      className={cn(
+        'p-4 sm:p-5',
+        !notification.isRead && 'border-l-4 border-l-[var(--primary)] bg-[var(--primary-soft)]/20',
+      )}
+    >
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={cn(
-              'text-xs font-semibold px-2 py-0.5 rounded-full border',
-              severityStyles[notification.severity] ?? severityStyles.info
-            )}>
-              {notification.severity}
-            </span>
-            <span className="text-xs font-medium text-gray-500">{formatType(notification.type)}</span>
-            {!notification.isRead && <span className="text-xs font-semibold text-blue-700">Unread</span>}
+            <Badge variant={severity.variant} className="gap-1">
+              <SeverityIcon className="size-3.5" aria-hidden="true" />
+              {severity.label}
+            </Badge>
+            <span className="text-xs font-medium text-[var(--muted-foreground)]">{formatType(notification.type)}</span>
+            {!notification.isRead && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)]">
+                <span className="size-1.5 rounded-full bg-[var(--primary)]" aria-hidden="true" />
+                Unread
+              </span>
+            )}
           </div>
-          <h2 className="mt-2 text-base font-semibold text-gray-900">{notification.title}</h2>
-          <p className="mt-1 text-sm text-gray-600 leading-relaxed">{notification.message}</p>
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
-            <span>{formatDateTime(notification.createdAt)}</span>
+
+          <h2 className="mt-3 text-base font-semibold leading-6 text-[var(--foreground)]">{notification.title}</h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--muted-foreground)] text-pretty">{notification.message}</p>
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--muted-foreground)]">
+            <time dateTime={notification.createdAt}>{formatDateTime(notification.createdAt)}</time>
             {notification.productName && <span>{notification.productName}</span>}
             {notification.sellingOptionLabel && <span>{notification.sellingOptionLabel}</span>}
           </div>
         </div>
-        <div className="flex items-center gap-2 sm:justify-end">
+
+        <div className="flex shrink-0 items-center gap-1.5 md:pt-0.5">
           {!notification.isRead && (
             <Button
-              variant="secondary"
+              variant="outline"
               size="sm"
-              icon={<Check className="w-4 h-4" />}
+              icon={<Check />}
               onClick={() => onRead(notification.id)}
             >
               Mark read
             </Button>
           )}
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
+            icon={<X />}
             onClick={() => onDismiss(notification.id)}
-            className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
             aria-label="Dismiss notification"
-            title="Dismiss"
+            title="Dismiss notification"
+            className="!size-9 !p-0 text-[var(--muted-foreground)] hover:text-[var(--destructive)]"
           >
-            <X className="w-4 h-4" />
-          </button>
+            <span className="sr-only">Dismiss notification</span>
+          </Button>
         </div>
       </div>
-    </article>
+    </Card>
+  );
+}
+
+function NotificationLoadingState() {
+  return (
+    <div className="space-y-3" role="status" aria-live="polite">
+      <span className="sr-only">Loading notifications…</span>
+      {Array.from({ length: 4 }).map((_, index) => (
+        <Card key={index} className="space-y-3 p-5">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-6 w-20" />
+            <Skeleton className="h-4 w-28" />
+          </div>
+          <Skeleton className="h-5 w-56" />
+          <Skeleton className="h-4 w-full max-w-2xl" />
+          <Skeleton className="h-3 w-32" />
+        </Card>
+      ))}
+    </div>
   );
 }
 
@@ -102,16 +147,20 @@ export function NotificationsPage() {
     dismiss,
   } = useAlertStore();
 
+  const subtitle = unreadCount === 0
+    ? 'You’re all caught up'
+    : `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'}`;
+
   return (
     <div>
       <PageHeader
         title="Notifications"
-        subtitle={`${unreadCount} unread notification${unreadCount === 1 ? '' : 's'}`}
+        subtitle={subtitle}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button
               variant="secondary"
-              icon={<RefreshCw className="w-4 h-4" />}
+              icon={<RefreshCw />}
               onClick={() => void fetchNotifications()}
               loading={isLoading}
             >
@@ -119,7 +168,7 @@ export function NotificationsPage() {
             </Button>
             <Button
               variant="primary"
-              icon={<CheckCheck className="w-4 h-4" />}
+              icon={<CheckCheck />}
               onClick={() => void markAllRead()}
               disabled={unreadCount === 0}
             >
@@ -130,28 +179,22 @@ export function NotificationsPage() {
       />
 
       {isLoading ? (
-        <div className="bg-white border border-gray-200 rounded-lg p-10 text-center text-sm text-gray-500">
-          Loading notifications...
-        </div>
+        <NotificationLoadingState />
       ) : error ? (
-        <div className="bg-white border border-red-100 rounded-lg p-10 text-center">
-          <p className="text-sm font-medium text-red-600">{error}</p>
-          <button
-            type="button"
-            onClick={() => void fetchNotifications()}
-            className="mt-3 text-sm font-medium text-blue-600 hover:underline"
-          >
-            Retry
-          </button>
-        </div>
+        <Alert variant="destructive" className="flex flex-wrap items-center justify-between gap-3">
+          <AlertDescription>{error}</AlertDescription>
+          <Button variant="outline" size="sm" onClick={() => void fetchNotifications()}>Retry</Button>
+        </Alert>
       ) : notifications.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-lg p-10 text-center">
-          <Bell className="w-8 h-8 text-gray-300 mx-auto" />
-          <p className="mt-3 text-sm font-medium text-gray-700">No notifications</p>
-          <p className="mt-1 text-sm text-gray-500">New store activity and system events will appear here.</p>
-        </div>
+        <Card>
+          <EmptyState
+            icon={Bell}
+            title="No notifications"
+            description="New store activity and system events will appear here."
+          />
+        </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3" role="list" aria-label="Notifications">
           {notifications.map((notification) => (
             <NotificationRow
               key={notification.id}

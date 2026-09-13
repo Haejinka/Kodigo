@@ -493,7 +493,9 @@ export function InventoryPage() {
           {p.storeId !== 'combined' && (
             <>
               <button
+                type="button"
                 onClick={() => setAdjustTarget(p)}
+                aria-label={`Adjust stock for ${p.name}`}
                 className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
                 title="Adjust stock"
               >
@@ -503,7 +505,9 @@ export function InventoryPage() {
                 getProductSellingOptions(p).some((option) => option.kind === 'sack' && option.quantityValue) &&
                 getProductSellingOptions(p).some((option) => option.kind === 'kilo' || option.unitLabel.toLowerCase() === 'kg') && (
                   <button
+                    type="button"
                     onClick={() => setConvertTarget(p)}
+                    aria-label={`Open sack stock for ${p.name}`}
                     className="p-1.5 rounded-lg hover:bg-purple-50 text-gray-400 hover:text-purple-600 transition-colors"
                     title="Open sack into kilo stock"
                   >
@@ -511,14 +515,18 @@ export function InventoryPage() {
                   </button>
                 )}
               <button
+                type="button"
                 onClick={() => navigate(`/inventory/products/${p.id}`)}
+                aria-label={`Edit ${p.name}`}
                 className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
                 title="Edit"
               >
                 <Edit className="w-4 h-4" />
               </button>
               {role === 'admin' && <button
+                type="button"
                 onClick={() => setDeleteTarget(p)}
+                aria-label={`Delete ${p.name}`}
                 className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
                 title="Delete"
               >

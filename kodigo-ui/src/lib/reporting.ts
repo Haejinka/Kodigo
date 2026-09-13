@@ -6,6 +6,7 @@ import {
   getSaleItemUnitLabel,
   getSellingOptionLabel,
 } from '@/types';
+import { normalizeSaleLineQuantityToBaseUnits } from '@/lib/sales-velocity';
 import type { PaymentMethod, Product, SaleStatus, UserRole } from '@/types';
 import type { Cell, Sheet } from 'write-excel-file/browser';
 
@@ -70,6 +71,7 @@ export interface SalesLineReportRow {
   unitLabel: string;
   packageSize?: number;
   packageUnit?: string;
+  stockSource?: string;
   quantity: number;
   returnedQuantity: number;
   netQuantity: number;
@@ -212,6 +214,7 @@ interface SaleItemRow {
   unit_label: string | null;
   package_size: number | null;
   package_unit: string | null;
+  stock_source: string | null;
   quantity: number;
   unit_price: number;
   cost_price: number | null;
@@ -426,6 +429,56 @@ export async function fetchSalesReport(
   ]);
 
   return buildSalesReport(normalizedFilters, sales, items, payments, returnedItems, cashierNames);
+}
+
+export interface SalesVelocityAggregateRow {
+  productId: string;
+  unitsSold: number;
+}
+
+/**
+ * Load already-aggregated base-unit sales for the velocity screen. The RPC is
+ * intentionally separate from the financial report because inventory users can
+ * view velocity without receiving direct access to sales transactions.
+ */
+export async function fetchSalesVelocity(
+  days: number,
+  activeStoreId: string | 'all' | null,
+  products: Product[],
+): Promise<SalesVelocityAggregateRow[]> {
+  const range = getDateRangeForDays(days);
+  const { startIso, endIso } = normalizeDateRange({ ...range, paymentMethod: 'all', status: 'completed' });
+  const { data, error } = await supabase.rpc('get_sales_velocity', {
+    p_store_id: activeStoreId === 'all' ? null : activeStoreId,
+    p_start_at: startIso,
+    p_end_at: endIso,
+  });
+
+  if (!error) {
+    return (data ?? [])
+      .map((row: any) => ({ productId: row.product_id, unitsSold: toNumber(row.units_sold) }))
+      .filter((row: SalesVelocityAggregateRow) => row.productId && row.unitsSold > 0);
+  }
+
+  // Keep older environments usable until migration 32 is applied. The normal
+  // path remains the database aggregate above, so the frontend never receives
+  // historical transactions for a current installation.
+  if (!isMissingVelocityRpcError(error)) throw error;
+
+  const report = await fetchSalesReport(
+    { ...range, paymentMethod: 'all', status: 'completed' },
+    activeStoreId,
+  );
+  const productById = new Map(products.map((product) => [product.id, product]));
+  const totals = new Map<string, number>();
+  for (const line of report.saleLines) {
+    if (!line.productId) continue;
+    const product = productById.get(line.productId);
+    if (!product) continue;
+    const units = normalizeSaleLineQuantityToBaseUnits(line, product);
+    if (units > 0) totals.set(line.productId, (totals.get(line.productId) ?? 0) + units);
+  }
+  return Array.from(totals, ([productId, unitsSold]) => ({ productId, unitsSold }));
 }
 
 export async function exportReportsWorkbook(input: {
@@ -744,6 +797,7 @@ function mapSaleLine(
     unitLabel: item.unit_label || 'unit',
     packageSize: item.package_size == null ? undefined : item.package_size,
     packageUnit: item.package_unit || undefined,
+    stockSource: item.stock_source || undefined,
     quantity: item.quantity,
     returnedQuantity,
     netQuantity: Math.max(0, item.quantity - returnedQuantity),
@@ -824,7 +878,7 @@ function finalizeGroups(map: Map<string, SalesGroupReportRow[]> | Map<string, Sa
 async function fetchSaleItems(saleIds: string[]): Promise<SaleItemRow[]> {
   const { data, error } = await supabase
     .from('sale_items')
-    .select('id,sale_id,product_id,product_name,category_name,selling_option_id,selling_option_label,unit_label,package_size,package_unit,quantity,unit_price,cost_price,line_total')
+    .select('id,sale_id,product_id,product_name,category_name,selling_option_id,selling_option_label,unit_label,package_size,package_unit,stock_source,quantity,unit_price,cost_price,line_total')
     .in('sale_id', saleIds)
     .limit(5000);
 
@@ -840,6 +894,7 @@ async function fetchSaleItems(saleIds: string[]): Promise<SaleItemRow[]> {
     unit_label: row.unit_label ?? 'unit',
     package_size: row.package_size == null ? null : toNumber(row.package_size),
     package_unit: row.package_unit ?? null,
+    stock_source: row.stock_source ?? null,
     quantity: toNumber(row.quantity),
     unit_price: toNumber(row.unit_price),
     cost_price: toNumber(row.cost_price),
@@ -932,6 +987,12 @@ function normalizeDateRange(filters: ReportFilters) {
   const start = new Date(`${filters.startDate}T00:00:00`);
   const end = new Date(`${filters.endDate || filters.startDate}T23:59:59.999`);
   return { startIso: start.toISOString(), endIso: end.toISOString() };
+}
+
+function isMissingVelocityRpcError(error: { code?: string; message?: string }) {
+  return error.code === '42883'
+    || error.code === 'PGRST202'
+    || /get_sales_velocity/i.test(error.message || '');
 }
 
 function createEmptySalesReport(filters: ReportFilters): SalesReportData {

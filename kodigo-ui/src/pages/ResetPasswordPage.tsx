@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/shared/Button';
+import { PasswordInput } from '@/components/shared/PasswordInput';
+import { AssistedPasswordConfirmation } from '@/components/ui/assisted-password-confirmation';
+import { isSecurePassword, PasswordStrength } from '@/components/ui/password-strength';
 import { supabase } from '@/lib/supabase';
 
 export function ResetPasswordPage() {
@@ -28,8 +31,8 @@ export function ResetPasswordPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+    if (!isSecurePassword(password)) {
+      setError('Choose a stronger password that meets all requirements.');
       return;
     }
     if (password !== confirmPassword) {
@@ -64,24 +67,21 @@ export function ResetPasswordPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">New password</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                visibilityLabel="new password"
                 required
                 autoComplete="new-password"
               />
+              <PasswordStrength value={password} className="mt-3" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm new password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                autoComplete="new-password"
+              <AssistedPasswordConfirmation
+                password={password}
+                confirmPassword={confirmPassword}
+                onConfirmPasswordChange={setConfirmPassword}
+                label="Confirm new password"
               />
             </div>
             {error && <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">{error}</div>}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, FileSpreadsheet, Printer, RefreshCw } from 'lucide-react';
+import { FileSpreadsheet, Printer, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
 import { StatCard } from '@/components/shared/StatCard';
@@ -211,7 +211,7 @@ export function ReportsPage() {
       />
 
       <div className="mb-6 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-card)] p-4 shadow-sm">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
           <FilterField label="Start">
             <input
               type="date"
@@ -274,35 +274,23 @@ export function ReportsPage() {
               ))}
             </select>
           </FilterField>}
-          <div className="flex items-end">
-            <Button
-              variant="secondary"
-              icon={<Download className="w-4 h-4" />}
-              onClick={handleExport}
-              loading={exporting}
-              disabled={(!report && !inventoryOnly) || !canExport}
-              className="w-full"
-            >
-              XLSX
-            </Button>
-          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {inventoryOnly ? (
           <>
-            <StatCard label="Products" value={String(products.length)} change={0} icon={FileSpreadsheet} color="blue" />
-            <StatCard label="Stock Units" value={String(filteredInventoryRows.reduce((sum, row) => sum + Number(row.stockQuantity), 0))} change={0} icon={FileSpreadsheet} color="green" />
-            <StatCard label="Low / Out of Stock" value={String(filteredInventoryRows.filter((row) => row.stockStatus !== 'in-stock').length)} change={0} icon={FileSpreadsheet} color="amber" />
-            <StatCard label="Movements" value={String(stockMovements.length)} change={0} icon={FileSpreadsheet} color="purple" />
+            <StatCard label="Products" value={String(products.length)} icon={FileSpreadsheet} color="blue" />
+            <StatCard label="Stock Units" value={String(filteredInventoryRows.reduce((sum, row) => sum + Number(row.stockQuantity), 0))} icon={FileSpreadsheet} color="green" />
+            <StatCard label="Low / Out of Stock" value={String(filteredInventoryRows.filter((row) => row.stockStatus !== 'in-stock').length)} icon={FileSpreadsheet} color="amber" />
+            <StatCard label="Movements" value={String(stockMovements.length)} icon={FileSpreadsheet} color="purple" />
           </>
         ) : (
           <>
-            <StatCard label="Net Sales" value={formatCurrency(summary?.netSales ?? 0)} change={0} icon={FileSpreadsheet} color="blue" />
-            <StatCard label="Transactions" value={String(summary?.totalTransactions ?? 0)} change={0} icon={FileSpreadsheet} color="green" />
-            <StatCard label="Items Sold" value={String(summary?.netItemsSold ?? 0)} change={0} icon={FileSpreadsheet} color="amber" />
-            <StatCard label="Gross Profit" value={formatCurrency(summary?.grossProfit ?? 0)} change={0} icon={FileSpreadsheet} color="purple" />
+            <StatCard label="Net Sales" value={formatCurrency(summary?.netSales ?? 0)} icon={FileSpreadsheet} color="blue" />
+            <StatCard label="Transactions" value={String(summary?.totalTransactions ?? 0)} icon={FileSpreadsheet} color="green" />
+            <StatCard label="Items Sold" value={String(summary?.netItemsSold ?? 0)} icon={FileSpreadsheet} color="amber" />
+            <StatCard label="Gross Profit" value={formatCurrency(summary?.grossProfit ?? 0)} icon={FileSpreadsheet} color="purple" />
           </>
         )}
       </div>

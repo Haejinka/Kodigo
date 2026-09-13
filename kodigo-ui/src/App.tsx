@@ -9,6 +9,9 @@ import { syncPendingMutations, syncPendingSales } from '@/lib/offline-sync';
 import { installGlobalErrorLogging } from '@/lib/error-logging';
 import { getMfaRequirement } from '@/lib/mfa';
 import { MfaGate } from '@/components/auth/MfaGate';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/shared/Button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 import { useProductStore } from '@/stores/productStore';
 import { useSupplierStore } from '@/stores/supplierStore';
@@ -48,21 +51,33 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, role } = useAuthStore();
 
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-4">
+        <div className="w-full max-w-xs space-y-3" role="status" aria-live="polite">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+          <span className="sr-only">Loading your workspace…</span>
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (!role) return (
-    <div className="min-h-screen flex flex-col items-center justify-center space-y-4 text-red-600 font-medium">
-      <p>Error: User role could not be verified. Please contact system administrator.</p>
-      <button
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--background)] px-4">
+      <Alert variant="destructive" className="max-w-lg">
+        <AlertDescription>User role could not be verified. Contact your system administrator, then log out and sign in again.</AlertDescription>
+      </Alert>
+      <Button
         onClick={async () => {
           await useAuthStore.getState().logout();
         }}
-        className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition"
+        variant="danger"
+        className="shrink-0"
       >
-        Log Out to Reset Session
-      </button>
+        Log out
+      </Button>
     </div>
   );
   return <MfaGate>{children}</MfaGate>;
@@ -93,6 +108,18 @@ function RequireSuperAdmin({ children }: { children: React.ReactNode }) {
     return <Navigate to="/pos" replace />;
   }
   return <>{children}</>;
+}
+
+function AccountSecurityRoute() {
+  const role = useAuthStore((s) => s.role);
+
+  if (role === 'admin') return <Navigate to="/settings/security" replace />;
+
+  return (
+    <AppShell>
+      <AccountSecurityPage />
+    </AppShell>
+  );
 }
 
 // Admins should use POS on desktop only; redirect them away on mobile
@@ -217,9 +244,7 @@ function AppRoutes() {
         path="/account/security"
         element={
           <RequireAuth>
-            <AppShell>
-              <AccountSecurityPage />
-            </AppShell>
+            <AccountSecurityRoute />
           </RequireAuth>
         }
       />
