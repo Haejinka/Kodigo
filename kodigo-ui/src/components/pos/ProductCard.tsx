@@ -10,12 +10,23 @@ interface ProductCardProps {
 
 export function ProductCard({ product, onAdd }: ProductCardProps) {
   const options = getProductSellingOptions(product);
+  const hasBulkOptions = options.some(isBulkSellingOption);
   const outOfStock = options.every((option) => getAvailableSellingUnits(product, option) <= 0);
   const defaultInStockOption = options.find((option) => getAvailableSellingUnits(product, option) > 0);
 
   const handleCardAdd = () => {
     if (!defaultInStockOption) return;
     onAdd(product, defaultInStockOption);
+  };
+
+  const handleOptionShortcut = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!hasBulkOptions || event.ctrlKey || event.altKey || event.metaKey || event.key < '1' || event.key > '9') return;
+    const optionIndex = Number(event.key) - 1;
+    const shortcutOption = options[optionIndex];
+    if (!shortcutOption || getAvailableSellingUnits(product, shortcutOption) <= 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onAdd(product, shortcutOption);
   };
 
   return (
@@ -25,6 +36,7 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
       aria-disabled={outOfStock}
       onClick={handleCardAdd}
       onKeyDown={(event) => {
+        handleOptionShortcut(event);
         if (outOfStock) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
@@ -50,7 +62,7 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
       <p className="text-xs font-semibold text-gray-900 leading-tight line-clamp-2 mb-1">{product.name}</p>
       <div className="space-y-1.5 mt-2">
         {options.length > 1 && <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Purchase as</p>}
-        {options.map((option) => {
+        {options.map((option, optionIndex) => {
           const status = getStockStatus(product, option);
           const optionOut = getAvailableSellingUnits(product, option) <= 0;
 
@@ -58,6 +70,7 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
             <button
               key={option.id}
               type="button"
+              aria-keyshortcuts={hasBulkOptions && optionIndex < 9 ? String(optionIndex + 1) : undefined}
               onClick={(event) => {
                 event.stopPropagation();
                 if (!optionOut) onAdd(product, option);
@@ -71,7 +84,10 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
               )}
             >
               <span className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-semibold text-gray-700 truncate">{isBulkSellingOption(option) ? `${getSellingOptionLabel(option)} (${getOptionUnitsPerPackage(option)} units)` : `${getSellingOptionLabel(option)} — ${product.unit}`}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  {hasBulkOptions && optionIndex < 9 && <kbd className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded border border-gray-200 bg-gray-50 px-1 text-[9px] font-bold leading-none text-gray-500">{optionIndex + 1}</kbd>}
+                  <span className="truncate text-[11px] font-semibold text-gray-700">{isBulkSellingOption(option) ? `${getSellingOptionLabel(option)} (${getOptionUnitsPerPackage(option)} units)` : `${getSellingOptionLabel(option)} — ${product.unit}`}</span>
+                </span>
                 <span className="text-xs font-bold text-blue-600 font-mono shrink-0">{formatCurrency(option.sellingPrice)}</span>
               </span>
               <span className="flex items-center gap-1 mt-0.5">
