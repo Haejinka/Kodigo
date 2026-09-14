@@ -84,7 +84,7 @@ export async function refundSale(
 export async function fetchSaleItems(saleId: string): Promise<SaleItem[]> {
   const { data, error } = await supabase
     .from('sale_items')
-    .select('id, product_id, product_name, category_name, selling_option_id, selling_option_label, unit_label, package_size, package_unit, stock_source, quantity, unit_price, cost_price, line_total')
+    .select('id, product_id, product_name, category_name, selling_option_id, selling_option_label, unit_label, package_size, package_unit, stock_source, purchase_mode, bulk_option_id, bulk_option_label, bulk_quantity, units_per_package, base_unit_quantity, regular_unit_price, regular_value, bulk_discount_type, bulk_discount_value, bulk_discount_amount, final_selling_price, quantity, unit_price, cost_price, line_total')
     .eq('sale_id', saleId)
     .order('product_name', { ascending: true });
 
@@ -101,6 +101,18 @@ export async function fetchSaleItems(saleId: string): Promise<SaleItem[]> {
     packageSize: row.package_size == null ? undefined : Number(row.package_size),
     packageUnit: row.package_unit ?? undefined,
     stockSource: row.stock_source ?? undefined,
+    purchaseMode: row.purchase_mode ?? undefined,
+    bulkOptionId: row.bulk_option_id ?? undefined,
+    bulkOptionLabel: row.bulk_option_label ?? undefined,
+    bulkQuantity: row.bulk_quantity == null ? undefined : Number(row.bulk_quantity),
+    unitsPerPackage: row.units_per_package == null ? undefined : Number(row.units_per_package),
+    baseUnitQuantity: row.base_unit_quantity == null ? undefined : Number(row.base_unit_quantity),
+    regularUnitPrice: row.regular_unit_price == null ? undefined : Number(row.regular_unit_price),
+    regularValue: row.regular_value == null ? undefined : Number(row.regular_value),
+    bulkDiscountType: row.bulk_discount_type ?? undefined,
+    bulkDiscountValue: row.bulk_discount_value == null ? undefined : Number(row.bulk_discount_value),
+    bulkDiscountAmount: row.bulk_discount_amount == null ? undefined : Number(row.bulk_discount_amount),
+    finalSellingPrice: row.final_selling_price == null ? undefined : Number(row.final_selling_price),
     quantity: Number(row.quantity ?? 0),
     unitPrice: Number(row.unit_price ?? 0),
     costPrice: Number(row.cost_price ?? 0),

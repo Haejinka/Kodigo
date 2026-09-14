@@ -118,7 +118,8 @@ comment on table public.notification_preferences is
 
 create table public.categories (
   id         uuid        primary key default gen_random_uuid(),
-  name       text        not null unique,
+  name       text        not null,
+  owner_id   uuid        references public.profiles(id) on delete restrict,
   created_at timestamptz not null default now()
 );
 

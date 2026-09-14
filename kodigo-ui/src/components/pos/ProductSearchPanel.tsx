@@ -12,6 +12,8 @@ import {
   getProductSellingOptions,
   getSellingOptionLabel,
   getProductOptionStockLabel,
+  getOptionUnitsPerPackage,
+  isBulkSellingOption,
 } from '@/types';
 import type { Product, ProductSellingOption } from '@/types';
 
@@ -227,7 +229,9 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
                   <span className="min-w-0">
                     <span className="block truncate font-semibold text-gray-900">{product.name}</span>
                     <span className="block truncate text-xs text-gray-500">
-                      {getSellingOptionLabel(option)} - {product.sku} {product.barcode ? `- ${product.barcode}` : ''}
+                      {isBulkSellingOption(option)
+                        ? `${getSellingOptionLabel(option)} (${getOptionUnitsPerPackage(option)} ${product.unit}s)`
+                        : `${getSellingOptionLabel(option)} — ${product.unit}`} - {product.sku} {product.barcode ? `- ${product.barcode}` : ''}
                     </span>
                   </span>
                   <span className="shrink-0 text-right">

@@ -362,6 +362,19 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
       throw linkedProductError;
     }
 
+    // Newer databases also track secondary product suppliers in the join
+    // table. Keep the legacy check above for backwards compatibility while
+    // preventing a store unlink from leaving secondary assignments behind.
+    const { count: linkedAdditionalProductCount, error: linkedAdditionalProductError } = await supabase
+      .from('product_suppliers')
+      .select('product_id, products!inner(store_id)', { count: 'exact', head: true })
+      .eq('supplier_id', id)
+      .eq('products.store_id', targetStoreId);
+
+    if (linkedAdditionalProductError && linkedAdditionalProductError.code && linkedAdditionalProductError.code !== '42P01') {
+      throw linkedAdditionalProductError;
+    }
+
     const hasLinkedPurchaseOrders = (linkedPoCount ?? 0) > 0
       || previousPurchaseOrders.some((po) => po.supplierId === id && po.storeId === targetStoreId);
 
@@ -369,7 +382,7 @@ export const useSupplierStore = create<SupplierStore>((set, get) => ({
       throw new Error('Cannot remove this supplier from the selected store while purchase orders still reference it.');
     }
 
-    if ((linkedProductCount ?? 0) > 0) {
+    if ((linkedProductCount ?? 0) > 0 || (linkedAdditionalProductCount ?? 0) > 0) {
       throw new Error('Cannot remove this supplier from the selected store while products still use it. Reassign those products first.');
     }
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Sliders, History, PackageOpen } from 'lucide-react';
+import { Plus, Edit, Trash2, Sliders, History } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
 import { SearchInput } from '@/components/shared/SearchInput';
@@ -18,11 +18,11 @@ import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 import {
   getDefaultSellingOption,
-  getAvailableSellingUnits,
   getProductOptionStockLabel,
   getProductSellingOptions,
   getSellingOptionLabel,
-  getSellingOptionStockLabel,
+  getStockStatus,
+  isBulkSellingOption,
 } from '@/types';
 import type { Product, AdjustmentReason } from '@/types';
 import type { Column } from '@/components/shared/DataTable';
@@ -225,145 +225,10 @@ function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onCl
   ) : null;
 }
 
-function SackConversionModal({
-  product,
-  open,
-  onClose,
-  onSubmit,
-}: {
-  product: Product | null;
-  open: boolean;
-  onClose: () => void;
-  onSubmit: (sackOptionId: string, kiloOptionId: string, sacks: number, note: string) => Promise<void>;
-}) {
-  const [sackOptionId, setSackOptionId] = useState('');
-  const [kiloOptionId, setKiloOptionId] = useState('');
-  const [sacks, setSacks] = useState('1');
-  const [note, setNote] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const options = product ? getProductSellingOptions(product) : [];
-  const sackOptions = options.filter((option) => option.kind === 'sack' && option.quantityValue);
-  const kiloOptions = options.filter((option) => option.kind === 'kilo' || option.unitLabel.toLowerCase() === 'kg');
-  const selectedSack = sackOptions.find((option) => option.id === sackOptionId) ?? sackOptions[0];
-  const selectedKilo = kiloOptions.find((option) => option.id === kiloOptionId) ?? kiloOptions[0];
-  const sackCount = Math.max(1, parseInt(sacks) || 1);
-  const kiloDelta = selectedSack?.quantityValue ? selectedSack.quantityValue * sackCount : 0;
-
-  useEffect(() => {
-    if (!open) return;
-    setSackOptionId(sackOptions[0]?.id ?? '');
-    setKiloOptionId(kiloOptions[0]?.id ?? '');
-    setSacks('1');
-    setNote('');
-  }, [open, product?.id]);
-
-  if (!open || !product) return null;
-
-  const canSubmit = Boolean(selectedSack && selectedKilo && selectedSack.stockQuantity >= sackCount && selectedSack.id !== selectedKilo.id);
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!selectedSack || !selectedKilo || !canSubmit) return;
-    setLoading(true);
-    try {
-      await onSubmit(selectedSack.id, selectedKilo.id, sackCount, note);
-      onClose();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <form onSubmit={handleSubmit} className="relative z-10 bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-bold text-gray-900">Open Sack</h2>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700">Close</button>
-        </div>
-
-        <div className="bg-gray-50 rounded-xl px-4 py-3">
-          <p className="font-medium text-gray-900 text-sm">{product.name}</p>
-          {selectedSack && selectedKilo && (
-            <p className="text-xs text-gray-500 mt-0.5">
-              {sackCount} {getSellingOptionLabel(selectedSack)} adds {kiloDelta} {selectedKilo.unitLabel}
-            </p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Source Sack Stock</label>
-          <select
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={selectedSack?.id ?? ''}
-            onChange={(e) => setSackOptionId(e.target.value)}
-          >
-            {sackOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {getSellingOptionLabel(option)} - {getSellingOptionStockLabel(option)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Destination Kilo Stock</label>
-          <select
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={selectedKilo?.id ?? ''}
-            onChange={(e) => setKiloOptionId(e.target.value)}
-          >
-            {kiloOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {getSellingOptionLabel(option)} - {getSellingOptionStockLabel(option)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Sacks to Open</label>
-          <input
-            type="number"
-            min={1}
-            className="w-full px-3 py-2 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={sacks}
-            onChange={(e) => setSacks(e.target.value)}
-          />
-          {selectedSack && selectedSack.stockQuantity < sackCount && (
-            <p className="text-xs text-red-500 mt-1">Not enough stock for this sack option.</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Note</label>
-          <textarea
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            rows={2}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Optional note"
-          />
-        </div>
-
-        <div className="flex gap-3 pt-1">
-          <Button variant="secondary" type="button" onClick={onClose} className="flex-1">
-            Cancel
-          </Button>
-          <Button variant="primary" type="submit" loading={loading} disabled={!canSubmit} className="flex-1">
-            Convert
-          </Button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
 export function InventoryPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { products, deleteProduct, adjustStock, openSackToKilo, stockAdjustments } = useProductStore();
+  const { products, deleteProduct, adjustStock, stockAdjustments } = useProductStore();
   const { activeStoreId, stores, role } = useAuthStore();
   const [tab, setTab] = useState<Tab>('products');
   const [search, setSearch] = useState('');
@@ -372,7 +237,6 @@ export function InventoryPage() {
   const [viewMode, setViewMode] = useState<'separate' | 'combined'>('separate');
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [adjustTarget, setAdjustTarget] = useState<Product | null>(null);
-  const [convertTarget, setConvertTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
   // Category modal state
   const [catModalOpen, setCatModalOpen] = useState(false);
@@ -388,10 +252,10 @@ export function InventoryPage() {
     const matchesCategory = categoryFilter === 'all' || p.categoryName === categoryFilter;
     const matchesStock = (() => {
       if (stockFilter === 'all') return true;
-      const options = getProductSellingOptions(p);
-      if (stockFilter === 'out') return options.some((option) => getAvailableSellingUnits(p, option) === 0);
-      if (stockFilter === 'low') return options.some((option) => getAvailableSellingUnits(p, option) > 0 && getAvailableSellingUnits(p, option) <= option.lowStockThreshold);
-      if (stockFilter === 'ok') return options.every((option) => getAvailableSellingUnits(p, option) > option.lowStockThreshold);
+      const status = getStockStatus(p);
+      if (stockFilter === 'out') return status === 'out-of-stock';
+      if (stockFilter === 'low') return status === 'low' || status === 'critical';
+      if (stockFilter === 'ok') return status === 'in-stock' || status === 'overstock';
       return true;
     })();
     return matchesSearch && matchesCategory && matchesStock;
@@ -451,14 +315,18 @@ export function InventoryPage() {
     { key: 'category', header: 'Category', accessor: (p) => <span className="text-gray-600">{p.categoryName}</span> },
     {
       key: 'stock',
-      header: 'Option Stock',
+      header: 'Base Stock',
       accessor: (p) => (
         <div className="space-y-1">
-          {getProductSellingOptions(p).map((option) => (
+          <div className="flex items-center gap-2">
+            <span className="font-mono font-semibold text-gray-900">{p.currentStock}</span>
+            <span className="text-xs text-gray-500">{p.unit}s</span>
+            <StockStatusBadge product={p} className="hidden sm:inline-flex" />
+          </div>
+          {getProductSellingOptions(p).filter(isBulkSellingOption).map((option) => (
             <div key={option.id} className="flex items-center gap-2">
               <span className="text-xs text-gray-500 min-w-20 truncate">{getSellingOptionLabel(option)}</span>
-              <span className="font-mono font-semibold text-gray-900">{getProductOptionStockLabel(p, option)}</span>
-              {option.id === getDefaultSellingOption(p).id && <StockStatusBadge product={p} className="hidden sm:inline-flex" />}
+              <span className="font-mono text-xs font-semibold text-blue-700">{getProductOptionStockLabel(p, option)} available</span>
             </div>
           ))}
         </div>
@@ -501,19 +369,6 @@ export function InventoryPage() {
               >
                 <Sliders className="w-4 h-4" />
               </button>
-              {role === 'admin' &&
-                getProductSellingOptions(p).some((option) => option.kind === 'sack' && option.quantityValue) &&
-                getProductSellingOptions(p).some((option) => option.kind === 'kilo' || option.unitLabel.toLowerCase() === 'kg') && (
-                  <button
-                    type="button"
-                    onClick={() => setConvertTarget(p)}
-                    aria-label={`Open sack stock for ${p.name}`}
-                    className="p-1.5 rounded-lg hover:bg-purple-50 text-gray-400 hover:text-purple-600 transition-colors"
-                    title="Open sack into kilo stock"
-                  >
-                    <PackageOpen className="w-4 h-4" />
-                  </button>
-                )}
               <button
                 type="button"
                 onClick={() => navigate(`/inventory/products/${p.id}`)}
@@ -560,18 +415,6 @@ export function InventoryPage() {
     if (!adjustTarget) throw new Error('Select a product before adjusting stock.');
     await adjustStock(adjustTarget.id, sellingOptionId, delta, reason, note, restock);
     setAdjustTarget(null);
-  };
-
-  const handleConvert = async (sackOptionId: string, kiloOptionId: string, sacks: number, note: string) => {
-    if (!convertTarget) return;
-    try {
-      await openSackToKilo(convertTarget.id, sackOptionId, kiloOptionId, sacks, note);
-      toast('success', 'Sack stock converted into kilo stock.');
-      setConvertTarget(null);
-    } catch (err: any) {
-      toast('error', err?.message || 'Failed to convert stock.');
-      throw err;
-    }
   };
 
   const toolbar = (
@@ -728,17 +571,10 @@ export function InventoryPage() {
         purchaseUnit={adjustTarget?.purchaseUnit}
         conversionFactor={adjustTarget?.conversionFactor}
         bulkPurchasePrice={adjustTarget?.bulkPurchasePrice ?? adjustTarget?.costPrice}
-        sellingOptions={adjustTarget?.sellingOptions ?? []}
         onClose={() => setAdjustTarget(null)}
         onSubmit={handleAdjust}
       />
 
-      <SackConversionModal
-        open={!!convertTarget}
-        product={convertTarget}
-        onClose={() => setConvertTarget(null)}
-        onSubmit={handleConvert}
-      />
     </div>
   );
 }

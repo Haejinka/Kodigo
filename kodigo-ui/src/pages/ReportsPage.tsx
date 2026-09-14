@@ -289,7 +289,7 @@ export function ReportsPage() {
           <>
             <StatCard label="Net Sales" value={formatCurrency(summary?.netSales ?? 0)} icon={FileSpreadsheet} color="blue" />
             <StatCard label="Transactions" value={String(summary?.totalTransactions ?? 0)} icon={FileSpreadsheet} color="green" />
-            <StatCard label="Items Sold" value={String(summary?.netItemsSold ?? 0)} icon={FileSpreadsheet} color="amber" />
+            <StatCard label="Base Units Sold" value={String(summary?.netItemsSold ?? 0)} icon={FileSpreadsheet} color="amber" />
             <StatCard label="Gross Profit" value={formatCurrency(summary?.grossProfit ?? 0)} icon={FileSpreadsheet} color="purple" />
           </>
         )}
@@ -361,11 +361,11 @@ export function ReportsPage() {
 
         <ReportSection title="Stock Movement Report">
           <SimpleTable
-            headers={['Date', 'Product', 'Unit', 'Type', 'Change', 'After']}
+            headers={['Date', 'Product', 'Base Unit', 'Type', 'Base Units Changed', 'Base Units After']}
             rows={stockMovements.slice(0, 12).map((row) => [
               new Date(row.dateTime).toLocaleString(),
               row.productName,
-              describeSellingUnit(row),
+              row.unitLabel,
               row.movementType,
               row.quantityDelta,
               row.stockAfter,
@@ -398,13 +398,13 @@ function ReportSection({ title, children }: { title: string; children: React.Rea
 function ProductGroupTable({ rows, compact = false }: { rows: SalesGroupReportRow[]; compact?: boolean }) {
   return (
     <SimpleTable
-      headers={compact ? ['Group', 'Qty', 'Net Sales'] : ['Product', 'Unit', 'Qty', 'Net Sales', 'Profit']}
+      headers={compact ? ['Group', 'Base Units', 'Net Sales'] : ['Product', 'Unit', 'Base Units', 'Net Sales', 'Profit']}
       rows={rows.slice(0, 12).map((row) => compact
-        ? [row.label, row.netQuantity, formatCurrency(row.netRevenue)]
+        ? [row.label, row.netBaseUnitQuantity, formatCurrency(row.netRevenue)]
         : [
           row.productName || row.label,
-          describeSellingUnit(row),
-          row.netQuantity,
+          'Base units',
+          row.netBaseUnitQuantity,
           formatCurrency(row.netRevenue),
           formatCurrency(row.grossProfit),
         ]

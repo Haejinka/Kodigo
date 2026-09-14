@@ -1,12 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ImagePlus, Link, Package, Plus, Star, Trash2, X } from 'lucide-react';
+import { ImagePlus, Link, Package, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { useToast } from '@/components/shared/Toast';
 import { useAuthStore } from '@/stores/authStore';
 import { fetchCategoriesForStore, useProductStore } from '@/stores/productStore';
-import { fetchSuppliersForStore } from '@/stores/supplierStore';
-import type { Category, Product, ProductSellingOption, SellingOptionKind, Supplier } from '@/types';
+import { fetchSuppliersForStore, useSupplierStore } from '@/stores/supplierStore';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { calculateBulkPrice, isBulkSellingOption } from '@/types';
+import type { BulkDiscountType, Category, Product, ProductSellingOption, Supplier } from '@/types';
 
 type ProductFormData = Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'categoryName' | 'supplierName'>;
 
@@ -16,21 +26,17 @@ interface ProductFormProps {
   mode: 'create' | 'edit';
 }
 
-function Field({
-  label,
-  required,
-  children,
-  hint,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-  hint?: string;
-}) {
+const inputCls = 'h-10 w-full rounded-lg border border-[var(--input)] bg-[var(--background)] px-3 py-2 text-base text-[var(--foreground)] shadow-sm outline-none transition-[border-color,box-shadow] placeholder:text-[var(--muted-foreground)] focus-visible:border-[var(--ring)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]/20 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm';
+const cardCls = 'rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[var(--shadow-card)]';
+const titleCls = 'text-sm font-semibold text-[var(--foreground)]';
+const unitChoices = ['piece', 'bottle', 'can', 'stick', 'sachet', 'kg', 'pack', 'box', 'bag', 'tray', 'sack', 'bundle', 'dozen'];
+const supplierPurchaseUnits = ['pack', 'box', 'bag', 'tray', 'case', 'bundle', 'roll', 'dozen'];
+
+function Field({ id, label, required, children, hint }: { id?: string; label: string; required?: boolean; children: ReactNode; hint?: string }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-[var(--foreground)]">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      <label htmlFor={id} className="block text-sm font-medium text-[var(--foreground)]">
+        {label}{required && <span className="ml-0.5 text-red-500">*</span>}
       </label>
       {children}
       {hint && <p className="text-xs leading-5 text-[var(--muted-foreground)]">{hint}</p>}
@@ -38,57 +44,89 @@ function Field({
   );
 }
 
-const inputCls = 'h-10 w-full rounded-lg border border-[var(--input)] bg-[var(--background)] px-3 py-2 text-base text-[var(--foreground)] shadow-sm outline-none transition-[border-color,box-shadow] placeholder:text-[var(--muted-foreground)] focus-visible:border-[var(--ring)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]/20 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm';
-const selectCls = inputCls;
-const cardCls = 'rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-[var(--shadow-card)]';
-const titleCls = 'text-sm font-semibold text-[var(--foreground)]';
+function createBaseOption(storeId: string, initial?: Partial<Product>): ProductSellingOption {
+  return {
+    id: initial?.sellingOptions?.find((option) => !isBulkSellingOption(option))?.id ?? crypto.randomUUID(),
+    productId: initial?.id ?? '',
+    storeId,
+    kind: initial?.unit === 'kg' ? 'kilo' : 'unit',
+    label: initial?.unit ?? 'piece',
+    unitLabel: initial?.unit ?? 'piece',
+    stockQuantity: initial?.currentStock ?? 0,
+    sellingPrice: initial?.sellingPrice ?? 0,
+    lowStockThreshold: initial?.minStockLevel ?? 0,
+    inventoryMultiplier: 1,
+    sharesBaseStock: true,
+    isBulk: false,
+    discountType: 'percent',
+    discountValue: 0,
+    isDefault: true,
+    isActive: true,
+  };
+}
 
-const createSellingOption = (
-  storeId: string,
-  kind: SellingOptionKind = 'unit',
-  seed?: Partial<ProductSellingOption>,
-): ProductSellingOption => {
-  const isKilo = kind === 'kilo';
-  const isSack = kind === 'sack';
+function createBulkOption(storeId: string, unit: string, seed?: Partial<ProductSellingOption>): ProductSellingOption {
+  const seededMultiplier = Number(seed?.inventoryMultiplier) || 0;
+  const unitsPerBulk = Math.max(2, seededMultiplier > 1 ? seededMultiplier : Number(seed?.quantityValue) || seededMultiplier || 2);
+  const discountType: BulkDiscountType = seed?.discountType === 'amount' ? 'amount' : 'percent';
   return {
     id: seed?.id ?? crypto.randomUUID(),
     productId: seed?.productId ?? '',
     storeId,
-    kind,
-    label: seed?.label ?? (isKilo ? 'Per kilo' : isSack ? 'Sack' : 'Unit'),
-    unitLabel: seed?.unitLabel ?? (isKilo ? 'kg' : isSack ? 'sack' : 'piece'),
-    quantityValue: seed?.quantityValue ?? (isKilo ? 1 : undefined),
-    quantityUnit: seed?.quantityUnit ?? (isKilo || isSack ? 'kg' : undefined),
-    stockQuantity: seed?.stockQuantity ?? 0,
+    kind: 'custom',
+    label: seed?.label ?? 'Case',
+    unitLabel: unit,
+    quantityValue: unitsPerBulk,
+    quantityUnit: unit,
+    stockQuantity: 0,
     sellingPrice: seed?.sellingPrice ?? 0,
-    lowStockThreshold: seed?.lowStockThreshold ?? 0,
-    inventoryMultiplier: seed?.inventoryMultiplier ?? 1,
-    sharesBaseStock: seed?.sharesBaseStock ?? kind === 'unit',
-    isDefault: seed?.isDefault ?? false,
-    isActive: seed?.isActive ?? true,
+    lowStockThreshold: 0,
+    inventoryMultiplier: unitsPerBulk,
+    sharesBaseStock: true,
+    isBulk: true,
+    discountType,
+    discountValue: Math.max(0, Number(seed?.discountValue ?? 0)),
+    isDefault: false,
+    isActive: seed?.isActive !== false,
     createdAt: seed?.createdAt,
     updatedAt: seed?.updatedAt,
   };
-};
+}
+
+function getInitialOptions(storeId: string, initial?: Partial<Product>) {
+  const base = createBaseOption(storeId, initial);
+  const bulkOptions = (initial?.sellingOptions ?? [])
+    .filter((option) => isBulkSellingOption(option))
+    .map((option) => createBulkOption(storeId, initial?.unit ?? 'piece', option));
+  return [base, ...bulkOptions];
+}
 
 export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const fetchCategories = useProductStore((s) => s.fetchCategories);
-  const addCategory = useProductStore((s) => s.addCategory);
-  const seedDefaultCategories = useProductStore((s) => s.seedDefaultCategories);
   const { stores, activeStoreId, role } = useAuthStore();
+  const fetchCategories = useProductStore((state) => state.fetchCategories);
+  const addCategory = useProductStore((state) => state.addCategory);
+  const seedDefaultCategories = useProductStore((state) => state.seedDefaultCategories);
+  const addSupplier = useSupplierStore((state) => state.addSupplier);
   const [loading, setLoading] = useState(false);
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [storeCategories, setStoreCategories] = useState<Category[]>([]);
   const [storeSuppliers, setStoreSuppliers] = useState<Supplier[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [newCategoryName, setNewCategoryName] = useState('');
+  const [quickAddType, setQuickAddType] = useState<'category' | 'supplier' | null>(null);
+  const [quickAddName, setQuickAddName] = useState('');
+  const [quickAddLoading, setQuickAddLoading] = useState(false);
   const [urlInputMode, setUrlInputMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialStoreId = initial?.storeId ?? (activeStoreId === 'all' ? '' : activeStoreId) ?? '';
+  const initialSupplierIds = initial?.supplierIds?.length
+    ? initial.supplierIds
+    : initial?.supplierId
+      ? [initial.supplierId]
+      : [];
 
-  const [form, setForm] = useState<ProductFormData>({
+  const [form, setForm] = useState<ProductFormData>(() => ({
     storeId: initialStoreId,
     name: initial?.name ?? '',
     sku: initial?.sku ?? '',
@@ -98,6 +136,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     purchaseUnit: initial?.purchaseUnit ?? '',
     conversionFactor: initial?.conversionFactor ?? 1,
     bulkPurchasePrice: initial?.bulkPurchasePrice,
+    bulkPurchaseEnabled: initial?.bulkPurchaseEnabled ?? (initial?.sellingOptions ?? []).some(isBulkSellingOption),
     autoPricingEnabled: initial?.autoPricingEnabled ?? false,
     marginPercentage: initial?.marginPercentage ?? 20,
     costPrice: initial?.costPrice ?? 0,
@@ -107,57 +146,28 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     safetyStock: initial?.safetyStock ?? 0,
     reorderLevel: initial?.reorderLevel ?? 0,
     leadTimeDays: initial?.leadTimeDays ?? 1,
-    supplierId: initial?.supplierId ?? '',
+    supplierId: initialSupplierIds[0] ?? '',
+    supplierIds: initialSupplierIds,
     imageUrl: initial?.imageUrl,
-    sellingOptions: initial?.sellingOptions?.length
-      ? initial.sellingOptions
-      : [createSellingOption(initialStoreId, initial?.unit === 'kg' ? 'kilo' : 'unit', {
-          label: initial?.unit ?? 'piece',
-          unitLabel: initial?.unit ?? 'piece',
-          stockQuantity: initial?.currentStock ?? 0,
-          sellingPrice: initial?.sellingPrice ?? 0,
-          lowStockThreshold: initial?.minStockLevel ?? 0,
-          inventoryMultiplier: 1,
-          sharesBaseStock: true,
-          isDefault: true,
-        })],
-  });
+    sellingOptions: getInitialOptions(initialStoreId, initial),
+  }));
+
+  const bulkOptions = form.sellingOptions.filter((option) => option.isBulk && option.isActive);
+  const baseOption = form.sellingOptions.find((option) => !option.isBulk) ?? form.sellingOptions[0];
+  const baseUnit = form.unit || baseOption?.unitLabel || 'unit';
+  const basePrice = Math.max(0, Number(form.sellingPrice) || 0);
+  const selectedSupplierIds = form.supplierIds?.length
+    ? form.supplierIds
+    : form.supplierId
+      ? [form.supplierId]
+      : [];
 
   useEffect(() => {
     if (mode !== 'create' || !activeStoreId || activeStoreId === 'all') return;
-
-    setForm((prev) => {
-      if (prev.storeId === activeStoreId) return prev;
-
-      return {
-        ...prev,
-        storeId: activeStoreId,
-        categoryId: '',
-        supplierId: '',
-        sellingOptions: prev.sellingOptions.map((option) => ({
-          ...option,
-          storeId: activeStoreId,
-        })),
-      };
-    });
-    setNewCategoryName('');
-    setErrors((current) => {
-      if (!current.storeId && !current.categoryId) return current;
-      const next = { ...current };
-      delete next.storeId;
-      delete next.categoryId;
-      return next;
-    });
+    setForm((prev) => prev.storeId === activeStoreId
+      ? prev
+      : { ...prev, storeId: activeStoreId, categoryId: '', supplierId: '', supplierIds: [], sellingOptions: prev.sellingOptions.map((option) => ({ ...option, storeId: activeStoreId })) });
   }, [activeStoreId, mode]);
-
-  const set = (key: keyof ProductFormData, value: string | number) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    if (errors[key]) setErrors((e) => {
-      const next = { ...e };
-      delete next[key];
-      return next;
-    });
-  };
 
   useEffect(() => {
     const targetStoreId = form.storeId || (activeStoreId === 'all' ? '' : activeStoreId) || '';
@@ -166,10 +176,8 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       setStoreSuppliers([]);
       return;
     }
-
     let cancelled = false;
     setCategoryLoading(true);
-
     void Promise.all([
       fetchCategoriesForStore(targetStoreId),
       role === 'admin' ? fetchSuppliersForStore(targetStoreId) : Promise.resolve([]),
@@ -180,1091 +188,383 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       setForm((prev) => ({
         ...prev,
         categoryId: categories.some((category) => category.id === prev.categoryId) ? prev.categoryId : '',
+        supplierIds: role === 'admin'
+          ? (prev.supplierIds?.length ? prev.supplierIds : prev.supplierId ? [prev.supplierId] : [])
+            .filter((supplierId) => suppliers.some((supplier) => supplier.id === supplierId))
+          : (prev.supplierIds?.length ? prev.supplierIds : prev.supplierId ? [prev.supplierId] : []),
         supplierId: role === 'admin'
-          ? (suppliers.some((supplier) => supplier.id === prev.supplierId) ? prev.supplierId : '')
-          : prev.supplierId,
+          ? ((prev.supplierIds?.length ? prev.supplierIds : prev.supplierId ? [prev.supplierId] : [])
+            .find((supplierId) => suppliers.some((supplier) => supplier.id === supplierId)) || '')
+          : prev.supplierId || prev.supplierIds?.[0] || '',
       }));
-    }).catch((err) => {
+    }).catch(() => {
       if (cancelled) return;
-      console.warn('Failed to load store-scoped product form options', err);
       setStoreCategories([]);
       setStoreSuppliers([]);
     }).finally(() => {
       if (!cancelled) setCategoryLoading(false);
     });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [form.storeId, activeStoreId, role]);
+    return () => { cancelled = true; };
+  }, [activeStoreId, form.storeId, role]);
 
   useEffect(() => {
     const targetStoreId = form.storeId || (activeStoreId === 'all' ? 'all' : activeStoreId);
-    if (!targetStoreId) return;
-    void fetchCategories(targetStoreId);
-  }, [form.storeId, activeStoreId, fetchCategories]);
-
-  const activeSellingOptions = form.sellingOptions.filter((option) => option.isActive);
-  const defaultSellingOption = activeSellingOptions.find((option) => option.isDefault) ?? activeSellingOptions[0] ?? form.sellingOptions[0];
-  const defaultSellingIndex = form.sellingOptions.findIndex((option) => option.id === defaultSellingOption?.id);
-  const defaultSellingUnit = defaultSellingOption?.unitLabel || form.unit || 'unit';
-  const defaultSellingPrice = defaultSellingOption?.sellingPrice ?? 0;
-  const costPerDefaultUnit = form.costPrice;
-  const margin = defaultSellingPrice > 0 ? defaultSellingPrice - costPerDefaultUnit : 0;
-  const marginPct = defaultSellingPrice > 0 ? (margin / defaultSellingPrice) * 100 : 0;
+    if (targetStoreId) void fetchCategories(targetStoreId);
+  }, [activeStoreId, fetchCategories, form.storeId]);
 
   useEffect(() => {
-    if (!form.autoPricingEnabled || defaultSellingIndex < 0) return;
+    if (!form.autoPricingEnabled) return;
     const targetMargin = Math.min(99.99, Math.max(0, Number(form.marginPercentage) || 0));
-    const nextPrice = Math.round((form.costPrice / (1 - targetMargin / 100) + Number.EPSILON) * 100) / 100;
-    if (Number.isFinite(nextPrice)) {
-      setForm((prev) => ({
-        ...prev,
-        sellingOptions: prev.sellingOptions.map((option, index) => {
-          const target = option.sharesBaseStock
-            ? Math.round(nextPrice * Math.max(1, option.inventoryMultiplier) * 100) / 100
-            : index === defaultSellingIndex ? nextPrice : option.sellingPrice;
-          return target === option.sellingPrice ? option : { ...option, sellingPrice: target };
-        }),
-      }));
-    }
-  }, [form.autoPricingEnabled, form.marginPercentage, form.costPrice, defaultSellingIndex]);
+    const nextPrice = form.costPrice > 0 ? Math.round((form.costPrice / (1 - targetMargin / 100) + Number.EPSILON) * 100) / 100 : 0;
+    setForm((prev) => prev.sellingPrice === nextPrice ? prev : { ...prev, sellingPrice: nextPrice });
+  }, [form.autoPricingEnabled, form.costPrice, form.marginPercentage]);
 
-  const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast('error', 'Please select a valid image file (JPG, PNG, GIF, WebP)');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast('error', 'Image must be smaller than 5 MB');
-      return;
-    }
-    setForm((prev) => ({ ...prev, imageUrl: URL.createObjectURL(file) }));
-  };
-
-  const clearImage = () => {
-    if (form.imageUrl?.startsWith('blob:')) URL.revokeObjectURL(form.imageUrl);
-    setForm((prev) => ({ ...prev, imageUrl: undefined }));
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const updateSellingOption = (index: number, patch: Partial<ProductSellingOption>) => {
-    setForm((prev) => {
-      const options = prev.sellingOptions.map((option, i) => i === index ? { ...option, ...patch } : option);
-      const activeDefault = options.find((option) => option.isActive && option.isDefault);
-      const firstActive = options.find((option) => option.isActive);
-      const defaultId = activeDefault?.id ?? firstActive?.id;
-      return {
-        ...prev,
-        sellingOptions: options.map((option) => ({
-          ...option,
-          storeId: prev.storeId,
-          isDefault: defaultId ? option.id === defaultId : option.isDefault,
-        })),
-      };
-    });
-  };
-
-  const addSellingOption = (kind: SellingOptionKind = 'sack', seed?: Partial<ProductSellingOption>) => {
-    setForm((prev) => ({
-      ...prev,
-      sellingOptions: [
-        ...prev.sellingOptions,
-        createSellingOption(prev.storeId, kind, { isDefault: prev.sellingOptions.every((option) => !option.isActive), ...seed }),
-      ],
-    }));
-  };
-
-  const removeSellingOption = (index: number) => {
-    setForm((prev) => {
-      const options = prev.sellingOptions.filter((_, i) => i !== index);
-      const activeOptions = options.filter((option) => option.isActive);
-      const defaultId = activeOptions.find((option) => option.isDefault)?.id ?? activeOptions[0]?.id;
-      return {
-        ...prev,
-        sellingOptions: options.map((option) => ({ ...option, isDefault: defaultId ? option.id === defaultId : option.isDefault })),
-      };
-    });
-  };
-
-  const makeDefaultOption = (index: number) => {
-    setForm((prev) => ({
-      ...prev,
-      sellingOptions: prev.sellingOptions.map((option, i) => ({
-        ...option,
-        isActive: i === index ? true : option.isActive,
-        isDefault: i === index,
-      })),
-    }));
-  };
-
-  const validate = () => {
-    const errs: Record<string, string> = {};
-    if (!form.storeId) errs.storeId = 'Store is required';
-    if (!form.name.trim()) errs.name = 'Product name is required';
-    if (!form.sku.trim()) errs.sku = 'SKU is required';
-    if (!form.categoryId) errs.categoryId = 'Category is required';
-    if (form.storeId && storeCategories.length === 0) errs.categoryId = 'No categories available for this store yet';
-    if (form.costPrice < 0) errs.costPrice = 'Purchase price cannot be negative';
-    if (form.autoPricingEnabled && ((form.marginPercentage ?? 0) < 0 || (form.marginPercentage ?? 0) >= 100)) {
-      errs.marginPercentage = 'Margin must be between 0% and 99.99%';
-    }
-    if (activeSellingOptions.length === 0) errs.sellingOptions = 'At least one active selling option is required';
-    form.sellingOptions.forEach((option, index) => {
-      if (!option.isActive) return;
-      const prefix = `sellingOption-${index}`;
-      if (!option.label.trim()) errs[`${prefix}-label`] = 'Label is required';
-      if (!option.unitLabel.trim()) errs[`${prefix}-unit`] = 'Unit is required';
-      if (option.sellingPrice <= 0) errs[`${prefix}-price`] = 'Price must be > 0';
-      if (option.stockQuantity < 0) errs[`${prefix}-stock`] = 'Stock cannot be negative';
-      if (option.lowStockThreshold < 0) errs[`${prefix}-threshold`] = 'Low stock threshold cannot be negative';
-      if (option.sharesBaseStock && option.inventoryMultiplier < 1) errs[`${prefix}-multiplier`] = 'Pieces deducted must be at least 1';
-      if (option.kind === 'sack' && (!option.quantityValue || option.quantityValue <= 0)) {
-        errs[`${prefix}-quantity`] = 'Sack size is required';
-      }
-    });
-    return errs;
-  };
-
-  const clearCategoryError = () => {
-    setErrors((current) => {
-      if (!current.categoryId) return current;
-      const next = { ...current };
-      delete next.categoryId;
+  const set = <K extends keyof ProductFormData>(key: K, value: ProductFormData[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
       return next;
     });
   };
 
-  const handleAddCategory = async () => {
-    const name = newCategoryName.trim();
+  const setBaseUnit = (unit: string) => {
+    setForm((prev) => ({ ...prev, unit, sellingOptions: prev.sellingOptions.map((option) => ({ ...option, unitLabel: unit, label: option.isBulk ? option.label : unit, quantityUnit: option.isBulk ? unit : undefined })) }));
+  };
+
+  const addBulkOption = () => {
+    setForm((prev) => ({ ...prev, bulkPurchaseEnabled: true, sellingOptions: [...prev.sellingOptions, createBulkOption(prev.storeId, prev.unit || 'piece')] }));
+  };
+
+  const updateBulkOption = (index: number, patch: Partial<ProductSellingOption>) => {
+    setForm((prev) => ({
+      ...prev,
+      sellingOptions: prev.sellingOptions.map((option, optionIndex) => {
+        if (optionIndex !== index) return option;
+        const next = { ...option, ...patch };
+        const unitsPerBulk = Math.max(2, Number(next.inventoryMultiplier ?? next.quantityValue) || 2);
+        const discountType: BulkDiscountType = next.discountType === 'amount' ? 'amount' : 'percent';
+        const discountValue = Math.max(0, Number(next.discountValue) || 0);
+        return { ...next, isBulk: true, kind: 'custom', unitLabel: prev.unit || 'unit', quantityValue: unitsPerBulk, quantityUnit: prev.unit || 'unit', inventoryMultiplier: unitsPerBulk, discountType, discountValue, sellingPrice: calculateBulkPrice(prev.sellingPrice, unitsPerBulk, discountType, discountValue), sharesBaseStock: true, isDefault: false };
+      }),
+    }));
+  };
+
+  const removeBulkOption = (index: number) => setForm((prev) => ({ ...prev, sellingOptions: prev.sellingOptions.filter((_, optionIndex) => optionIndex !== index) }));
+
+  const toggleBulkPurchase = (enabled: boolean) => {
+    if (enabled && bulkOptions.length === 0) {
+      addBulkOption();
+      return;
+    }
+    set('bulkPurchaseEnabled', enabled);
+  };
+
+  const handleImageFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast('error', 'Please select a valid image file.'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast('error', 'Image must be smaller than 5 MB.'); return; }
+    set('imageUrl', URL.createObjectURL(file));
+  };
+
+  const clearImage = () => {
+    if (form.imageUrl?.startsWith('blob:')) URL.revokeObjectURL(form.imageUrl);
+    set('imageUrl', undefined);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const openQuickAdd = (type: 'category' | 'supplier') => {
     if (!form.storeId) {
       toast('error', 'Select a store first.');
       return;
     }
-    if (!name) return;
+    setQuickAddName('');
+    setQuickAddType(type);
+  };
 
-    setCategoryLoading(true);
+  const toggleSupplier = (supplierId: string) => {
+    const nextSupplierIds = selectedSupplierIds.includes(supplierId)
+      ? selectedSupplierIds.filter((id) => id !== supplierId)
+      : [...selectedSupplierIds, supplierId];
+    setForm((prev) => ({
+      ...prev,
+      supplierIds: nextSupplierIds,
+      supplierId: nextSupplierIds[0] ?? '',
+    }));
+  };
+
+  const handleQuickAdd = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const name = quickAddName.trim();
+    if (!name || !form.storeId || !quickAddType) return;
+
+    setQuickAddLoading(true);
     try {
-      const category = await addCategory(form.storeId, name);
-      if (category) {
-        const refreshedCategories = await fetchCategoriesForStore(form.storeId);
-        setStoreCategories(refreshedCategories);
-        setForm((prev) => ({ ...prev, categoryId: category.id }));
-        setNewCategoryName('');
-        clearCategoryError();
+      if (quickAddType === 'category') {
+        const category = await addCategory(form.storeId, name);
+        if (!category) throw new Error('Enter a category name.');
+        setStoreCategories(await fetchCategoriesForStore(form.storeId));
+        set('categoryId', category.id);
         toast('success', `"${category.name}" category added.`);
+      } else {
+        const supplier = await addSupplier({
+          storeIds: [form.storeId],
+          name,
+          contact: '',
+          email: '',
+          phone: '',
+          facebookLink: '',
+          address: '',
+          leadTimeDays: 1,
+        });
+        if (!supplier) throw new Error('Failed to add supplier.');
+        setStoreSuppliers(await fetchSuppliersForStore(form.storeId));
+        setForm((prev) => {
+          const nextSupplierIds = prev.supplierIds?.length
+            ? prev.supplierIds.includes(supplier.id) ? prev.supplierIds : [...prev.supplierIds, supplier.id]
+            : prev.supplierId ? [prev.supplierId, supplier.id] : [supplier.id];
+          return {
+            ...prev,
+            supplierIds: nextSupplierIds,
+            supplierId: nextSupplierIds[0],
+          };
+        });
+        toast('success', `"${supplier.name}" supplier added.`);
       }
-    } catch (err: any) {
-      toast('error', err?.message || 'Failed to add category.');
+
+      setQuickAddType(null);
+      setQuickAddName('');
+    } catch (error: any) {
+      toast('error', error?.message || `Failed to add ${quickAddType}.`);
     } finally {
-      setCategoryLoading(false);
+      setQuickAddLoading(false);
     }
   };
 
   const handleRestoreDefaultCategories = async () => {
-    if (!form.storeId) {
-      toast('error', 'Select a store first.');
-      return;
-    }
-
+    if (!form.storeId) return;
     setCategoryLoading(true);
     try {
       const added = await seedDefaultCategories(form.storeId);
-      const refreshedCategories = await fetchCategoriesForStore(form.storeId);
-      setStoreCategories(refreshedCategories);
-      if (added.length > 0 && !form.categoryId) {
-        setForm((prev) => ({ ...prev, categoryId: added[0].id }));
-        clearCategoryError();
-      }
+      setStoreCategories(await fetchCategoriesForStore(form.storeId));
+      if (added.length > 0 && !form.categoryId) set('categoryId', added[0].id);
       toast(added.length > 0 ? 'success' : 'info', added.length > 0 ? 'Default categories restored.' : 'Default categories are already available.');
-    } catch (err: any) {
-      toast('error', err?.message || 'Failed to restore default categories.');
-    } finally {
-      setCategoryLoading(false);
-    }
+    } catch (error: any) { toast('error', error?.message || 'Failed to restore default categories.'); }
+    finally { setCategoryLoading(false); }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
-      return;
-    }
+  const validate = () => {
+    const nextErrors: Record<string, string> = {};
+    if (!form.storeId) nextErrors.storeId = 'Store is required';
+    if (!form.name.trim()) nextErrors.name = 'Product name is required';
+    if (!form.sku.trim()) nextErrors.sku = 'SKU is required';
+    if (!form.categoryId) nextErrors.categoryId = 'Category is required';
+    if (storeCategories.length === 0 && form.storeId) nextErrors.categoryId = 'No categories are available for this store yet';
+    if (form.costPrice < 0) nextErrors.costPrice = 'Purchase price cannot be negative';
+    if (form.sellingPrice <= 0) nextErrors.sellingPrice = 'Selling price must be greater than zero';
+    if (form.currentStock < 0) nextErrors.currentStock = 'Stock cannot be negative';
+    if (form.autoPricingEnabled && ((form.marginPercentage ?? 0) < 0 || (form.marginPercentage ?? 0) >= 100)) nextErrors.marginPercentage = 'Margin must be between 0% and 99.99%';
+    if (form.bulkPurchaseEnabled && bulkOptions.length === 0) nextErrors.bulkOptions = 'Add at least one bulk option or turn this setting off';
+    bulkOptions.forEach((option, index) => {
+      const prefix = `bulk-${index}`;
+      if (!option.label.trim()) nextErrors[`${prefix}-label`] = 'Bulk name is required';
+      if (!option.quantityValue || option.quantityValue < 2) nextErrors[`${prefix}-units`] = 'Use at least 2 base units';
+      if ((option.discountValue ?? 0) < 0) nextErrors[`${prefix}-discount`] = 'Discount cannot be negative';
+      if (option.discountType === 'percent' && (option.discountValue ?? 0) > 100) nextErrors[`${prefix}-discount`] = 'Percentage cannot exceed 100%';
+      if (option.discountType === 'amount' && (option.discountValue ?? 0) > basePrice * (option.quantityValue ?? 1)) nextErrors[`${prefix}-discount`] = 'Fixed discount cannot exceed regular value';
+    });
+    return nextErrors;
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const nextErrors = validate();
+    if (Object.keys(nextErrors).length > 0) { setErrors(nextErrors); return; }
     setLoading(true);
     try {
-      const activeDefault = activeSellingOptions.find((option) => option.isDefault) ?? activeSellingOptions[0];
-      const preparedOptions = form.sellingOptions.map((option) => ({
-        ...option,
-        storeId: form.storeId,
-        label: option.label.trim(),
-        unitLabel: option.unitLabel.trim(),
-        quantityUnit: option.quantityUnit?.trim() || undefined,
-        isDefault: activeDefault ? option.id === activeDefault.id : option.isDefault,
-      }));
-      const compatibility = activeDefault ?? preparedOptions[0];
-      await onSubmit({
-        ...form,
-        unit: compatibility?.unitLabel || form.unit,
-        sellingPrice: compatibility?.sellingPrice ?? form.sellingPrice,
-        currentStock: compatibility?.stockQuantity ?? form.currentStock,
-        minStockLevel: compatibility?.lowStockThreshold ?? form.minStockLevel,
-        sellingOptions: preparedOptions,
+      const preparedOptions = form.sellingOptions.map((option) => {
+        const isBulk = Boolean(option.isBulk);
+        const unitsPerBulk = isBulk ? Math.max(2, Number(option.quantityValue) || Number(option.inventoryMultiplier) || 2) : 1;
+        const discountType: BulkDiscountType = option.discountType === 'amount' ? 'amount' : 'percent';
+        const discountValue = isBulk ? Math.max(0, Number(option.discountValue) || 0) : 0;
+        return {
+          ...option,
+          storeId: form.storeId,
+          productId: initial?.id ?? option.productId,
+          kind: isBulk ? 'custom' as const : form.unit === 'kg' ? 'kilo' as const : 'unit' as const,
+          label: isBulk ? option.label.trim() : form.unit.trim(),
+          unitLabel: form.unit.trim(),
+          quantityValue: isBulk ? unitsPerBulk : undefined,
+          quantityUnit: isBulk ? form.unit.trim() : undefined,
+          stockQuantity: Math.floor(Math.max(0, form.currentStock) / unitsPerBulk),
+          sellingPrice: isBulk ? calculateBulkPrice(basePrice, unitsPerBulk, discountType, discountValue) : basePrice,
+          lowStockThreshold: isBulk ? Math.floor(Math.max(0, form.minStockLevel) / unitsPerBulk) : form.minStockLevel,
+          inventoryMultiplier: unitsPerBulk,
+          sharesBaseStock: true,
+          isBulk,
+          discountType,
+          discountValue,
+          isDefault: !isBulk,
+          isActive: isBulk ? Boolean(form.bulkPurchaseEnabled) && option.isActive : true,
+        } satisfies ProductSellingOption;
       });
+      await onSubmit({ ...form, unit: form.unit.trim(), sellingPrice: basePrice, currentStock: Math.round(form.currentStock), minStockLevel: Math.round(form.minStockLevel), sellingOptions: preparedOptions });
       toast('success', mode === 'create' ? 'Product created successfully!' : 'Product updated successfully!');
       navigate('/inventory');
-    } catch (err: any) {
-      toast('error', err?.message || 'Failed to save product. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    } catch (error: any) { toast('error', error?.message || 'Failed to save product. Please try again.'); }
+    finally { setLoading(false); }
   };
 
-  if (mode === 'create') {
-    return (
-      <form onSubmit={handleSubmit}>
-        <div className="max-w-4xl">
-          <div className={cardCls}>
-            <h3 className={`${titleCls} mb-4`}>Product Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Store" required>
-                <select
-                  className={selectCls}
-                  value={form.storeId}
-                  onChange={(e) => {
-                    const storeId = e.target.value;
-                    setForm((prev) => ({
-                      ...prev,
-                      storeId,
-                      categoryId: '',
-                      supplierId: '',
-                      sellingOptions: prev.sellingOptions.map((option) => ({ ...option, storeId })),
-                    }));
-                    setNewCategoryName('');
-                  }}
-                >
-                  <option value="" disabled>Select a store</option>
-                  {stores.map(store => (
-                    <option key={store.id} value={store.id}>{store.name}</option>
-                  ))}
-                </select>
-                {errors.storeId && <p className="text-xs text-red-500 mt-1">{errors.storeId}</p>}
-              </Field>
-
-              <Field label="Product Name" required>
-                <input
-                  className={inputCls}
-                  value={form.name}
-                  onChange={(e) => set('name', e.target.value)}
-                  placeholder="e.g. Red Horse Beer 500ml"
-                />
-                {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
-              </Field>
-
-              <Field label="SKU" required>
-                <input
-                  className={inputCls + ' font-mono'}
-                  value={form.sku}
-                  onChange={(e) => set('sku', e.target.value)}
-                  placeholder="e.g. RH-500"
-                />
-                {errors.sku && <p className="text-xs text-red-500 mt-1">{errors.sku}</p>}
-              </Field>
-
-              <Field label="Barcode" hint="Optional">
-                <input
-                  className={inputCls + ' font-mono'}
-                  value={form.barcode}
-                  onChange={(e) => set('barcode', e.target.value)}
-                  placeholder="Scan or type barcode"
-                />
-              </Field>
-
-              <Field label="Category" required>
-                <div className="flex gap-2">
-                  <select
-                    className={selectCls}
-                    value={form.categoryId}
-                    onChange={(e) => set('categoryId', e.target.value)}
-                    disabled={!form.storeId}
-                  >
-                    <option value="">Select category...</option>
-                    {storeCategories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={handleRestoreDefaultCategories}
-                    disabled={!form.storeId || categoryLoading}
-                    className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Defaults
-                  </button>
-                </div>
-                {errors.categoryId && <p className="text-xs text-red-500 mt-1">{errors.categoryId}</p>}
-              </Field>
-
-              {role === 'admin' && (
-                <Field label="Supplier" hint="Optional">
-                  <select
-                    className={selectCls}
-                    value={form.supplierId}
-                    onChange={(e) => set('supplierId', e.target.value)}
-                    disabled={!form.storeId}
-                  >
-                    <option value="">No supplier assigned</option>
-                    {storeSuppliers.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </Field>
-              )}
-
-              <Field label="Selling Unit" required>
-                <select
-                  className={selectCls}
-                  value={defaultSellingUnit}
-                  onChange={(e) => {
-                    const unit = e.target.value;
-                    setForm((prev) => ({
-                      ...prev,
-                      unit,
-                      sellingOptions: prev.sellingOptions.map((option, index) => index === defaultSellingIndex ? {
-                        ...option,
-                        kind: unit === 'kg' ? 'kilo' : 'unit',
-                        label: unit,
-                        unitLabel: unit,
-                        quantityValue: unit === 'kg' ? 1 : undefined,
-                        quantityUnit: unit === 'kg' ? 'kg' : undefined,
-                      } : option),
-                    }));
-                  }}
-                >
-                  {['piece', 'kg', 'bottle', 'can', 'pack', 'sachet', 'box', 'sack'].map((unit) => (
-                    <option key={unit} value={unit}>{unit}</option>
-                  ))}
-                </select>
-              </Field>
-
-              <Field label={`Purchase Price per ${defaultSellingUnit}`} required>
-                <input
-                  type="number"
-                  className={inputCls + ' font-mono'}
-                  value={form.costPrice}
-                  onChange={(e) => set('costPrice', parseFloat(e.target.value) || 0)}
-                  min={0}
-                  step={0.01}
-                />
-                {errors.costPrice && <p className="text-xs text-red-500 mt-1">{errors.costPrice}</p>}
-              </Field>
-
-              <Field label={`Selling Price per ${defaultSellingUnit}`} required>
-                <input
-                  type="number"
-                  className={`${inputCls} font-mono disabled:bg-gray-100`}
-                  value={defaultSellingPrice}
-                  onChange={(e) => {
-                    if (defaultSellingIndex >= 0) updateSellingOption(defaultSellingIndex, { sellingPrice: parseFloat(e.target.value) || 0 });
-                  }}
-                  disabled={form.autoPricingEnabled}
-                  min={0}
-                  step={0.01}
-                />
-                {defaultSellingIndex >= 0 && errors[`sellingOption-${defaultSellingIndex}-price`] && (
-                  <p className="text-xs text-red-500 mt-1">{errors[`sellingOption-${defaultSellingIndex}-price`]}</p>
-                )}
-              </Field>
-
-              <div className="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                <label className="flex items-center gap-2 text-xs font-medium text-gray-700">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-gray-300 accent-blue-600"
-                    checked={Boolean(form.autoPricingEnabled)}
-                    onChange={(e) => setForm((prev) => ({ ...prev, autoPricingEnabled: e.target.checked }))}
-                  />
-                  Use margin-based pricing
-                </label>
-                {form.autoPricingEnabled && (
-                  <div className="mt-3 max-w-xs">
-                    <Field label="Target Margin (%)">
-                      <input
-                        type="number"
-                        className={inputCls + ' font-mono bg-white'}
-                        value={form.marginPercentage ?? 0}
-                        onChange={(e) => set('marginPercentage', parseFloat(e.target.value) || 0)}
-                        min={0}
-                        max={99.99}
-                        step={0.01}
-                      />
-                      {errors.marginPercentage && <p className="text-xs text-red-500 mt-1">{errors.marginPercentage}</p>}
-                    </Field>
-                  </div>
-                )}
-              </div>
-
-              <Field label="Starting Stock">
-                <input
-                  type="number"
-                  className={inputCls + ' font-mono'}
-                  value={defaultSellingOption?.stockQuantity ?? form.currentStock}
-                  onChange={(e) => {
-                    if (defaultSellingIndex >= 0) updateSellingOption(defaultSellingIndex, { stockQuantity: parseFloat(e.target.value) || 0 });
-                    else set('currentStock', parseInt(e.target.value) || 0);
-                  }}
-                  min={0}
-                />
-              </Field>
-
-              <Field label="Stock Alert Threshold" hint="Optional. Leave blank to skip low-stock alerts.">
-                <input
-                  type="number"
-                  className={inputCls + ' font-mono'}
-                  value={(defaultSellingOption?.lowStockThreshold ?? form.minStockLevel) || ''}
-                  onChange={(e) => {
-                    const threshold = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
-                    if (defaultSellingIndex >= 0) updateSellingOption(defaultSellingIndex, { lowStockThreshold: threshold });
-                    else set('minStockLevel', threshold);
-                  }}
-                  placeholder="e.g. 5"
-                  min={0}
-                />
-              </Field>
-            </div>
-
-            {form.costPrice > 0 && defaultSellingPrice > 0 && (
-              <div className="mt-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
-                Profit per {defaultSellingUnit}: <span className="font-mono font-medium">PHP {margin.toFixed(2)}</span>{' '}
-                <span className={marginPct < 0 ? 'text-red-500' : 'text-green-600'}>({marginPct.toFixed(1)}%)</span>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-4 flex items-center justify-end gap-3">
-            <Button variant="secondary" type="button" onClick={() => navigate('/inventory')}>
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit" loading={loading}>
-              Save Product
-            </Button>
-          </div>
-        </div>
-      </form>
-    );
-  }
+  const regularValue = (option: ProductSellingOption) => basePrice * (option.quantityValue ?? 1);
+  const margin = basePrice - form.costPrice;
+  const marginPct = basePrice > 0 ? (margin / basePrice) * 100 : 0;
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px] gap-4 items-start">
-        <div className="space-y-4 min-w-0">
+    <>
+      <form onSubmit={handleSubmit}>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
+        <div className="min-w-0 space-y-4">
           <div className={cardCls}>
-            <h3 className={`${titleCls} mb-3`}>Product Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
-              <Field label="Store" required>
-                <select
-                  className={selectCls}
-                  value={form.storeId}
-                  onChange={(e) => {
-                    const storeId = e.target.value;
-                    setForm((prev) => ({
-                      ...prev,
-                      storeId,
-                      categoryId: '',
-                      supplierId: '',
-                      sellingOptions: prev.sellingOptions.map((option) => ({ ...option, storeId })),
-                    }));
-                    setNewCategoryName('');
-                  }}
-                  disabled={mode === 'edit'}
-                >
-                  <option value="" disabled>Select a store</option>
-                  {stores.map(store => (
-                    <option key={store.id} value={store.id}>{store.name}</option>
-                  ))}
-                </select>
-                {errors.storeId && <p className="text-xs text-red-500 mt-1">{errors.storeId}</p>}
-              </Field>
-              <div className="2xl:col-span-2">
-                <Field label="Product Name" required>
-                  <input
-                    className={inputCls}
-                    value={form.name}
-                    onChange={(e) => set('name', e.target.value)}
-                    placeholder="e.g. Red Horse Beer 500ml"
-                  />
-                  {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
-                </Field>
-              </div>
-              <Field label="SKU" required>
-                <input
-                  className={inputCls + ' font-mono'}
-                  value={form.sku}
-                  onChange={(e) => set('sku', e.target.value)}
-                  placeholder="e.g. SMC-RH-001"
-                />
-                {errors.sku && <p className="text-xs text-red-500 mt-1">{errors.sku}</p>}
-              </Field>
-              <Field label="Barcode" hint="Scan or type barcode number">
-                <input
-                  className={inputCls + ' font-mono'}
-                  value={form.barcode}
-                  onChange={(e) => set('barcode', e.target.value)}
-                  placeholder="e.g. 4800888888881"
-                />
-              </Field>
-              <Field label="Category" required>
-                <div className="space-y-2">
-                  <select
-                    className={selectCls}
-                    value={form.categoryId}
-                    onChange={(e) => set('categoryId', e.target.value)}
-                    disabled={!form.storeId}
-                  >
-                    <option value="">Select category...</option>
-                    {storeCategories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
+            <h2 className={`${titleCls} mb-4`}>Product identity</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field id="product-store" label="Store" required><select id="product-store" className={inputCls} value={form.storeId} disabled={mode === 'edit'} onChange={(event) => set('storeId', event.target.value)}><option value="" disabled>Select a store</option>{stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}</select>{errors.storeId && <p className="text-xs text-red-500">{errors.storeId}</p>}</Field>
+              <Field id="product-name" label="Product name" required><input id="product-name" className={inputCls} value={form.name} onChange={(event) => set('name', event.target.value)} placeholder="e.g. Coca-Cola 330ml" />{errors.name && <p className="text-xs text-red-500">{errors.name}</p>}</Field>
+              <Field id="product-sku" label="SKU" required><input id="product-sku" className={`${inputCls} font-mono`} value={form.sku} onChange={(event) => set('sku', event.target.value)} placeholder="e.g. COKE-330" />{errors.sku && <p className="text-xs text-red-500">{errors.sku}</p>}</Field>
+              <Field id="product-barcode" label="Barcode" hint="Optional. Scan or type the product barcode."><input id="product-barcode" className={`${inputCls} font-mono`} value={form.barcode} onChange={(event) => set('barcode', event.target.value)} placeholder="4800888888881" /></Field>
+              <Field id="product-category" label="Category" required>
+                <div className="flex gap-2">
+                  <select id="product-category" className={`${inputCls} min-w-0 flex-1`} value={form.categoryId} disabled={!form.storeId} onChange={(event) => set('categoryId', event.target.value)}>
+                    <option value="">Select category</option>
+                    {storeCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                   </select>
-                  <div className="flex gap-2">
-                    <input
-                      className={inputCls}
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          void handleAddCategory();
-                        }
-                      }}
-                      placeholder="New category name"
-                      disabled={!form.storeId || categoryLoading}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddCategory}
-                      disabled={!form.storeId || categoryLoading || !newCategoryName.trim()}
-                      className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
-                      title="Add category"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className={storeCategories.length === 0 ? 'text-xs text-amber-600' : 'text-xs text-gray-400'}>
-                      {storeCategories.length === 0 ? 'No categories for this store.' : `${storeCategories.length} categories available.`}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleRestoreDefaultCategories}
-                      disabled={!form.storeId || categoryLoading}
-                      className="text-xs font-medium text-blue-700 hover:text-blue-800 disabled:text-gray-400"
-                    >
-                      Restore defaults
-                    </button>
-                  </div>
+                  <button type="button" onClick={() => openQuickAdd('category')} disabled={!form.storeId || categoryLoading} className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition-colors hover:bg-[var(--muted)] hover:text-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50" aria-label="Add category" title="Add category">
+                    <Plus className="size-4" aria-hidden="true" />
+                  </button>
                 </div>
-                {errors.categoryId && <p className="text-xs text-red-500 mt-1">{errors.categoryId}</p>}
+                <button type="button" onClick={() => void handleRestoreDefaultCategories()} disabled={!form.storeId || categoryLoading} className="mt-1 text-xs font-medium text-blue-700 hover:text-blue-800 disabled:text-gray-400">Restore default categories</button>
+                {errors.categoryId && <p className="text-xs text-red-500">{errors.categoryId}</p>}
               </Field>
               {role === 'admin' && (
-                <Field label="Supplier" hint="Optional. Leave blank if this product has no supplier yet.">
-                  <select
-                    className={selectCls}
-                    value={form.supplierId}
-                    onChange={(e) => set('supplierId', e.target.value)}
-                    disabled={!form.storeId}
-                  >
-                    <option value="">No supplier assigned</option>
-                    {storeSuppliers.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
+                <Field label="Suppliers" hint="Optional. Select one or more suppliers; the first selected is used for restocking by default.">
+                  <div className="flex items-start gap-2">
+                    <div role="group" aria-label="Suppliers" className="min-h-10 min-w-0 flex-1 rounded-lg border border-[var(--input)] bg-[var(--background)] p-2 shadow-sm">
+                      {storeSuppliers.length === 0 ? (
+                        <p className="px-2 py-1 text-sm text-[var(--muted-foreground)]">No suppliers assigned to this store.</p>
+                      ) : (
+                        <div className="grid max-h-32 gap-1 overflow-y-auto sm:grid-cols-2">
+                          {storeSuppliers.map((supplier) => (
+                            <label key={supplier.id} className="flex min-w-0 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-[var(--foreground)] hover:bg-[var(--muted)]">
+                              <input
+                                type="checkbox"
+                                checked={selectedSupplierIds.includes(supplier.id)}
+                                onChange={() => toggleSupplier(supplier.id)}
+                                disabled={!form.storeId}
+                                className="h-4 w-4 shrink-0 accent-blue-600"
+                              />
+                              <span className="truncate">{supplier.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button type="button" onClick={() => openQuickAdd('supplier')} disabled={!form.storeId || quickAddLoading} className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition-colors hover:bg-[var(--muted)] hover:text-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50" aria-label="Add supplier" title="Add supplier">
+                      <Plus className="size-4" aria-hidden="true" />
+                    </button>
+                  </div>
                 </Field>
               )}
             </div>
           </div>
 
           <div className={cardCls}>
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <h3 className={titleCls}>Selling Options</h3>
-              <div className="flex items-center gap-2">
-                {form.purchaseUnit && (
-                  <button
-                    type="button"
-                    onClick={() => addSellingOption('custom', {
-                      label: form.purchaseUnit,
-                      unitLabel: form.purchaseUnit,
-                      quantityValue: form.conversionFactor,
-                      quantityUnit: defaultSellingUnit,
-                      inventoryMultiplier: form.conversionFactor ?? 1,
-                      sharesBaseStock: true,
-                      sellingPrice: defaultSellingPrice * (form.conversionFactor ?? 1),
-                    })}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-700"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Case/Pack
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => addSellingOption('kilo')}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-700"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Kilo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => addSellingOption('sack')}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-700"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Sack
-                </button>
-              </div>
+            <div className="mb-4 flex items-start justify-between gap-4"><div><h2 className={titleCls}>Base unit pricing</h2><p className="mt-1 text-xs text-[var(--muted-foreground)]">One product, one stock quantity. All POS purchase modes deduct from this base-unit count.</p></div><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">1 {baseUnit} = 1 inventory unit</span></div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field id="product-unit" label="Base unit" required hint="The unit stored in inventory and shown for regular sales."><select id="product-unit" className={inputCls} value={form.unit} onChange={(event) => setBaseUnit(event.target.value)}>{unitChoices.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</select></Field>
+              <Field id="product-cost" label={`Purchase price per ${baseUnit}`} required><input id="product-cost" type="number" min={0} step="0.01" className={`${inputCls} font-mono`} value={form.costPrice || ''} onChange={(event) => set('costPrice', Number(event.target.value) || 0)} />{errors.costPrice && <p className="text-xs text-red-500">{errors.costPrice}</p>}</Field>
+              <Field id="product-price" label={`Regular selling price per ${baseUnit}`} required><input id="product-price" type="number" min={0} step="0.01" className={`${inputCls} font-mono disabled:bg-gray-100`} value={form.sellingPrice || ''} disabled={form.autoPricingEnabled} onChange={(event) => { const sellingPrice = Number(event.target.value) || 0; setForm((prev) => ({ ...prev, sellingPrice })); }} />{errors.sellingPrice && <p className="text-xs text-red-500">{errors.sellingPrice}</p>}</Field>
+              <div className="rounded-lg bg-[var(--muted)] px-3 py-2 text-xs text-[var(--muted-foreground)] md:mt-6">Profit per {baseUnit}: <span className="font-mono font-semibold">PHP {margin.toFixed(2)}</span>{' '}<span className={marginPct < 0 ? 'text-red-600' : 'text-green-700'}>({marginPct.toFixed(1)}%)</span></div>
             </div>
-            {errors.sellingOptions && <p className="text-xs text-red-500 mb-3">{errors.sellingOptions}</p>}
-            <div className="space-y-2 xl:max-h-[calc(100vh-28rem)] xl:overflow-y-auto xl:pr-1">
-              {form.sellingOptions.map((option, index) => {
-                const prefix = `sellingOption-${index}`;
-                return (
-                  <div key={option.id} className="rounded-lg border border-gray-200 p-3">
-                    <div className="flex items-start gap-2">
-                      <div className="flex-1 grid grid-cols-2 md:grid-cols-6 2xl:grid-cols-12 gap-2 min-w-0">
-                        <div className="col-span-2 2xl:col-span-2">
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
-                          <select
-                            className={selectCls}
-                            value={option.kind}
-                            onChange={(e) => {
-                              const kind = e.target.value as SellingOptionKind;
-                              updateSellingOption(index, {
-                                kind,
-                                unitLabel: kind === 'kilo' ? 'kg' : kind === 'sack' ? 'sack' : option.unitLabel,
-                                quantityUnit: kind === 'kilo' || kind === 'sack' ? 'kg' : option.quantityUnit,
-                                quantityValue: kind === 'kilo' ? 1 : option.quantityValue,
-                                label: kind === 'kilo' ? 'Per kilo' : kind === 'sack' ? option.label || 'Sack' : option.label,
-                              });
-                            }}
-                          >
-                            <option value="unit">Unit</option>
-                            <option value="kilo">Kilo</option>
-                            <option value="sack">Sack</option>
-                            <option value="custom">Custom</option>
-                          </select>
-                        </div>
-                        <div className="col-span-2 2xl:col-span-3">
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Label</label>
-                          <input
-                            className={inputCls}
-                            value={option.label}
-                            onChange={(e) => updateSellingOption(index, { label: e.target.value })}
-                            placeholder="e.g. 50 kg sack"
-                          />
-                          {errors[`${prefix}-label`] && <p className="text-xs text-red-500 mt-1">{errors[`${prefix}-label`]}</p>}
-                        </div>
-                        <div className="col-span-1">
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Unit</label>
-                          <input
-                            className={inputCls}
-                            value={option.unitLabel}
-                            onChange={(e) => updateSellingOption(index, { unitLabel: e.target.value })}
-                            placeholder="kg"
-                          />
-                          {errors[`${prefix}-unit`] && <p className="text-xs text-red-500 mt-1">{errors[`${prefix}-unit`]}</p>}
-                        </div>
-                        <div className="col-span-1 2xl:col-span-2">
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Package</label>
-                          <div className="flex gap-1">
-                            <input
-                              type="number"
-                              className={inputCls + ' font-mono min-w-0'}
-                              value={option.quantityValue ?? ''}
-                              onChange={(e) => updateSellingOption(index, { quantityValue: e.target.value === '' ? undefined : parseFloat(e.target.value) || 0 })}
-                              min={0}
-                              step="0.001"
-                              placeholder="-"
-                            />
-                            <input
-                              className={inputCls + ' w-14 shrink-0'}
-                              value={option.quantityUnit ?? ''}
-                              onChange={(e) => updateSellingOption(index, { quantityUnit: e.target.value })}
-                              placeholder="kg"
-                            />
-                          </div>
-                          {errors[`${prefix}-quantity`] && <p className="text-xs text-red-500 mt-1">{errors[`${prefix}-quantity`]}</p>}
-                        </div>
-                        <div className="col-span-1">
-                          <label className="block text-xs font-medium text-gray-500 mb-1">{option.sharesBaseStock ? 'Available' : 'Stock'}</label>
-                          <input
-                            type="number"
-                            className={`${inputCls} font-mono disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed`}
-                            value={option.stockQuantity}
-                            onChange={(e) => updateSellingOption(index, { stockQuantity: parseFloat(e.target.value) || 0 })}
-                            disabled={mode === 'edit' && (option.sharesBaseStock || Boolean(initial?.sellingOptions?.some((existing) => existing.id === option.id)))}
-                            title={mode === 'edit' ? 'Use Adjust stock from the inventory list to record a stock change.' : undefined}
-                            min={0}
-                            step="0.001"
-                          />
-                          {mode === 'edit' && initial?.sellingOptions?.some((existing) => existing.id === option.id) && (
-                            <p className="text-[11px] leading-snug text-gray-400 mt-0.5">Use Adjust stock to change this quantity.</p>
-                          )}
-                          {errors[`${prefix}-stock`] && <p className="text-xs text-red-500 mt-1">{errors[`${prefix}-stock`]}</p>}
-                        </div>
-                        <div className="col-span-1">
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Price</label>
-                          <input
-                            type="number"
-                            className={inputCls + ' font-mono'}
-                            value={option.sellingPrice}
-                            onChange={(e) => updateSellingOption(index, { sellingPrice: parseFloat(e.target.value) || 0 })}
-                            min={0}
-                            step="0.01"
-                          />
-                          {errors[`${prefix}-price`] && <p className="text-xs text-red-500 mt-1">{errors[`${prefix}-price`]}</p>}
-                        </div>
-                        <div className="col-span-2 md:col-span-2 2xl:col-span-2">
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Low Stock</label>
-                          <input
-                            type="number"
-                            className={inputCls + ' font-mono'}
-                            value={option.lowStockThreshold}
-                            onChange={(e) => updateSellingOption(index, { lowStockThreshold: parseFloat(e.target.value) || 0 })}
-                            min={0}
-                            step="0.001"
-                          />
-                          {errors[`${prefix}-threshold`] && <p className="text-xs text-red-500 mt-1">{errors[`${prefix}-threshold`]}</p>}
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-1 pt-5">
-                        <button
-                          type="button"
-                          onClick={() => makeDefaultOption(index)}
-                          className={`p-1.5 rounded-lg border transition-colors ${option.isDefault ? 'bg-amber-50 border-amber-200 text-amber-600' : 'border-gray-200 text-gray-400 hover:bg-gray-50'}`}
-                          title="Set as default option"
-                        >
-                          <Star className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeSellingOption(index)}
-                          disabled={form.sellingOptions.length === 1}
-                          className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-gray-400"
-                          title="Remove option"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <label className="mt-2 inline-flex items-center gap-2 text-xs font-medium text-gray-600">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-gray-300 accent-blue-600"
-                        checked={option.isActive}
-                        onChange={(e) => updateSellingOption(index, { isActive: e.target.checked })}
-                      />
-                      Active
-                    </label>
-                    <label className="mt-2 ml-4 inline-flex items-center gap-2 text-xs font-medium text-gray-600">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-gray-300 accent-blue-600"
-                        checked={option.sharesBaseStock}
-                        onChange={(e) => updateSellingOption(index, { sharesBaseStock: e.target.checked, inventoryMultiplier: e.target.checked ? Math.max(1, option.inventoryMultiplier) : 1 })}
-                      />
-                      Deduct from piece inventory
-                    </label>
-                    {option.sharesBaseStock && (
-                      <label className="mt-2 ml-4 inline-flex items-center gap-2 text-xs font-medium text-gray-600">
-                        Pieces deducted per sale
-                        <input
-                          type="number"
-                          className="w-20 px-2 py-1 font-mono border border-gray-200 rounded-lg"
-                          value={option.inventoryMultiplier}
-                          min={1}
-                          step={1}
-                          onChange={(e) => updateSellingOption(index, { inventoryMultiplier: parseInt(e.target.value) || 1 })}
-                        />
-                        {errors[`${prefix}-multiplier`] && <span className="text-red-500">{errors[`${prefix}-multiplier`]}</span>}
-                      </label>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <label className="mt-4 flex cursor-pointer items-start gap-2.5 select-none"><input type="checkbox" className="mt-0.5 h-4 w-4 accent-blue-600" checked={Boolean(form.autoPricingEnabled)} onChange={(event) => set('autoPricingEnabled', event.target.checked)} /><span className="text-xs font-medium text-[var(--foreground)]">Automatic margin-based pricing <span className="block font-normal text-[var(--muted-foreground)]">Update the regular unit price from cost and target gross margin.</span></span></label>
+            {form.autoPricingEnabled && <div className="mt-3 max-w-xs"><Field id="product-margin" label="Target gross margin (%)" hint="Profit divided by selling price."><input id="product-margin" type="number" min={0} max={99.99} step="0.01" className={`${inputCls} font-mono`} value={form.marginPercentage || ''} onChange={(event) => set('marginPercentage', Number(event.target.value) || 0)} />{errors.marginPercentage && <p className="text-xs text-red-500">{errors.marginPercentage}</p>}</Field></div>}
+          </div>
+
+          <div className={cardCls}>
+            <div className="flex items-start justify-between gap-4"><div><h2 className={titleCls}>Bulk Purchasing</h2><p className="mt-1 max-w-2xl text-xs leading-5 text-[var(--muted-foreground)]">Configure case, pack, box, tray, or bundle prices. These are purchase modes attached to this product—not separate inventory products.</p></div><label className="inline-flex shrink-0 cursor-pointer items-center gap-2 text-sm font-semibold text-[var(--foreground)]"><input type="checkbox" className="h-4 w-4 accent-blue-600" checked={Boolean(form.bulkPurchaseEnabled)} onChange={(event) => toggleBulkPurchase(event.target.checked)} />Enable Bulk Purchase</label></div>
+            {form.bulkPurchaseEnabled && <div className="mt-4 space-y-3">{errors.bulkOptions && <p className="text-xs text-red-600">{errors.bulkOptions}</p>}{bulkOptions.map((option) => { const index = form.sellingOptions.findIndex((candidate) => candidate.id === option.id); const unitsPerBulk = option.quantityValue ?? option.inventoryMultiplier; const regular = regularValue(option); const selling = calculateBulkPrice(basePrice, unitsPerBulk, option.discountType, option.discountValue); const savings = Math.max(0, regular - selling); const bulkIndex = bulkOptions.findIndex((candidate) => candidate.id === option.id); const prefix = `bulk-${bulkIndex}`; return <div key={option.id} className="rounded-xl border border-blue-100 bg-blue-50/40 p-4"><div className="mb-3 flex items-center justify-between gap-3"><div><p className="text-sm font-semibold text-[var(--foreground)]">Bulk option #{bulkIndex + 1}</p><p className="mt-0.5 text-xs text-blue-700">1 {option.label || 'bulk'} = {unitsPerBulk} {baseUnit}s</p></div><button type="button" onClick={() => removeBulkOption(index)} className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-red-100 bg-white text-red-500 hover:bg-red-50" aria-label={`Remove ${option.label || 'bulk'} option`}><Trash2 className="h-4 w-4" /></button></div><div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4"><Field id={`${prefix}-label`} label="Bulk name"><input id={`${prefix}-label`} className={inputCls} value={option.label} onChange={(event) => updateBulkOption(index, { label: event.target.value })} placeholder="Case" />{errors[`${prefix}-label`] && <p className="text-xs text-red-600">{errors[`${prefix}-label`]}</p>}</Field><Field id={`${prefix}-units`} label="Units per bulk" hint={`Base ${baseUnit}s deducted.`}><input id={`${prefix}-units`} type="number" min={2} step={1} className={`${inputCls} font-mono`} value={unitsPerBulk} onChange={(event) => updateBulkOption(index, { quantityValue: Number(event.target.value) || 2, inventoryMultiplier: Number(event.target.value) || 2 })} />{errors[`${prefix}-units`] && <p className="text-xs text-red-600">{errors[`${prefix}-units`]}</p>}</Field><Field id={`${prefix}-discount-type`} label="Discount type"><select id={`${prefix}-discount-type`} className={inputCls} value={option.discountType ?? 'percent'} onChange={(event) => updateBulkOption(index, { discountType: event.target.value as BulkDiscountType })}><option value="percent">Percentage Discount</option><option value="amount">Fixed Amount Discount</option></select></Field><Field id={`${prefix}-discount`} label={option.discountType === 'amount' ? 'Discount (PHP)' : 'Discount (%)'}><input id={`${prefix}-discount`} type="number" min={0} max={option.discountType === 'percent' ? 100 : undefined} step="0.01" className={`${inputCls} font-mono`} value={option.discountValue || ''} onChange={(event) => updateBulkOption(index, { discountValue: Number(event.target.value) || 0 })} />{errors[`${prefix}-discount`] && <p className="text-xs text-red-600">{errors[`${prefix}-discount`]}</p>}</Field></div><div className="mt-3 grid grid-cols-1 gap-2 rounded-lg border border-blue-100 bg-white p-3 text-sm sm:grid-cols-3"><div><p className="text-xs text-gray-500">Regular value</p><p className="font-mono font-semibold text-gray-900">PHP {regular.toFixed(2)}</p></div><div><p className="text-xs text-gray-500">Bulk selling price</p><p className="font-mono text-base font-bold text-blue-700">PHP {selling.toFixed(2)}</p></div><div><p className="text-xs text-gray-500">Savings</p><p className="font-mono font-semibold text-green-700">PHP {savings.toFixed(2)}</p></div></div></div>; })}<button type="button" onClick={addBulkOption} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-blue-300 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"><Plus className="h-4 w-4" />Add Another Bulk Option</button></div>}
+          </div>
+
+          <div className={cardCls}>
+            <h2 className={`${titleCls} mb-4`}>Inventory & supplier purchasing</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><Field id="product-stock" label={`Starting stock (${baseUnit}s)`} hint={mode === 'edit' ? 'Use Adjust Stock from Product Management to change stock.' : 'Stored only in base units.'}><input id="product-stock" type="number" min={0} step={1} disabled={mode === 'edit'} className={`${inputCls} font-mono`} value={form.currentStock || ''} onChange={(event) => set('currentStock', Number(event.target.value) || 0)} /></Field><Field id="product-low-stock" label={`Low stock alert (${baseUnit}s)`}><input id="product-low-stock" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.minStockLevel || ''} onChange={(event) => set('minStockLevel', Number(event.target.value) || 0)} placeholder="e.g. 24" /></Field><Field id="product-safety-stock" label={`Safety stock (${baseUnit}s)`}><input id="product-safety-stock" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.safetyStock || ''} onChange={(event) => set('safetyStock', Number(event.target.value) || 0)} /></Field><Field id="product-reorder-level" label={`Reorder level (${baseUnit}s)`}><input id="product-reorder-level" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.reorderLevel || ''} onChange={(event) => set('reorderLevel', Number(event.target.value) || 0)} /></Field><Field id="product-lead-time" label="Lead time (days)"><input id="product-lead-time" type="number" min={1} step={1} className={`${inputCls} font-mono`} value={form.leadTimeDays} onChange={(event) => set('leadTimeDays', Number(event.target.value) || 1)} /></Field></div>
+            <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3"><label className="flex cursor-pointer items-start gap-2.5 select-none"><input type="checkbox" className="mt-0.5 h-4 w-4 accent-blue-600" checked={Boolean(form.purchaseUnit)} onChange={(event) => setForm((prev) => event.target.checked ? { ...prev, purchaseUnit: 'case', conversionFactor: 24, bulkPurchasePrice: prev.bulkPurchasePrice ?? prev.costPrice * 24 } : { ...prev, purchaseUnit: '', conversionFactor: 1, bulkPurchasePrice: undefined })} /><span className="text-xs font-medium text-gray-700">Supplier purchase unit <span className="block font-normal text-gray-500">Optional restocking convenience. Receiving a case still adds base units to the same inventory.</span></span></label>{!!form.purchaseUnit && <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3"><Field id="purchase-unit" label="Purchase unit"><select id="purchase-unit" className={inputCls} value={form.purchaseUnit} onChange={(event) => set('purchaseUnit', event.target.value)}>{supplierPurchaseUnits.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</select></Field><Field id="purchase-conversion" label={`Base units per ${form.purchaseUnit}`}><input id="purchase-conversion" type="number" min={1} step={1} className={`${inputCls} font-mono`} value={form.conversionFactor} onChange={(event) => set('conversionFactor', Number(event.target.value) || 1)} /></Field><Field id="purchase-bulk-price" label={`Price per ${form.purchaseUnit}`}><input id="purchase-bulk-price" type="number" min={0} step="0.01" className={`${inputCls} font-mono`} value={form.bulkPurchasePrice ?? ''} onChange={(event) => { const bulkPrice = Number(event.target.value) || 0; setForm((prev) => ({ ...prev, bulkPurchasePrice: bulkPrice, costPrice: bulkPrice / Math.max(1, prev.conversionFactor ?? 1) })); }} /></Field></div>}</div>
           </div>
         </div>
 
-        <div className="space-y-4 min-w-0">
-          <div className={cardCls}>
-            <h3 className={`${titleCls} mb-3`}>Product Image</h3>
-            <div className="flex items-center gap-3">
-              <div className="relative w-20 h-20 shrink-0 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden">
-                {form.imageUrl ? (
-                  <>
-                    <img src={form.imageUrl} alt="Product" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={clearImage}
-                      className="absolute top-1 right-1 bg-white rounded-full p-0.5 shadow border border-gray-200 text-gray-500 hover:text-red-500 transition-colors"
-                      title="Remove image"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </>
-                ) : (
-                  <ImagePlus className="w-7 h-7 text-gray-300" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors text-gray-700"
-                  >
-                    <ImagePlus className="w-3.5 h-3.5" />
-                    Upload
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUrlInputMode((v) => !v)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors text-gray-700"
-                  >
-                    <Link className="w-3.5 h-3.5" />
-                    URL
-                  </button>
-                </div>
-                {urlInputMode && (
-                  <input
-                    type="url"
-                    className={inputCls + ' font-mono text-xs'}
-                    placeholder="https://example.com/image.jpg"
-                    value={form.imageUrl?.startsWith('blob:') ? '' : (form.imageUrl ?? '')}
-                    onChange={(e) => setForm((prev) => ({ ...prev, imageUrl: e.target.value || undefined }))}
-                  />
-                )}
-                <p className="text-[11px] leading-snug text-gray-400">JPG, PNG, GIF, WebP. Max 5 MB.</p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleImageFile}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className={cardCls}>
-            <h3 className={`${titleCls} mb-3`}>Purchase & Selling Price</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label={`Purchase Price per ${defaultSellingUnit}`} required>
-                <input
-                  type="number"
-                  className={inputCls + ' font-mono'}
-                  value={form.costPrice}
-                  onChange={(e) => {
-                    const purchasePrice = parseFloat(e.target.value) || 0;
-                    setForm((prev) => ({
-                      ...prev,
-                      costPrice: purchasePrice,
-                      bulkPurchasePrice: prev.purchaseUnit ? purchasePrice * (prev.conversionFactor ?? 1) : undefined,
-                    }));
-                  }}
-                  min={0}
-                  step={0.01}
-                />
-                {errors.costPrice && <p className="text-xs text-red-500 mt-1">{errors.costPrice}</p>}
-              </Field>
-              <Field label="Selling Price" required>
-                <input
-                  type="number"
-                  className={`${inputCls} font-mono disabled:bg-gray-100`}
-                  value={defaultSellingPrice}
-                  onChange={(e) => {
-                    if (defaultSellingIndex >= 0) updateSellingOption(defaultSellingIndex, { sellingPrice: parseFloat(e.target.value) || 0 });
-                  }}
-                  disabled={form.autoPricingEnabled}
-                  min={0}
-                  step={0.01}
-                />
-                {defaultSellingIndex >= 0 && errors[`sellingOption-${defaultSellingIndex}-price`] && (
-                  <p className="text-xs text-red-500 mt-1">{errors[`sellingOption-${defaultSellingIndex}-price`]}</p>
-                )}
-              </Field>
-            </div>
-            {form.costPrice > 0 && defaultSellingPrice > 0 && (
-              <div className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
-                <span>Profit per {defaultSellingUnit}: <span className="font-mono font-medium">PHP {margin.toFixed(2)}</span>{' '}</span>
-                <span className={marginPct < 0 ? 'text-red-500' : 'text-green-600'}>({marginPct.toFixed(1)}%)</span>
-              </div>
-            )}
-            <label className="mt-3 flex items-start gap-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="mt-0.5 w-4 h-4 rounded border-gray-300 accent-blue-600"
-                checked={Boolean(form.autoPricingEnabled)}
-                onChange={(e) => setForm((prev) => ({ ...prev, autoPricingEnabled: e.target.checked }))}
-              />
-              <span className="text-xs font-medium text-gray-700">
-                Automatic margin-based pricing
-                <span className="block text-[11px] font-normal text-gray-400">Selling price updates whenever the purchase price changes.</span>
-              </span>
-            </label>
-            {form.autoPricingEnabled && (
-              <div className="mt-3">
-                <Field label="Desired Gross Margin (%)" hint="Calculated as profit divided by selling price">
-                  <input
-                    type="number"
-                    className={inputCls + ' font-mono'}
-                    value={form.marginPercentage ?? 0}
-                    onChange={(e) => set('marginPercentage', parseFloat(e.target.value) || 0)}
-                    min={0}
-                    max={99.99}
-                    step={0.01}
-                  />
-                  {errors.marginPercentage && <p className="text-xs text-red-500 mt-1">{errors.marginPercentage}</p>}
-                </Field>
-              </div>
-            )}
-            <label className="mt-3 flex items-start gap-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="mt-0.5 w-4 h-4 rounded border-gray-300 accent-blue-600"
-                checked={(form.conversionFactor ?? 1) > 1 || !!form.purchaseUnit}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    setForm((prev) => ({ ...prev, purchaseUnit: 'pack', conversionFactor: 12, bulkPurchasePrice: prev.costPrice * 12 }));
-                  } else {
-                    setForm((prev) => ({ ...prev, purchaseUnit: '', conversionFactor: 1, bulkPurchasePrice: undefined }));
-                  }
-                }}
-              />
-              <span className="text-xs font-medium text-gray-700">
-                Bought in bulk
-                <span className="block text-[11px] font-normal text-gray-400">Pack, box, tray, bag, case, or similar units.</span>
-              </span>
-            </label>
-            {!!form.purchaseUnit && (
-              <div className="mt-3 pl-4 border-l-2 border-blue-100 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Purchase Unit" hint="Supplier order unit">
-                    <select
-                      className={selectCls}
-                      value={form.purchaseUnit}
-                      onChange={(e) => set('purchaseUnit', e.target.value)}
-                    >
-                      {['pack', 'box', 'bag', 'tray', 'case', 'bundle', 'roll', 'dozen'].map((u) => (
-                        <option key={u} value={u}>{u}</option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field
-                    label={`Units per ${form.purchaseUnit}`}
-                    hint={`${defaultSellingUnit} in 1 ${form.purchaseUnit}`}
-                  >
-                    <input
-                      type="number"
-                      className={inputCls + ' font-mono'}
-                      value={form.conversionFactor}
-                      onChange={(e) => {
-                        const factor = parseInt(e.target.value) || 1;
-                        setForm((prev) => ({ ...prev, conversionFactor: factor, costPrice: (prev.bulkPurchasePrice ?? 0) / factor }));
-                      }}
-                      min={2}
-                      step={1}
-                    />
-                  </Field>
-                </div>
-                <Field label={`Purchase Price per ${form.purchaseUnit}`} hint="Supplier invoice price for one bulk unit">
-                  <input
-                    type="number"
-                    className={inputCls + ' font-mono'}
-                    value={form.bulkPurchasePrice ?? ''}
-                    onChange={(e) => {
-                      const bulkPrice = parseFloat(e.target.value) || 0;
-                      setForm((prev) => ({
-                        ...prev,
-                        bulkPurchasePrice: bulkPrice,
-                        costPrice: bulkPrice / Math.max(1, prev.conversionFactor ?? 1),
-                      }));
-                    }}
-                    min={0}
-                    step={0.01}
-                  />
-                </Field>
-                {(form.conversionFactor ?? 1) >= 2 && (
-                  <div className="flex items-start gap-2 bg-blue-50 rounded-lg px-3 py-2">
-                    <Package className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
-                    <p className="text-xs text-blue-700">
-                      {form.bulkPurchasePrice ? `Calculated purchase price: PHP ${costPerDefaultUnit.toFixed(2)} per ${defaultSellingUnit}. ` : ''}
-                      Receiving one {form.purchaseUnit} adds {form.conversionFactor} {defaultSellingUnit}s to inventory.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className={cardCls}>
-            <h3 className={`${titleCls} mb-3`}>Stock & Reorder</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Default Low Stock" hint="Triggers alert">
-                <input
-                  type="number"
-                  className={inputCls + ' font-mono'}
-                  value={defaultSellingOption?.lowStockThreshold ?? form.minStockLevel}
-                  onChange={(e) => {
-                    if (defaultSellingIndex >= 0) updateSellingOption(defaultSellingIndex, { lowStockThreshold: parseFloat(e.target.value) || 0 });
-                    else set('minStockLevel', parseInt(e.target.value) || 0);
-                  }}
-                  min={0}
-                />
-              </Field>
-              <Field label="Safety Stock" hint="Buffer level">
-                <input
-                  type="number"
-                  className={inputCls + ' font-mono'}
-                  value={form.safetyStock}
-                  onChange={(e) => set('safetyStock', parseInt(e.target.value) || 0)}
-                  min={0}
-                />
-              </Field>
-              <Field label="Reorder Level" hint="Restock trigger">
-                <input
-                  type="number"
-                  className={inputCls + ' font-mono'}
-                  value={form.reorderLevel}
-                  onChange={(e) => set('reorderLevel', parseInt(e.target.value) || 0)}
-                  min={0}
-                />
-              </Field>
-              <Field label="Lead Time" hint="Delivery days">
-                <input
-                  type="number"
-                  className={inputCls + ' font-mono'}
-                  value={form.leadTimeDays}
-                  onChange={(e) => set('leadTimeDays', parseInt(e.target.value) || 1)}
-                  min={1}
-                />
-              </Field>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="secondary" type="button" onClick={() => navigate('/inventory')}>
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit" loading={loading}>
-              Update Product
-            </Button>
-          </div>
-        </div>
+        <div className="min-w-0 space-y-4"><div className={cardCls}><h2 className={`${titleCls} mb-3`}>Product image</h2><div className="flex items-center gap-3"><div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">{form.imageUrl ? <><img src={form.imageUrl} alt="Product preview" className="h-full w-full object-cover" /><button type="button" onClick={clearImage} className="absolute right-1 top-1 rounded-full border border-gray-200 bg-white p-0.5 text-gray-500 hover:text-red-500" aria-label="Remove product image"><X className="h-3.5 w-3.5" /></button></> : <ImagePlus className="h-7 w-7 text-gray-300" />}</div><div className="min-w-0 flex-1 space-y-2"><div className="flex flex-wrap gap-2"><button type="button" onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"><ImagePlus className="h-3.5 w-3.5" />Upload</button><button type="button" onClick={() => setUrlInputMode((value) => !value)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"><Link className="h-3.5 w-3.5" />URL</button></div>{urlInputMode && <input type="url" className={`${inputCls} font-mono text-xs`} value={form.imageUrl?.startsWith('blob:') ? '' : form.imageUrl ?? ''} onChange={(event) => set('imageUrl', event.target.value || undefined)} placeholder="https://example.com/image.jpg" />}<p className="text-[11px] leading-snug text-gray-400">JPG, PNG, GIF, or WebP. Max 5 MB.</p><input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} /></div></div></div><div className="rounded-xl border border-blue-100 bg-blue-50 p-4"><div className="flex items-start gap-2"><Package className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" /><div><p className="text-sm font-semibold text-blue-900">Inventory rule</p><p className="mt-1 text-xs leading-5 text-blue-800">POS availability for a bulk mode is derived as floor(base stock ÷ units per bulk). A case, pack, or bundle never gets its own stock balance.</p></div></div></div><div className="flex items-center justify-end gap-3"><Button variant="secondary" type="button" onClick={() => navigate('/inventory')}>Cancel</Button><Button variant="primary" type="submit" loading={loading}>{mode === 'create' ? 'Save Product' : 'Update Product'}</Button></div></div>
       </div>
-    </form>
+      </form>
+
+      <Dialog
+        open={quickAddType !== null}
+        onOpenChange={(open) => {
+          if (!open && !quickAddLoading) {
+            setQuickAddType(null);
+            setQuickAddName('');
+          }
+        }}
+      >
+        <DialogContent
+          onInteractOutside={(event) => { if (quickAddLoading) event.preventDefault(); }}
+          onEscapeKeyDown={(event) => { if (quickAddLoading) event.preventDefault(); }}
+        >
+          <form onSubmit={handleQuickAdd}>
+            <DialogHeader className="pr-8">
+              <DialogTitle>Add {quickAddType === 'supplier' ? 'supplier' : 'category'}</DialogTitle>
+              <DialogDescription>
+                Add it to the selected store and use it for this product.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <label htmlFor="quick-add-name" className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">
+                {quickAddType === 'supplier' ? 'Supplier name' : 'Category name'}
+                <span className="ml-0.5 text-red-500">*</span>
+              </label>
+              <input
+                id="quick-add-name"
+                className={inputCls}
+                value={quickAddName}
+                onChange={(event) => setQuickAddName(event.target.value)}
+                placeholder={quickAddType === 'supplier' ? 'e.g. San Miguel Corporation' : 'e.g. Beverages'}
+                autoFocus
+                disabled={quickAddLoading}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                variant="secondary"
+                type="button"
+                onClick={() => {
+                  setQuickAddType(null);
+                  setQuickAddName('');
+                }}
+                disabled={quickAddLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                type="submit"
+                loading={quickAddLoading}
+                disabled={!quickAddName.trim()}
+              >
+                Add {quickAddType === 'supplier' ? 'Supplier' : 'Category'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

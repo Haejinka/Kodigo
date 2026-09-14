@@ -14,6 +14,7 @@ import {
   getOptionInventoryMultiplier,
   getOptionPurchaseCost,
   isLegacySellingOption,
+  isBulkSellingOption,
 } from '@/types';
 import type { PaymentMethod, ReceiptSnapshot, Sale } from '@/types';
 import { fetchReceiptBySaleId, printReceipt, receiptSnapshotFromSale } from '@/lib/receipts';
@@ -101,7 +102,13 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     const sale: Sale = {
       id: crypto.randomUUID(),
       storeId,
-      items: items.map((i) => ({
+      items: items.map((i) => {
+        const isBulk = isBulkSellingOption(i.sellingOption);
+        const unitsPerPackage = getOptionInventoryMultiplier(i.sellingOption);
+        const baseUnitQuantity = i.quantity * unitsPerPackage;
+        const regularValue = i.product.sellingPrice * baseUnitQuantity;
+        const bulkDiscountAmount = isBulk ? Math.max(0, regularValue - i.lineTotal) : 0;
+        return {
         productId: i.product.id,
         productName: i.product.name,
         categoryName: i.product.categoryName,
@@ -110,12 +117,25 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         unitLabel: i.sellingOption.unitLabel,
         packageSize: i.sellingOption.quantityValue,
         packageUnit: i.sellingOption.quantityUnit,
-        stockSource: i.sellingOption.sharesBaseStock || isLegacySellingOption(i.sellingOption) ? 'product' : 'selling_option',
+        stockSource: 'product',
+        purchaseMode: isBulk ? 'bulk' : 'unit',
+        bulkOptionId: isBulk ? i.sellingOption.id : undefined,
+        bulkOptionLabel: isBulk ? getSellingOptionLabel(i.sellingOption) : undefined,
+        bulkQuantity: isBulk ? i.quantity : undefined,
+        unitsPerPackage,
+        baseUnitQuantity,
+        regularUnitPrice: i.product.sellingPrice,
+        regularValue,
+        bulkDiscountType: isBulk ? i.sellingOption.discountType : undefined,
+        bulkDiscountValue: isBulk ? i.sellingOption.discountValue : undefined,
+        bulkDiscountAmount,
+        finalSellingPrice: i.sellingOption.sellingPrice,
         quantity: i.quantity,
         unitPrice: i.sellingOption.sellingPrice,
         costPrice: getOptionPurchaseCost(i.product, i.sellingOption),
         lineTotal: i.lineTotal,
-      })),
+        };
+      }),
       subtotal: orderSubtotal,
       tax: orderTax,
       taxRate: orderTaxRate,
@@ -141,22 +161,14 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
           const soldLines = items.filter((line) => line.product.id === product.id);
           if (soldLines.length === 0) return product;
           const sharedPieceDelta = soldLines
-            .filter((line) => line.sellingOption.sharesBaseStock)
             .reduce((sum, line) => sum + line.quantity * getOptionInventoryMultiplier(line.sellingOption), 0);
           const sellingOptions = product.sellingOptions.map((option) => {
-            const soldForOption = soldLines
-              .filter((line) => line.sellingOption.id === option.id)
-              .reduce((sum, line) => sum + line.quantity, 0);
-            if (option.sharesBaseStock) return option;
-            return soldForOption > 0 ? { ...option, stockQuantity: Math.max(0, option.stockQuantity - soldForOption) } : option;
+            return { ...option, stockQuantity: Math.floor(Math.max(0, product.currentStock - sharedPieceDelta) / getOptionInventoryMultiplier(option)) };
           });
-          const defaultOption = sellingOptions.find((option) => option.isDefault);
           return {
             ...product,
             sellingOptions,
-            currentStock: sharedPieceDelta > 0
-              ? Math.max(0, product.currentStock - sharedPieceDelta)
-              : defaultOption ? Math.round(defaultOption.stockQuantity) : product.currentStock,
+            currentStock: Math.max(0, product.currentStock - sharedPieceDelta),
           };
         }),
       }));
@@ -240,7 +252,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
               {items.map((item) => (
                 <div key={item.product.id} className="flex justify-between text-sm">
                   <span className="text-gray-600 truncate flex-1 mr-2">
-                    {item.product.name} - {getSellingOptionLabel(item.sellingOption)} x{item.quantity}
+                    {item.product.name} - {item.quantity} {getSellingOptionLabel(item.sellingOption)} ({item.quantity * getOptionInventoryMultiplier(item.sellingOption)} {item.product.unit}s)
                   </span>
                   <span className="font-mono text-gray-900 font-medium">{formatCurrency(item.lineTotal)}</span>
                 </div>

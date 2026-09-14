@@ -1,7 +1,7 @@
 import { Package, AlertCircle } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Product, ProductSellingOption } from '@/types';
-import { getAvailableSellingUnits, getProductOptionStockLabel, getProductSellingOptions, getSellingOptionLabel, getStockStatus } from '@/types';
+import { getAvailableSellingUnits, getProductOptionStockLabel, getProductSellingOptions, getSellingOptionLabel, getStockStatus, getOptionUnitsPerPackage, isBulkSellingOption } from '@/types';
 
 interface ProductCardProps {
   product: Product;
@@ -49,6 +49,7 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
 
       <p className="text-xs font-semibold text-gray-900 leading-tight line-clamp-2 mb-1">{product.name}</p>
       <div className="space-y-1.5 mt-2">
+        {options.length > 1 && <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Purchase as</p>}
         {options.map((option) => {
           const status = getStockStatus(product, option);
           const optionOut = getAvailableSellingUnits(product, option) <= 0;
@@ -70,7 +71,7 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
               )}
             >
               <span className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-semibold text-gray-700 truncate">{getSellingOptionLabel(option)}</span>
+                <span className="text-[11px] font-semibold text-gray-700 truncate">{isBulkSellingOption(option) ? `${getSellingOptionLabel(option)} (${getOptionUnitsPerPackage(option)} units)` : `${getSellingOptionLabel(option)} — ${product.unit}`}</span>
                 <span className="text-xs font-bold text-blue-600 font-mono shrink-0">{formatCurrency(option.sellingPrice)}</span>
               </span>
               <span className="flex items-center gap-1 mt-0.5">

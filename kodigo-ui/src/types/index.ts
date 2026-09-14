@@ -2,6 +2,7 @@
 
 export interface Store {
   id: string;
+  ownerId?: string;
   name: string;
   address: string;
   taxRate: number;
@@ -70,6 +71,8 @@ export interface Supplier {
 }
 
 export type SellingOptionKind = 'unit' | 'kilo' | 'sack' | 'custom';
+export type BulkDiscountType = 'percent' | 'amount';
+export type PurchaseMode = 'unit' | 'bulk';
 
 export interface ProductSellingOption {
   id: string;
@@ -87,6 +90,11 @@ export interface ProductSellingOption {
   inventoryMultiplier: number;
   /** When true, availability comes from the product's base-piece stock. */
   sharesBaseStock: boolean;
+  /** True when this option is a bulk purchase mode such as a case or pack. */
+  isBulk?: boolean;
+  /** Discount applied to the regular unit price multiplied by the package size. */
+  discountType?: BulkDiscountType;
+  discountValue?: number;
   isDefault: boolean;
   isActive: boolean;
   createdAt?: string;
@@ -116,6 +124,8 @@ export interface Product {
   conversionFactor?: number;
   /** Supplier price for one configured purchase unit (case/pack/box). */
   bulkPurchasePrice?: number;
+  /** Enables bulk purchase modes in the POS. Stock is still stored in base units. */
+  bulkPurchaseEnabled?: boolean;
   autoPricingEnabled?: boolean;
   /** Desired gross margin percentage (profit divided by selling price). */
   marginPercentage?: number;
@@ -126,8 +136,11 @@ export interface Product {
   safetyStock: number;
   reorderLevel: number;
   leadTimeDays: number;
+  /** Primary supplier retained for existing restocking and reporting flows. */
   supplierId?: string;
   supplierName?: string;
+  /** All suppliers that can provide this product, including the primary one. */
+  supplierIds?: string[];
   imageUrl?: string;
   sellingOptions: ProductSellingOption[];
   createdAt: string;
@@ -137,9 +150,10 @@ export interface Product {
 export type StockStatus = 'in-stock' | 'low' | 'critical' | 'out-of-stock' | 'overstock';
 
 export function getStockStatus(product: Product, option?: ProductSellingOption): StockStatus {
-  const currentStock = option ? option.stockQuantity : product.currentStock;
-  const minStockLevel = option ? option.lowStockThreshold : product.minStockLevel;
-  const safetyStock = option ? Math.min(option.lowStockThreshold, product.safetyStock) : product.safetyStock;
+  const currentStock = option ? getAvailableSellingUnits(product, option) : product.currentStock;
+  const multiplier = option ? getOptionInventoryMultiplier(option) : 1;
+  const minStockLevel = option ? Math.floor(product.minStockLevel / multiplier) : product.minStockLevel;
+  const safetyStock = option ? Math.floor(product.safetyStock / multiplier) : product.safetyStock;
   if (currentStock === 0) return 'out-of-stock';
   if (currentStock <= safetyStock) return 'critical';
   if (currentStock <= minStockLevel) return 'low';
@@ -170,16 +184,52 @@ export function buildLegacySellingOption(product: Product): ProductSellingOption
 }
 
 export function getOptionInventoryMultiplier(option: ProductSellingOption): number {
-  return option.sharesBaseStock ? Math.max(1, Number(option.inventoryMultiplier) || 1) : 1;
+  if (isBulkSellingOption(option)) {
+    const configuredMultiplier = Number(option.inventoryMultiplier) || 0;
+    const quantityValue = Number(option.quantityValue) || 0;
+    return Math.max(1, configuredMultiplier > 1 ? configuredMultiplier : quantityValue || configuredMultiplier || 1);
+  }
+  return 1;
 }
 
 export function getAvailableSellingUnits(product: Product, option: ProductSellingOption): number {
-  if (!option.sharesBaseStock) return Math.max(0, option.stockQuantity);
   return Math.floor(Math.max(0, product.currentStock) / getOptionInventoryMultiplier(option));
 }
 
 export function getOptionPurchaseCost(product: Product, option: ProductSellingOption): number {
   return product.costPrice * getOptionInventoryMultiplier(option);
+}
+
+export function isBulkSellingOption(option: ProductSellingOption): boolean {
+  return Boolean(
+    option.isBulk
+      ?? (option.inventoryMultiplier > 1 || Number(option.quantityValue) > 1)
+  );
+}
+
+export function getOptionUnitsPerPackage(option: ProductSellingOption): number {
+  return getOptionInventoryMultiplier(option);
+}
+
+export function calculateBulkPrice(
+  unitPrice: number,
+  unitsPerPackage: number,
+  discountType: BulkDiscountType = 'percent',
+  discountValue = 0,
+): number {
+  const regularValue = Math.max(0, Number(unitPrice) || 0) * Math.max(1, Number(unitsPerPackage) || 1);
+  const discount = discountType === 'percent'
+    ? regularValue * Math.min(100, Math.max(0, Number(discountValue) || 0)) / 100
+    : Math.max(0, Number(discountValue) || 0);
+  return Math.max(0, Math.round((regularValue - discount + Number.EPSILON) * 100) / 100);
+}
+
+export function getOptionRegularValue(product: Product, option: ProductSellingOption): number {
+  return product.sellingPrice * getOptionUnitsPerPackage(option);
+}
+
+export function getOptionSavings(product: Product, option: ProductSellingOption): number {
+  return Math.max(0, getOptionRegularValue(product, option) - option.sellingPrice);
 }
 
 export function getProductSellingOptions(product: Product): ProductSellingOption[] {
@@ -213,6 +263,9 @@ export function getSellingOptionStockLabel(option: ProductSellingOption): string
 export function getProductOptionStockLabel(product: Product, option: ProductSellingOption): string {
   const available = getAvailableSellingUnits(product, option);
   const qty = formatQty(available);
+  if (isBulkSellingOption(option)) {
+    return `${qty} ${getSellingOptionLabel(option)}${available === 1 ? '' : 's'}`;
+  }
   return `${qty} ${option.unitLabel}${available === 1 ? '' : 's'}`;
 }
 
@@ -246,6 +299,18 @@ export interface SaleItem {
   packageSize?: number;
   packageUnit?: string;
   stockSource?: string;
+  purchaseMode?: PurchaseMode;
+  bulkOptionId?: string;
+  bulkOptionLabel?: string;
+  bulkQuantity?: number;
+  unitsPerPackage?: number;
+  baseUnitQuantity?: number;
+  regularUnitPrice?: number;
+  regularValue?: number;
+  bulkDiscountType?: BulkDiscountType;
+  bulkDiscountValue?: number;
+  bulkDiscountAmount?: number;
+  finalSellingPrice?: number;
   quantity: number;
   unitPrice: number;
   costPrice?: number;
@@ -348,6 +413,18 @@ export interface ReceiptSnapshot {
     unit_label?: string;
     package_size?: number;
     package_unit?: string;
+    purchase_mode?: PurchaseMode;
+    bulk_option_id?: string;
+    bulk_option_label?: string;
+    bulk_quantity?: number;
+    units_per_package?: number;
+    base_unit_quantity?: number;
+    regular_unit_price?: number;
+    regular_value?: number;
+    bulk_discount_type?: BulkDiscountType;
+    bulk_discount_value?: number;
+    bulk_discount_amount?: number;
+    final_selling_price?: number;
     quantity: number;
     unit_price: number;
     line_total: number;

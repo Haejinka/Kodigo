@@ -231,11 +231,21 @@ try {
       stock_quantity: 100,
       selling_price: 55,
       low_stock_threshold: 5,
+      inventory_multiplier: 1,
+      shares_base_stock: true,
+      is_bulk: false,
+      discount_type: 'percent',
+      discount_value: 0,
       is_default: true,
       is_active: true,
     })
     .select()
     .single());
+
+  await unwrap('enable bulk purchase on rice', admin
+    .from('products')
+    .update({ bulk_purchase_enabled: true })
+    .eq('id', riceProduct.id));
 
   const sack25Option = await unwrap('create rice 25kg sack option', admin
     .from('product_selling_options')
@@ -244,12 +254,17 @@ try {
       product_id: riceProduct.id,
       kind: 'sack',
       label: '25 kg sack',
-      unit_label: 'sack',
+      unit_label: 'kg',
       quantity_value: 25,
       quantity_unit: 'kg',
       stock_quantity: 5,
       selling_price: 1350,
       low_stock_threshold: 1,
+      inventory_multiplier: 25,
+      shares_base_stock: true,
+      is_bulk: true,
+      discount_type: 'amount',
+      discount_value: 25,
       is_default: false,
       is_active: true,
     })
@@ -261,15 +276,15 @@ try {
     p_id: riceSaleId,
     p_store_id: storeA.id,
     p_cashier_id: cashierUserId,
-    p_subtotal: 6775,
+    p_subtotal: 5425,
     p_tax: 0,
     p_discount: 0,
-    p_total: 6775,
-    p_cash_received: 7000,
-    p_change: 225,
+    p_total: 5425,
+    p_cash_received: 6000,
+    p_change: 575,
     p_items: [
       { productId: riceProduct.id, sellingOptionId: kiloOption.id, quantity: 25 },
-      { productId: riceProduct.id, sellingOptionId: sack25Option.id, quantity: 4 },
+      { productId: riceProduct.id, sellingOptionId: sack25Option.id, quantity: 3 },
     ],
     p_payment_method: 'cash',
     p_payment_reference: null,
@@ -287,7 +302,7 @@ try {
   assert(kiloLine, 'Rice kilo sale line should be recorded separately.');
   assert(sackLine, 'Rice 25 kg sack sale line should be recorded separately.');
   assert(Number(kiloLine.quantity) === 25 && Number(kiloLine.unit_price) === 55, 'Rice kilo line should keep kilo quantity and price.');
-  assert(Number(sackLine.quantity) === 4 && Number(sackLine.unit_price) === 1350, 'Rice sack line should keep sack quantity and price.');
+  assert(Number(sackLine.quantity) === 3 && Number(sackLine.unit_price) === 1350, 'Rice sack line should keep sack quantity and price.');
   assert(Number(sackLine.package_size) === 25 && sackLine.package_unit === 'kg', 'Rice sack line should snapshot sack size.');
 
   await unwrap('change rice selling option after sale', admin
@@ -310,6 +325,73 @@ try {
     .single());
   assert(postSaleProduct.current_stock === 8, 'Checkout should decrement stock by sold quantity.');
 
+  await unwrap('enable bulk purchase on product A', admin
+    .from('products')
+    .update({ bulk_purchase_enabled: true })
+    .eq('id', productA.id));
+  const caseOption = await unwrap('create product A case option', admin
+    .from('product_selling_options')
+    .insert({
+      store_id: storeA.id,
+      product_id: productA.id,
+      kind: 'custom',
+      label: 'Case',
+      unit_label: 'piece',
+      quantity_value: 4,
+      quantity_unit: 'piece',
+      stock_quantity: 2,
+      selling_price: 36,
+      low_stock_threshold: 0,
+      inventory_multiplier: 4,
+      shares_base_stock: true,
+      is_bulk: true,
+      discount_type: 'percent',
+      discount_value: 10,
+      is_default: false,
+      is_active: true,
+    })
+    .select()
+    .single());
+
+  const bulkSaleId = crypto.randomUUID();
+  await unwrap('process bulk checkout', cashier.rpc('process_pos_sale_v3', {
+    p_id: bulkSaleId,
+    p_store_id: storeA.id,
+    p_cashier_id: cashierUserId,
+    p_subtotal: 72,
+    p_tax: 0,
+    p_discount: 0,
+    p_total: 72,
+    p_cash_received: 100,
+    p_change: 28,
+    p_items: [{ productId: productA.id, sellingOptionId: caseOption.id, quantity: 2 }],
+    p_payment_method: 'cash',
+    p_payment_reference: null,
+    p_discount_type: 'amount',
+    p_discount_value: 0,
+    p_tax_rate: 0,
+  }));
+
+  const bulkSnapshot = await unwrap('read bulk sale snapshot', admin
+    .from('sale_items')
+    .select('purchase_mode,bulk_option_id,bulk_quantity,units_per_package,base_unit_quantity,regular_unit_price,regular_value,bulk_discount_type,bulk_discount_value,bulk_discount_amount,final_selling_price,line_total,stock_source')
+    .eq('sale_id', bulkSaleId)
+    .single());
+  assert(bulkSnapshot.purchase_mode === 'bulk', 'Bulk sale should snapshot purchase mode.');
+  assert(bulkSnapshot.bulk_option_id === caseOption.id, 'Bulk sale should snapshot the selected bulk option.');
+  assert(Number(bulkSnapshot.bulk_quantity) === 2, 'Bulk sale should snapshot package quantity.');
+  assert(Number(bulkSnapshot.units_per_package) === 4 && Number(bulkSnapshot.base_unit_quantity) === 8, 'Bulk sale should snapshot and deduct base units.');
+  assert(Number(bulkSnapshot.regular_value) === 80 && Number(bulkSnapshot.bulk_discount_amount) === 8, 'Bulk sale should snapshot regular value and savings.');
+  assert(Number(bulkSnapshot.final_selling_price) === 36 && Number(bulkSnapshot.line_total) === 72, 'Bulk sale should snapshot the calculated bulk selling price.');
+  assert(bulkSnapshot.stock_source === 'product', 'Bulk sale stock source should remain the product base stock.');
+
+  const postBulkProduct = await unwrap('read stock after bulk sale', admin
+    .from('products')
+    .select('current_stock')
+    .eq('id', productA.id)
+    .single());
+  assert(postBulkProduct.current_stock === 0, 'Bulk checkout should decrement product stock by packages times units per package.');
+
   const inaccessibleProduct = await unwrap('RLS product scope', cashier
     .from('products')
     .select('id')
@@ -326,6 +408,10 @@ try {
   await unwrap('void sale', adminClient.rpc('void_pos_sale', {
     p_sale_id: saleId,
     p_reason: 'integration rollback',
+  }));
+  await unwrap('void bulk sale', adminClient.rpc('void_pos_sale', {
+    p_sale_id: bulkSaleId,
+    p_reason: 'integration bulk rollback',
   }));
   const postVoidProduct = await unwrap('read stock after void', admin
     .from('products')

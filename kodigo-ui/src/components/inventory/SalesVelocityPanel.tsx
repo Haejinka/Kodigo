@@ -162,10 +162,6 @@ export function SalesVelocityPanel({ products }: Props) {
     };
   }, [rows]);
 
-  const hasSeparateStockUnits = products.some((product) =>
-    product.sellingOptions.some((option) => option.isActive && !option.sharesBaseStock),
-  );
-
   const columns = useMemo<Column<SalesVelocityRow>[]>(() => [
     {
       key: 'product',
@@ -231,11 +227,6 @@ export function SalesVelocityPanel({ products }: Props) {
               <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">
                 Completed sales converted to base-unit demand. Choose a period to see what may run out next.
               </p>
-              {hasSeparateStockUnits && (
-                <p className="mt-1 text-xs leading-5 text-gray-400">
-                  Pack, case, and other separate-stock options stay in their own inventory stream and are not combined with QOH.
-                </p>
-              )}
             </div>
           </div>
           <label className="flex shrink-0 items-center gap-2 text-xs font-medium text-gray-600">

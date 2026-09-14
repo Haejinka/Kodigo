@@ -4,7 +4,7 @@ import { useCartStore } from '@/stores/cartStore';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/shared/Button';
 import { useState } from 'react';
-import { getAvailableSellingUnits, getSaleItemUnitLabel, getSellingOptionLabel } from '@/types';
+import { getAvailableSellingUnits, getOptionInventoryMultiplier, getSellingOptionLabel, isBulkSellingOption } from '@/types';
 
 interface CartProps {
   onCharge: () => void;
@@ -87,7 +87,7 @@ export function Cart({ onCharge }: CartProps) {
         </h2>
         {items.length > 0 && (
           <span className="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">
-            {items.reduce((s, i) => s + i.quantity, 0)} items
+            {items.reduce((s, i) => s + i.quantity * getOptionInventoryMultiplier(i.sellingOption), 0)} units
           </span>
         )}
       </div>
@@ -113,14 +113,13 @@ export function Cart({ onCharge }: CartProps) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{item.product.name}</p>
                   <p className="text-xs text-gray-500 truncate">
-                    {getSellingOptionLabel(item.sellingOption)}
+                    {isBulkSellingOption(item.sellingOption) ? `${item.quantity} ${getSellingOptionLabel(item.sellingOption)}` : `${item.quantity} ${item.product.unit}`}
                   </p>
                   <p className="text-xs text-gray-400 font-mono">
-                    {formatCurrency(item.sellingOption.sellingPrice)} / {getSaleItemUnitLabel({
-                      unitLabel: item.sellingOption.unitLabel,
-                      packageSize: item.sellingOption.quantityValue,
-                      packageUnit: item.sellingOption.quantityUnit,
-                    })}
+                    {formatCurrency(item.sellingOption.sellingPrice)} per {isBulkSellingOption(item.sellingOption) ? getSellingOptionLabel(item.sellingOption) : item.product.unit}
+                  </p>
+                  <p className="text-[11px] text-blue-600 font-medium">
+                    {item.quantity * getOptionInventoryMultiplier(item.sellingOption)} {item.product.unit}s deducted
                   </p>
                 </div>
 

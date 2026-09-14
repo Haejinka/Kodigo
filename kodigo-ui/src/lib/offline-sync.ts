@@ -284,11 +284,25 @@ export async function syncPendingMutations() {
         const { error } = await (supabase as any).from(mut.table).insert(mut.payload).select();
         if (error) throw error;
       } else if (mut.operation === 'UPDATE' && mut.matchKey) {
-        const { error } = await (supabase as any).from(mut.table).update(mut.payload).eq(mut.matchKey, mut.matchValue).select();
+        const { data, error } = await (supabase as any)
+          .from(mut.table)
+          .update(mut.payload)
+          .eq(mut.matchKey, mut.matchValue)
+          .select('id');
         if (error) throw error;
+        if (!data?.length) {
+          throw Object.assign(new Error(`Update matched no rows in ${mut.table}.`), { code: '42501' });
+        }
       } else if (mut.operation === 'DELETE' && mut.matchKey) {
-        const { error } = await (supabase as any).from(mut.table).delete().eq(mut.matchKey, mut.matchValue).select();
+        const { data, error } = await (supabase as any)
+          .from(mut.table)
+          .delete()
+          .eq(mut.matchKey, mut.matchValue)
+          .select('id');
         if (error) throw error;
+        if (!data?.length) {
+          throw Object.assign(new Error(`Delete matched no rows in ${mut.table}.`), { code: '42501' });
+        }
       }
       await idbRetry(() => db.delete('generic_mutations', mut.id));
     } catch (err: any) {
@@ -332,13 +346,23 @@ export async function executeOrQueueMutation(
       const { error } = result;
       if (error) throw error;
     } else if (operation === 'UPDATE' && matchKey) {
-      const result: any = await withTimeout((supabase as any).from(table).update(payload).eq(matchKey, matchValue));
+      const result: any = await withTimeout(
+        (supabase as any).from(table).update(payload).eq(matchKey, matchValue).select('id')
+      );
       const { error } = result;
       if (error) throw error;
+      if (!result.data?.length) {
+        throw Object.assign(new Error(`Update matched no rows in ${table}.`), { code: '42501' });
+      }
     } else if (operation === 'DELETE' && matchKey) {
-      const result: any = await withTimeout((supabase as any).from(table).delete().eq(matchKey, matchValue));
+      const result: any = await withTimeout(
+        (supabase as any).from(table).delete().eq(matchKey, matchValue).select('id')
+      );
       const { error } = result;
       if (error) throw error;
+      if (!result.data?.length) {
+        throw Object.assign(new Error(`Delete matched no rows in ${table}.`), { code: '42501' });
+      }
     }
   } catch (err: any) {
     // Check if it's an actual Supabase/Postgres error (e.g., RLS, validation) vs a network error

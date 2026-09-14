@@ -74,6 +74,18 @@ export function receiptSnapshotFromSale(sale: Sale, store: ReceiptSnapshot['stor
       unit_label: item.unitLabel,
       package_size: item.packageSize,
       package_unit: item.packageUnit,
+      purchase_mode: item.purchaseMode,
+      bulk_option_id: item.bulkOptionId,
+      bulk_option_label: item.bulkOptionLabel,
+      bulk_quantity: item.bulkQuantity,
+      units_per_package: item.unitsPerPackage,
+      base_unit_quantity: item.baseUnitQuantity,
+      regular_unit_price: item.regularUnitPrice,
+      regular_value: item.regularValue,
+      bulk_discount_type: item.bulkDiscountType,
+      bulk_discount_value: item.bulkDiscountValue,
+      bulk_discount_amount: item.bulkDiscountAmount,
+      final_selling_price: item.finalSellingPrice,
       quantity: item.quantity,
       unit_price: item.unitPrice,
       line_total: item.lineTotal,
@@ -120,6 +132,7 @@ export function buildReceiptHtml(snapshot: ReceiptSnapshot, layout: ReceiptLayou
       <td colspan="3">
         <strong>${escapeHtml(item.product_name)}</strong>
         ${item.selling_option_label ? `<div class="muted">${escapeHtml(item.selling_option_label)}</div>` : ''}
+        ${item.base_unit_quantity ? `<div class="muted">${escapeHtml(item.base_unit_quantity)} base units</div>` : ''}
       </td>
     </tr>
     <tr class="thermal-line">
@@ -132,6 +145,7 @@ export function buildReceiptHtml(snapshot: ReceiptSnapshot, layout: ReceiptLayou
       <td>
         <strong>${escapeHtml(item.product_name)}</strong>
         ${item.selling_option_label ? `<div class="muted">${escapeHtml(item.selling_option_label)}</div>` : ''}
+        ${item.base_unit_quantity ? `<div class="muted">${escapeHtml(item.base_unit_quantity)} base units</div>` : ''}
       </td>
       <td class="num">${escapeHtml(item.quantity)}</td>
       <td class="num">${money(item.unit_price)}</td>
@@ -374,6 +388,7 @@ export async function downloadReceiptPdf(snapshot: ReceiptSnapshot, layout: Rece
   for (const item of snapshot.items) {
     const itemName = `${item.product_name}${item.selling_option_label ? ` - ${item.selling_option_label}` : ''}`;
     for (const textLine of doc.splitTextToSize(itemName, contentWidth)) line(textLine, 8, 'left', true);
+    if (item.base_unit_quantity) line(`${item.base_unit_quantity} base units deducted`, 7);
     twoCol(`${item.quantity} x ${money(item.unit_price)}`, money(item.line_total));
   }
   rule();

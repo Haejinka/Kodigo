@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { isLegacySellingOption } from '@/types';
+import { calculateBulkPrice, getOptionInventoryMultiplier, isBulkSellingOption, isLegacySellingOption } from '@/types';
 import type { Product, AdjustmentReason, StockAdjustment, Category, ProductSellingOption } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from './authStore';
@@ -23,7 +23,6 @@ interface ProductStore {
   updateProduct: (id: string, data: ProductFormData, supplierName?: string) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   adjustStock: (id: string, sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { quantity: number; purchaseUnit: string; piecesPerUnit: number; purchasePricePerUnit: number }) => Promise<void>;
-  openSackToKilo: (id: string, sackOptionId: string, kiloOptionId: string, sacks: number, note: string) => Promise<void>;
 }
 
 export const DEFAULT_CATEGORY_NAMES = [
@@ -47,6 +46,11 @@ const STATIC_CATEGORIES: Category[] = DEFAULT_CATEGORY_NAMES.map((name, index) =
 }));
 
 const normalizeCategoryName = (name: string) => name.trim().replace(/\s+/g, ' ');
+const categoryNameKey = (name: string) => normalizeCategoryName(name).toLowerCase();
+
+// Category data is shared by several screens, so a request for an old store can
+// otherwise overwrite the list for the store that is currently selected.
+let latestCategoryRequest = 0;
 
 const mapCategoryRows = (rows: any[] = []): Category[] => {
   return rows
@@ -56,10 +60,18 @@ const mapCategoryRows = (rows: any[] = []): Category[] => {
 
 export const fetchCategoriesForStore = async (storeId: string): Promise<Category[]> => {
   if (!storeId || storeId === 'all') return [];
+  const knownStore = useAuthStore.getState().stores.find((store) => store.id === storeId);
+  let ownerId = knownStore?.ownerId;
+  if (!ownerId) {
+    const { data, error } = await supabase.from('stores').select('owner_id').eq('id', storeId).single();
+    if (error) throw toCategoryError(error);
+    ownerId = data?.owner_id;
+  }
+  if (!ownerId) throw new Error('This store has no owner configured for shared categories.');
   const { data, error } = await supabase
     .from('categories')
     .select('id,name')
-    .eq('store_id', storeId)
+    .eq('owner_id', ownerId)
     .order('name', { ascending: true });
   if (error) throw toCategoryError(error);
   return mapCategoryRows(data || []);
@@ -72,7 +84,7 @@ const getActiveCategoryStoreId = (fallback?: string) => {
 
 const toCategoryError = (err: any) => {
   if (err?.code === '23505') {
-    return new Error('A category with that name already exists for this store.');
+    return new Error('A category with that name already exists for this owner.');
   }
   if (err?.code === '23503') {
     return new Error('This category is assigned to products. Move those products to another category before deleting it.');
@@ -93,7 +105,10 @@ const mapSellingOption = (row: any): ProductSellingOption => ({
   sellingPrice: Number(row.selling_price ?? 0),
   lowStockThreshold: Number(row.low_stock_threshold ?? 0),
   inventoryMultiplier: Math.max(1, Number(row.inventory_multiplier ?? 1)),
-  sharesBaseStock: Boolean(row.shares_base_stock),
+  sharesBaseStock: row.shares_base_stock !== false,
+  isBulk: row.is_bulk == null ? undefined : Boolean(row.is_bulk),
+  discountType: row.discount_type === 'amount' ? 'amount' : 'percent',
+  discountValue: Number(row.discount_value ?? 0),
   isDefault: Boolean(row.is_default),
   isActive: row.is_active !== false,
   createdAt: row.created_at,
@@ -127,31 +142,71 @@ const normalizeSellingOptions = (
         isActive: true,
       }];
 
-  const sanitized = rawOptions.map((option) => ({
-    ...option,
-    id: option.id && !isLegacySellingOption(option) ? option.id : crypto.randomUUID(),
-    productId,
-    storeId,
-    label: optionLabel(option),
-    unitLabel: option.unitLabel.trim() || data.unit || 'unit',
-    stockQuantity: option.sharesBaseStock
-      ? Math.floor(Math.max(0, Number(data.currentStock) || 0) / Math.max(1, Number(option.inventoryMultiplier) || 1))
-      : Math.max(0, Number(option.stockQuantity) || 0),
-    sellingPrice: Math.max(0, Number(option.sellingPrice) || 0),
-    lowStockThreshold: Math.max(0, Number(option.lowStockThreshold) || 0),
-    inventoryMultiplier: Math.max(1, Number(option.inventoryMultiplier) || 1),
-    sharesBaseStock: Boolean(option.sharesBaseStock),
-    quantityValue: option.quantityValue == null || Number(option.quantityValue) <= 0 ? undefined : Number(option.quantityValue),
-    quantityUnit: option.quantityUnit?.trim() || undefined,
-    isDefault: Boolean(option.isDefault),
-    isActive: option.isActive !== false,
-    kind: option.kind || (option.unitLabel === 'kg' ? 'kilo' : 'unit'),
-    createdAt: option.createdAt,
-    updatedAt: option.updatedAt,
-  }));
+  const baseUnit = data.unit?.trim() || 'unit';
+  const sanitized = rawOptions.map((option) => {
+    const inferredBulk = option.isBulk == null
+      ? (!option.isDefault && (Number(option.inventoryMultiplier) > 1 || Number(option.quantityValue) > 1 || option.kind === 'sack'))
+      : Boolean(option.isBulk);
+    const isBulk = Boolean(inferredBulk);
+    const unitsPerPackage = isBulk
+      ? Math.max(2, getOptionInventoryMultiplier(option))
+      : 1;
+    const discountType = option.discountType === 'amount' ? 'amount' as const : 'percent' as const;
+    const discountValue = Math.max(0, Number(option.discountValue) || 0);
+    return {
+      ...option,
+      id: option.id && !isLegacySellingOption(option) ? option.id : crypto.randomUUID(),
+      productId,
+      storeId,
+      kind: isBulk ? 'custom' as const : (option.kind || (baseUnit === 'kg' ? 'kilo' : 'unit')),
+      label: isBulk ? optionLabel(option) : baseUnit,
+      unitLabel: baseUnit,
+      quantityValue: isBulk ? unitsPerPackage : undefined,
+      quantityUnit: isBulk ? baseUnit : undefined,
+      stockQuantity: Math.floor(Math.max(0, Number(data.currentStock) || 0) / unitsPerPackage),
+      sellingPrice: isBulk
+        ? calculateBulkPrice(data.sellingPrice, unitsPerPackage, discountType, discountValue)
+        : Math.max(0, Number(data.sellingPrice) || Number(option.sellingPrice) || 0),
+      lowStockThreshold: isBulk ? Math.floor(Math.max(0, Number(data.minStockLevel) || 0) / unitsPerPackage) : Math.max(0, Number(data.minStockLevel) || 0),
+      inventoryMultiplier: unitsPerPackage,
+      sharesBaseStock: true,
+      isBulk,
+      discountType,
+      discountValue,
+      isDefault: !isBulk,
+      isActive: option.isActive !== false && (data.bulkPurchaseEnabled !== false || !isBulk),
+      createdAt: option.createdAt,
+      updatedAt: option.updatedAt,
+    } satisfies ProductSellingOption;
+  });
+
+  if (!sanitized.some((option) => option.isActive && !option.isBulk)) {
+    sanitized.unshift({
+      id: crypto.randomUUID(),
+      productId,
+      storeId,
+      kind: baseUnit === 'kg' ? 'kilo' : 'unit',
+      label: baseUnit,
+      unitLabel: baseUnit,
+      stockQuantity: Math.max(0, Math.floor(Number(data.currentStock) || 0)),
+      sellingPrice: Math.max(0, Number(data.sellingPrice) || 0),
+      lowStockThreshold: Math.max(0, Number(data.minStockLevel) || 0),
+      inventoryMultiplier: 1,
+      sharesBaseStock: true,
+      isBulk: false,
+      discountType: 'percent',
+      discountValue: 0,
+      quantityValue: undefined,
+      quantityUnit: undefined,
+      isDefault: true,
+      isActive: true,
+      createdAt: undefined,
+      updatedAt: undefined,
+    });
+  }
 
   const activeOptions = sanitized.filter((option) => option.isActive);
-  const defaultId = activeOptions.find((option) => option.isDefault)?.id ?? activeOptions[0]?.id ?? sanitized[0]?.id;
+  const defaultId = activeOptions.find((option) => !option.isBulk)?.id ?? activeOptions[0]?.id ?? sanitized[0]?.id;
   return sanitized.map((option, index) => ({
     ...option,
     isDefault: option.id === defaultId || (!defaultId && index === 0),
@@ -171,21 +226,36 @@ const toSellingOptionRow = (option: ProductSellingOption) => ({
   selling_price: option.sellingPrice,
   low_stock_threshold: option.lowStockThreshold,
   inventory_multiplier: option.inventoryMultiplier,
-  shares_base_stock: option.sharesBaseStock,
+  shares_base_stock: true,
+  is_bulk: isBulkSellingOption(option),
+  discount_type: option.discountType ?? 'percent',
+  discount_value: option.discountValue ?? 0,
   is_default: option.isDefault,
   is_active: option.isActive,
 });
 
-const getCompatibilityOption = (options: ProductSellingOption[], data: ProductFormData) => {
-  return options.find((option) => option.isActive && option.isDefault)
-    ?? options.find((option) => option.isActive)
-    ?? options[0]
-    ?? {
-      unitLabel: data.unit || 'unit',
-      sellingPrice: data.sellingPrice,
-      stockQuantity: data.currentStock,
-      lowStockThreshold: data.minStockLevel,
-    };
+const normalizeSupplierIds = (data: ProductFormData): string[] => {
+  const submittedIds = data.supplierIds?.length
+    ? data.supplierIds
+    : data.supplierId
+      ? [data.supplierId]
+      : [];
+
+  return [...new Set(submittedIds.filter(Boolean))];
+};
+
+const replaceProductSuppliers = async (productId: string, supplierIds: string[]) => {
+  // The RPC replaces the join rows and the legacy primary supplier reference
+  // in one transaction. Supplier assignments are intentionally online-only;
+  // the product's legacy supplier_id still keeps offline product mutations
+  // usable until the next online edit.
+  if (typeof window !== 'undefined' && !navigator.onLine) return;
+
+  const { error } = await supabase.rpc('replace_product_suppliers', {
+    p_product_id: productId,
+    p_supplier_ids: supplierIds,
+  });
+  if (error) throw error;
 };
 
 export const useProductStore = create<ProductStore>((set, get) => ({
@@ -193,28 +263,44 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       if (!storeId || storeId === 'all') throw new Error('Select a store before adding categories.');
       const normalizedName = normalizeCategoryName(name);
       if (!normalizedName) return undefined;
-      const duplicate = get().categories.some((category) => category.name.trim().toLowerCase() === normalizedName.toLowerCase());
-      if (duplicate) throw new Error('A category with that name already exists for this store.');
+
+      // Do not use the shared category state for validation: it may still
+      // contain the previous store's categories while a store switch is
+      // reloading data. The database query is explicitly scoped to the target
+      // store and remains the source of truth before the insert.
+      const existingCategories = await fetchCategoriesForStore(storeId);
+      const duplicate = existingCategories.some((category) => categoryNameKey(category.name) === categoryNameKey(normalizedName));
+      if (duplicate) throw new Error('A category with that name already exists for this owner.');
 
       const id = crypto.randomUUID();
-      const { error } = await supabase.from('categories').insert({ id, store_id: storeId, name: normalizedName });
+      const ownerId = useAuthStore.getState().stores.find((store) => store.id === storeId)?.ownerId;
+      if (!ownerId) throw new Error('This store has no owner configured for shared categories.');
+      const { data: insertedCategory, error } = await supabase
+        .from('categories')
+        .insert({ id, store_id: storeId, owner_id: ownerId, name: normalizedName })
+        .select('id,name')
+        .single();
       if (error) throw toCategoryError(error);
-      await get().fetchCategories(storeId);
-      return { id, name: normalizedName };
+      if (useAuthStore.getState().activeStoreId === storeId) await get().fetchCategories(storeId);
+      return insertedCategory ? { id: insertedCategory.id, name: insertedCategory.name } : { id, name: normalizedName };
     },
 
     renameCategory: async (categoryId, name, refreshStoreId) => {
       const normalizedName = normalizeCategoryName(name);
       if (!categoryId || !normalizedName) return;
-      const duplicate = get().categories.some((category) =>
-        category.id !== categoryId && category.name.trim().toLowerCase() === normalizedName.toLowerCase()
-      );
-      if (duplicate) throw new Error('A category with that name already exists for this store.');
-
-      const { error } = await supabase.from('categories').update({ name: normalizedName }).eq('id', categoryId);
-      if (error) throw toCategoryError(error);
       const storeId = getActiveCategoryStoreId(refreshStoreId);
-      if (storeId) await get().fetchCategories(storeId);
+      if (storeId) {
+        const existingCategories = await fetchCategoriesForStore(storeId);
+        const duplicate = existingCategories.some((category) =>
+          category.id !== categoryId && categoryNameKey(category.name) === categoryNameKey(normalizedName)
+        );
+        if (duplicate) throw new Error('A category with that name already exists for this owner.');
+      }
+
+      const query = supabase.from('categories').update({ name: normalizedName }).eq('id', categoryId);
+      const { error } = await query;
+      if (error) throw toCategoryError(error);
+      if (storeId && useAuthStore.getState().activeStoreId === storeId) await get().fetchCategories(storeId);
     },
 
     deleteCategory: async (categoryId, refreshStoreId) => {
@@ -222,7 +308,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       const { error } = await supabase.from('categories').delete().eq('id', categoryId);
       if (error) throw toCategoryError(error);
       const storeId = getActiveCategoryStoreId(refreshStoreId);
-      if (storeId) await get().fetchCategories(storeId);
+      if (storeId && useAuthStore.getState().activeStoreId === storeId) await get().fetchCategories(storeId);
     },
   categories: [],
   products: [],
@@ -230,28 +316,31 @@ export const useProductStore = create<ProductStore>((set, get) => ({
   isLoading: false,
 
   fetchCategories: async (storeId) => {
+    const requestId = ++latestCategoryRequest;
     if (!storeId || storeId === 'all') {
       // In combined view, keep static labels only as a display fallback.
-      if (get().categories.length === 0) set({ categories: STATIC_CATEGORIES });
+      if (requestId === latestCategoryRequest && get().categories.length === 0) set({ categories: STATIC_CATEGORIES });
       return;
     }
     try {
       if (!navigator.onLine) throw new Error('Offline');
       const categories = await fetchCategoriesForStore(storeId);
-      set({ categories });
+      if (requestId === latestCategoryRequest && useAuthStore.getState().activeStoreId === storeId) set({ categories });
     } catch (err) {
       console.warn("Failed to fetch categories", err);
       // For a specific store, keep categories empty to avoid invalid static IDs in FK category_id fields.
-      set({ categories: [] });
+      if (requestId === latestCategoryRequest && useAuthStore.getState().activeStoreId === storeId) set({ categories: [] });
     }
   },
 
   seedDefaultCategories: async (storeId) => {
     if (!storeId || storeId === 'all') throw new Error('Select a store before restoring default categories.');
+    const ownerId = useAuthStore.getState().stores.find((store) => store.id === storeId)?.ownerId;
+    if (!ownerId) throw new Error('This store has no owner configured for shared categories.');
     const { data, error } = await supabase
       .from('categories')
       .select('id,name')
-      .eq('store_id', storeId);
+      .eq('owner_id', ownerId);
     if (error) throw toCategoryError(error);
 
     const existing = mapCategoryRows(data || []);
@@ -263,6 +352,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       const rows = missingNames.map((name) => ({
         id: crypto.randomUUID(),
         store_id: storeId,
+        owner_id: ownerId,
         name,
       }));
       const { data: insertedRows, error: insertError } = await supabase
@@ -273,7 +363,9 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       inserted = mapCategoryRows(insertedRows || rows);
     }
 
-    set({ categories: mapCategoryRows([...existing, ...inserted]) });
+    if (useAuthStore.getState().activeStoreId === storeId) {
+      set({ categories: mapCategoryRows([...existing, ...inserted]) });
+    }
     return inserted;
   },
 
@@ -287,20 +379,56 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     set({ isLoading: true });
     try {
       if (!navigator.onLine) throw new Error("Offline");
-      let query = supabase.from('products').select('*, suppliers(name), product_selling_options(*)');
+      // products now has both the legacy supplier_id FK and the
+      // product_suppliers join-table relationship. Explicitly select the
+      // legacy FK relationship so PostgREST does not reject the query as
+      // ambiguous and fall back to stale IndexedDB data.
+      let query = supabase
+        .from('products')
+        .select('*, suppliers!products_supplier_id_fkey(name), product_selling_options(*)');
       if (storeId !== 'all') {
         query = query.eq('store_id', storeId);
       }
       const { data, error } = await query;
       if (error) throw error;
+
+      const productRows = data || [];
+      const productIds = productRows.map((product: any) => product.id).filter(Boolean);
+      let supplierLinks: any[] = [];
+      if (productIds.length > 0) {
+        const { data: relationRows, error: supplierLinksError } = await supabase
+          .from('product_suppliers')
+          .select('product_id,supplier_id,is_primary,suppliers(name)')
+          .in('product_id', productIds);
+        // Keep legacy single-supplier reads working while an environment is
+        // being upgraded to migration 33.
+        if (supplierLinksError && supplierLinksError.code !== '42P01') throw supplierLinksError;
+        supplierLinks = relationRows || [];
+      }
+
+      const linksByProduct = new Map<string, any[]>();
+      for (const link of supplierLinks || []) {
+        const links = linksByProduct.get(link.product_id) || [];
+        links.push(link);
+        linksByProduct.set(link.product_id, links);
+      }
       
-      const mapped: Product[] = (data || []).map((p: any) => {
+      const mapped: Product[] = productRows.map((p: any) => {
         const sellingOptions = (p.product_selling_options || [])
           .map(mapSellingOption)
           .sort((a: ProductSellingOption, b: ProductSellingOption) => {
             if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
             return optionLabel(a).localeCompare(optionLabel(b));
           });
+
+        const supplierLinksForProduct = (linksByProduct.get(p.id) || [])
+          .slice()
+          .sort((a, b) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)));
+        const primarySupplierLink = supplierLinksForProduct.find((link) => link.is_primary)
+          || supplierLinksForProduct[0];
+        const supplierIds = supplierLinksForProduct.length > 0
+          ? supplierLinksForProduct.map((link) => link.supplier_id)
+          : p.supplier_id ? [p.supplier_id] : [];
 
         return {
           id: p.id,
@@ -314,6 +442,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
           purchaseUnit: p.purchase_unit || undefined,
           conversionFactor: p.conversion_factor || 1,
           bulkPurchasePrice: p.bulk_purchase_price == null ? undefined : Number(p.bulk_purchase_price),
+          bulkPurchaseEnabled: Boolean(p.bulk_purchase_enabled) || sellingOptions.some((option: ProductSellingOption) => option.isBulk),
           autoPricingEnabled: Boolean(p.auto_pricing_enabled),
           marginPercentage: p.margin_percentage == null ? undefined : Number(p.margin_percentage),
           costPrice: p.cost_price,
@@ -323,8 +452,9 @@ export const useProductStore = create<ProductStore>((set, get) => ({
           safetyStock: p.safety_stock || 0,
           reorderLevel: p.reorder_level || 0,
           leadTimeDays: p.lead_time_days || 0,
-          supplierId: p.supplier_id || undefined,
-          supplierName: p.suppliers?.name || undefined,
+          supplierId: primarySupplierLink?.supplier_id || p.supplier_id || undefined,
+          supplierName: primarySupplierLink?.suppliers?.name || p.suppliers?.name || undefined,
+          supplierIds,
           imageUrl: p.image_url || undefined,
           sellingOptions,
           createdAt: p.created_at,
@@ -336,7 +466,13 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       await cacheProductsLocally(mapped);
       void get().fetchStockAdjustments();
     } catch (err) {
-      console.warn("Falling back to local cache", err);
+      console.warn('Falling back to local cache', err);
+      // Never show stale cached rows while online: they may no longer exist
+      // in the database and would make edits/deletes target missing IDs.
+      if (navigator.onLine) {
+        set({ products: [], isLoading: false });
+        return;
+      }
       const cached = await getCachedProducts();
       set({ products: storeId === 'all' ? cached : cached.filter(p => p.storeId === storeId), isLoading: false });
     }
@@ -392,8 +528,9 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     if (!storeId) return undefined;
 
     const newId = crypto.randomUUID();
+    const supplierIds = normalizeSupplierIds(data);
+    const primarySupplierId = supplierIds[0] || null;
     const sellingOptions = normalizeSellingOptions(data, newId, storeId);
-    const compatibilityOption = getCompatibilityOption(sellingOptions, data);
     const newProd = {
       id: newId,
       store_id: storeId,
@@ -401,20 +538,21 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       sku: data.sku,
       barcode: data.barcode || null,
       category_id: data.categoryId,
-      cost_price: data.costPrice,
-      selling_price: compatibilityOption.sellingPrice,
-      current_stock: Math.round(compatibilityOption.stockQuantity),
-      min_stock_level: Math.round(compatibilityOption.lowStockThreshold),
+       cost_price: data.costPrice,
+       selling_price: data.sellingPrice,
+       current_stock: Math.round(data.currentStock),
+       min_stock_level: Math.round(data.minStockLevel),
       safety_stock: data.safetyStock,
       reorder_level: data.reorderLevel,
       lead_time_days: data.leadTimeDays,
-      unit: compatibilityOption.unitLabel,
+       unit: data.unit,
       purchase_unit: data.purchaseUnit || null,
       conversion_factor: data.conversionFactor || 1,
-      bulk_purchase_price: data.bulkPurchasePrice ?? null,
+       bulk_purchase_price: data.bulkPurchasePrice ?? null,
+       bulk_purchase_enabled: Boolean(data.bulkPurchaseEnabled),
       auto_pricing_enabled: Boolean(data.autoPricingEnabled),
       margin_percentage: data.marginPercentage ?? null,
-      supplier_id: data.supplierId || null,
+      supplier_id: primarySupplierId,
       image_url: data.imageUrl || null,
     };
 
@@ -423,10 +561,12 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       ...data,
       id: newId,
       storeId,
-      unit: compatibilityOption.unitLabel,
-      sellingPrice: compatibilityOption.sellingPrice,
-      currentStock: Math.round(compatibilityOption.stockQuantity),
-      minStockLevel: Math.round(compatibilityOption.lowStockThreshold),
+       unit: data.unit,
+       sellingPrice: data.sellingPrice,
+       currentStock: Math.round(data.currentStock),
+      minStockLevel: Math.round(data.minStockLevel),
+      supplierId: primarySupplierId || undefined,
+      supplierIds,
       sellingOptions,
       categoryName: get().categories.find(c => c.id === data.categoryId)?.name || '',
       createdAt: new Date().toISOString(),
@@ -442,6 +582,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     try {
       await executeOrQueueMutation('products', 'INSERT', newProd);
       await executeOrQueueMutation('product_selling_options', 'INSERT', sellingOptions.map(toSellingOptionRow));
+      await replaceProductSuppliers(newId, supplierIds);
       return optimisticProd;
     } catch (err) {
       if (currentActiveStoreId === 'all' || currentActiveStoreId === storeId) {
@@ -464,27 +605,29 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     }
     if (!storeId) return;
 
+    const supplierIds = normalizeSupplierIds(data);
+    const primarySupplierId = supplierIds[0] || null;
     const sellingOptions = normalizeSellingOptions(data, id, storeId);
-    const compatibilityOption = getCompatibilityOption(sellingOptions, data);
     const updates = {
       name: data.name,
       sku: data.sku,
       barcode: data.barcode || null,
       category_id: data.categoryId,
       cost_price: data.costPrice,
-      selling_price: compatibilityOption.sellingPrice,
-      current_stock: Math.round(compatibilityOption.stockQuantity),
-      min_stock_level: Math.round(compatibilityOption.lowStockThreshold),
+       selling_price: data.sellingPrice,
+       current_stock: Math.round(data.currentStock),
+       min_stock_level: Math.round(data.minStockLevel),
       safety_stock: data.safetyStock,
       reorder_level: data.reorderLevel,
       lead_time_days: data.leadTimeDays,
-      unit: compatibilityOption.unitLabel,
+       unit: data.unit,
       purchase_unit: data.purchaseUnit || null,
       conversion_factor: data.conversionFactor || 1,
-      bulk_purchase_price: data.bulkPurchasePrice ?? null,
+       bulk_purchase_price: data.bulkPurchasePrice ?? null,
+       bulk_purchase_enabled: Boolean(data.bulkPurchaseEnabled),
       auto_pricing_enabled: Boolean(data.autoPricingEnabled),
       margin_percentage: data.marginPercentage ?? null,
-      supplier_id: data.supplierId || null,
+      supplier_id: primarySupplierId,
       image_url: data.imageUrl || null,
       updated_at: new Date().toISOString(),
     };
@@ -497,10 +640,12 @@ export const useProductStore = create<ProductStore>((set, get) => ({
         p.id === id ? {
           ...p,
           ...data,
-          unit: compatibilityOption.unitLabel,
-          sellingPrice: compatibilityOption.sellingPrice,
-          currentStock: Math.round(compatibilityOption.stockQuantity),
-          minStockLevel: Math.round(compatibilityOption.lowStockThreshold),
+           unit: data.unit,
+           sellingPrice: data.sellingPrice,
+           currentStock: Math.round(data.currentStock),
+           minStockLevel: Math.round(data.minStockLevel),
+          supplierId: primarySupplierId || undefined,
+          supplierIds,
           sellingOptions,
           categoryName: get().categories.find(c => c.id === data.categoryId)?.name || '',
           updatedAt: updates.updated_at,
@@ -510,6 +655,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
 
     try {
       await executeOrQueueMutation('products', 'UPDATE', updates, 'id', id);
+      await replaceProductSuppliers(id, supplierIds);
       const existingIds = new Set(targetProduct.sellingOptions.map((option) => option.id));
       const currentDefaultId = targetProduct.sellingOptions.find((option) => option.isDefault)?.id;
       const nextDefaultId = sellingOptions.find((option) => option.isDefault)?.id;
@@ -531,6 +677,9 @@ export const useProductStore = create<ProductStore>((set, get) => ({
               low_stock_threshold: row.low_stock_threshold,
               inventory_multiplier: row.inventory_multiplier,
               shares_base_stock: row.shares_base_stock,
+              is_bulk: row.is_bulk,
+              discount_type: row.discount_type,
+              discount_value: row.discount_value,
               is_default: row.is_default,
               is_active: row.is_active,
             }, 'id', option.id);
@@ -591,8 +740,10 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     if (!storeId) return;
 
     const selectedOption = product.sellingOptions.find((option) => option.id === sellingOptionId);
-    const usesSellingOption = Boolean(selectedOption && !isLegacySellingOption(selectedOption));
-    const stockBefore = selectedOption ? selectedOption.stockQuantity : product.currentStock;
+    // Bulk options are pricing modes only. Every adjustment is recorded against
+    // the product's base-unit stock, while the selected option is retained as
+    // audit metadata when one was chosen in the UI.
+    const stockBefore = product.currentStock;
     const stockAfter = Math.max(0, stockBefore + delta);
     const actualDelta = stockAfter - stockBefore;
     if (actualDelta === 0) return;
@@ -602,14 +753,13 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     set(s => ({
       products: s.products.map(p => {
         if (p.id !== id) return p;
-        if (!selectedOption) return { ...p, currentStock: Math.round(stockAfter) };
-        const updatedOptions = p.sellingOptions.map((option) =>
-          option.id === selectedOption.id ? { ...option, stockQuantity: stockAfter } : option
-        );
         return {
           ...p,
-          sellingOptions: updatedOptions,
-          currentStock: selectedOption.isDefault ? Math.round(stockAfter) : p.currentStock,
+          sellingOptions: p.sellingOptions.map((option) => ({
+            ...option,
+            stockQuantity: Math.floor(stockAfter / Math.max(1, option.isBulk ? option.inventoryMultiplier : 1)),
+          })),
+          currentStock: Math.round(stockAfter),
         };
       })
     }));
@@ -647,7 +797,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
           })
         : await supabase.rpc('adjust_inventory_stock', {
             p_product_id: id,
-            p_selling_option_id: usesSellingOption ? selectedOption?.id ?? null : null,
+            p_selling_option_id: selectedOption?.id ?? null,
             p_quantity_delta: actualDelta,
             p_reason: reason,
             p_note: note || null,
@@ -662,51 +812,4 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     }
   },
 
-  openSackToKilo: async (id, sackOptionId, kiloOptionId, sacks, note) => {
-    const product = get().products.find((p) => p.id === id);
-    if (!product) return;
-
-    const sackOption = product.sellingOptions.find((option) => option.id === sackOptionId);
-    const kiloOption = product.sellingOptions.find((option) => option.id === kiloOptionId);
-    if (!sackOption || !kiloOption) throw new Error('Select valid sack and kilo options.');
-    if (sackOption.quantityValue == null || sackOption.quantityValue <= 0) {
-      throw new Error('The sack option needs a configured quantity value.');
-    }
-    if (sackOption.stockQuantity < sacks) {
-      throw new Error(`${sackOption.label} only has ${sackOption.stockQuantity} in stock.`);
-    }
-
-    const kiloDelta = sackOption.quantityValue * sacks;
-    await supabase.rpc('open_sack_to_kilo', {
-      p_sack_option_id: sackOptionId,
-      p_kilo_option_id: kiloOptionId,
-      p_sack_quantity: sacks,
-      p_note: note || null,
-    }).then(({ error }) => {
-      if (error) throw error;
-    });
-
-    set((state) => ({
-      products: state.products.map((p) => {
-        if (p.id !== id) return p;
-        const updatedOptions = p.sellingOptions.map((option) => {
-          if (option.id === sackOptionId) {
-            return { ...option, stockQuantity: option.stockQuantity - sacks };
-          }
-          if (option.id === kiloOptionId) {
-            return { ...option, stockQuantity: option.stockQuantity + kiloDelta };
-          }
-          return option;
-        });
-        const nextDefault = updatedOptions.find((option) => option.isDefault);
-        return {
-          ...p,
-          sellingOptions: updatedOptions,
-          currentStock: nextDefault ? Math.round(nextDefault.stockQuantity) : p.currentStock,
-        };
-      }),
-    }));
-
-    void get().fetchStockAdjustments();
-  },
 }));

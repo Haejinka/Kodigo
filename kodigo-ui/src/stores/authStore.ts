@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 
 type StoreRow = {
   id: string;
+  owner_id?: string | null;
   name: string;
   address: string | null;
   tax_rate?: number | string | null;
@@ -26,6 +27,7 @@ type StoreRow = {
 
 const toStore = (row: StoreRow): Store => ({
   id: row.id,
+  ownerId: row.owner_id ?? undefined,
   name: row.name,
   address: row.address ?? '',
   taxRate: Number(row.taxRate ?? row.tax_rate ?? 0),
@@ -81,7 +83,7 @@ const fetchUserStores = async (role: string | null) => {
     // Note: Due to RLS, they only see stores they are mapped to. 
     // We can just fetch from 'stores' and RLS will filter it.
     const { data: stores } = await supabase.from('stores').select(
-      'id, name, address, tax_rate, registered_name, business_name, tin, branch_code, vat_status, document_label, terminal_identifier, bir_registration_info, accreditation_info, permit_info, invoice_prefix, logo_path, phone, email'
+      'id, owner_id, name, address, tax_rate, registered_name, business_name, tin, branch_code, vat_status, document_label, terminal_identifier, bir_registration_info, accreditation_info, permit_info, invoice_prefix, logo_path, phone, email'
     );
     return toStores(stores);
   }
@@ -168,7 +170,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .from('stores')
       .update({ name, address, tax_rate: taxRate })
       .eq('id', id)
-      .select('id, name, address, tax_rate, registered_name, business_name, tin, branch_code, vat_status, document_label, terminal_identifier, bir_registration_info, accreditation_info, permit_info, invoice_prefix, logo_path, phone, email')
+      .select('id, owner_id, name, address, tax_rate, registered_name, business_name, tin, branch_code, vat_status, document_label, terminal_identifier, bir_registration_info, accreditation_info, permit_info, invoice_prefix, logo_path, phone, email')
       .maybeSingle();
 
     if (error || !updatedStore) {

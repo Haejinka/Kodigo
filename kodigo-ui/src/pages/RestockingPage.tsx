@@ -48,7 +48,7 @@ function useRestockItems(): RestockItem[] {
           productName: p.name,
           currentStock: defaultOption.stockQuantity,
           suggestedQty,
-          suggestedSupplierId: p.supplierId ?? '',
+          suggestedSupplierId: p.supplierId ?? p.supplierIds?.[0] ?? '',
           suggestedSupplierName: p.supplierName ?? 'No supplier assigned',
           estimatedCost: suggestedQty * p.costPrice,
           urgency,

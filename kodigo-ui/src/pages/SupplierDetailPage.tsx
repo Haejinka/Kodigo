@@ -29,7 +29,7 @@ export function SupplierDetailPage() {
   const { suppliers, deleteSupplier, purchaseOrders, receivePurchaseOrder, cancelPurchaseOrder } = useSupplierStore();
   const products = useProductStore((s) => s.products);
   const supplier = suppliers.find((s) => s.id === id);
-  const supplierProducts = products.filter((p) => p.supplierId === id);
+  const supplierProducts = products.filter((p) => p.supplierIds?.includes(id ?? '') || p.supplierId === id);
   const supplierPOs = purchaseOrders.filter((po) => po.supplierId === id);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);

@@ -4,11 +4,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useAuthStore } from '@/stores/authStore';
 import { formatCurrency } from '@/lib/utils';
-import {
-  describeSellingUnit,
-  fetchSalesReport,
-  getDateRangeForDays,
-} from '@/lib/reporting';
+import { fetchSalesReport, getDateRangeForDays } from '@/lib/reporting';
 import type { SalesGroupReportRow } from '@/lib/reporting';
 
 const periods = ['Today', 'This week', 'This month', 'Custom'] as const;
@@ -58,7 +54,7 @@ export function RankingsPage() {
     <div>
       <PageHeader
         title="Product Rankings"
-        subtitle="Top selling products by revenue and units"
+        subtitle="Top products by revenue and base units sold"
         actions={
           <div className="flex flex-wrap gap-1 p-1 bg-gray-100 rounded-xl">
             {periods.map((p) => (
@@ -91,7 +87,7 @@ export function RankingsPage() {
               <div key={row?.key ?? place} className="flex flex-col">
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 text-center h-28 flex flex-col justify-center">
                   <div className="font-medium text-sm truncate mt-1">
-                    {row ? `${row.productName} - ${describeSellingUnit(row)}` : '-'}
+                    {row ? row.productName : '-'}
                   </div>
                   <div className="text-sm font-mono mt-1">{row ? formatCurrency(row.netRevenue) : ''}</div>
                 </div>
@@ -121,7 +117,7 @@ export function RankingsPage() {
             <div className="grid grid-cols-16 gap-3 text-xs text-gray-500 font-semibold border-b pb-2">
               <div className="col-span-1">#</div>
               <div className="col-span-4">Product / Option</div>
-              <div className="col-span-2 text-right">Units Sold</div>
+              <div className="col-span-2 text-right">Base Units Sold</div>
               <div className="col-span-2 text-right">Gross Sales</div>
               <div className="col-span-2 text-right">Discounts / Returns</div>
               <div className="col-span-2 text-right">Net Sales</div>
@@ -136,10 +132,10 @@ export function RankingsPage() {
                     <div className="col-span-4 truncate">
                       <div>{row.productName}</div>
                       <div className="text-xs text-gray-400">
-                        {row.sellingOptionLabel || row.unitLabel} - {describeSellingUnit(row)}
+                        {row.sellingOptionLabel === 'Multiple purchase modes' ? 'Unit and bulk sales combined' : row.sellingOptionLabel || row.unitLabel}
                       </div>
                     </div>
-                    <div className="col-span-2 text-right">{row.netQuantity}</div>
+                    <div className="col-span-2 text-right">{row.netBaseUnitQuantity}</div>
                     <div className="col-span-2 text-right font-mono">{formatCurrency(row.grossRevenue)}</div>
                     <div className="col-span-2 text-right font-mono text-gray-500">
                       {formatCurrency(row.discounts + row.refunds)}

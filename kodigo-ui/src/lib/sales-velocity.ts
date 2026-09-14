@@ -1,3 +1,4 @@
+import { getOptionInventoryMultiplier } from '@/types';
 import type { Product } from '@/types';
 
 /**
@@ -15,6 +16,8 @@ export type InventoryStatus = 'Restock Soon' | 'Healthy' | 'Overstock / Slow Mov
 export interface VelocitySaleLine {
   productId: string | null;
   netQuantity: number;
+  netBaseUnitQuantity?: number;
+  baseUnitQuantity?: number;
   sellingOptionId?: string | null;
   stockSource?: string | null;
   packageSize?: number | null;
@@ -50,7 +53,7 @@ function getInventoryMultiplier(product: Product, sellingOptionId?: string | nul
   const option = sellingOptionId
     ? product.sellingOptions.find((candidate) => candidate.id === sellingOptionId)
     : undefined;
-  return option?.sharesBaseStock ? Math.max(1, finite(option.inventoryMultiplier, 1)) : 1;
+  return option?.sharesBaseStock ? getOptionInventoryMultiplier(option) : 1;
 }
 
 /**
@@ -59,6 +62,7 @@ function getInventoryMultiplier(product: Product, sellingOptionId?: string | nul
  * units are not combined with the product QOH.
  */
 export function normalizeSaleLineQuantityToBaseUnits(line: VelocitySaleLine, product: Product): number {
+  if (line.netBaseUnitQuantity != null) return Math.max(0, finite(line.netBaseUnitQuantity));
   const quantity = Math.max(0, finite(line.netQuantity));
   if (quantity === 0) return 0;
 
@@ -67,7 +71,7 @@ export function normalizeSaleLineQuantityToBaseUnits(line: VelocitySaleLine, pro
     : undefined;
 
   if (option?.sharesBaseStock) {
-    return quantity * Math.max(1, finite(option.inventoryMultiplier, 1));
+    return quantity * getOptionInventoryMultiplier(option);
   }
 
   if (line.stockSource === 'selling_option' && !option?.sharesBaseStock) return 0;

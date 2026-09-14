@@ -142,13 +142,13 @@ export function StockAdjustmentLog({ adjustments }: StockAdjustmentLogProps) {
                     Reason
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    Change
+                    Base units changed
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    Before
+                    Base units before
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    After
+                    Base units after
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     Note
@@ -206,13 +206,13 @@ export function StockAdjustmentLog({ adjustments }: StockAdjustmentLogProps) {
                           ) : (
                             <TrendingDown className="w-3.5 h-3.5" />
                           )}
-                          {isIncrease ? '+' : ''}{adj.quantityDelta}
+                          {isIncrease ? '+' : ''}{adj.quantityDelta} {adj.unitLabel || 'units'}
                         </span>
                       </td>
 
                       {/* Before */}
                       <td className="px-4 py-3 text-center">
-                        <span className="font-mono text-gray-500">{adj.stockBefore}</span>
+                        <span className="font-mono text-gray-500">{adj.stockBefore} {adj.unitLabel || ''}</span>
                       </td>
 
                       {/* After */}
@@ -223,7 +223,7 @@ export function StockAdjustmentLog({ adjustments }: StockAdjustmentLogProps) {
                             isIncrease ? 'text-green-700' : 'text-red-700'
                           )}
                         >
-                          {adj.stockAfter}
+                          {adj.stockAfter} {adj.unitLabel || ''}
                         </span>
                       </td>
 

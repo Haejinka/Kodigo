@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getAvailableSellingUnits, getDefaultSellingOption, isLegacySellingOption } from '@/types';
+import { getAvailableSellingUnits, getDefaultSellingOption, getOptionInventoryMultiplier, isLegacySellingOption } from '@/types';
 import type { CartItem, DiscountType, Product, ProductSellingOption } from '@/types';
 import { useAuthStore } from './authStore';
 
@@ -113,7 +113,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     return roundCurrency(taxable * get().taxRate() / 100);
   },
   total: () => roundCurrency(get().subtotal() - get().discountAmount() + get().taxAmount()),
-  itemCount: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
+  itemCount: () => get().items.reduce((sum, i) => sum + i.quantity * getOptionInventoryMultiplier(i.sellingOption), 0),
 }));
 
 // Clear cart when active store changes

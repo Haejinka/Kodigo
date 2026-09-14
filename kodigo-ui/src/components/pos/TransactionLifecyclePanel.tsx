@@ -380,7 +380,12 @@ export function TransactionLifecyclePanel({ open, storeId, onClose }: Transactio
                   const draft = item.id ? returnDraft[item.id] : undefined;
                   return (
                     <div key={item.id} className="grid grid-cols-[1fr_72px_84px] gap-2 items-center px-3 py-2 border-b border-gray-100 last:border-b-0">
-                      <span className="text-sm text-gray-700 truncate">{item.productName}</span>
+                      <span className="min-w-0 text-sm text-gray-700 truncate">
+                        {item.productName}
+                        <span className="block text-xs text-gray-400">
+                          {item.quantity} {item.sellingOptionLabel || item.unitLabel || 'unit'} · {item.baseUnitQuantity ?? item.quantity} base units
+                        </span>
+                      </span>
                       <input
                         type="number"
                         min={0}

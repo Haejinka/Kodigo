@@ -248,8 +248,8 @@ function SellingOptionRow({ row }: { row: SalesGroupReportRow }) {
     <div className="flex items-center justify-between gap-4">
       <div className="min-w-0">
         <p className="text-sm font-medium text-gray-900 truncate">{row.productName}</p>
-        <p className="text-xs text-gray-400">
-          {row.netQuantity} sold - {describeSellingUnit(row)}
+          <p className="text-xs text-gray-400">
+            {row.netQuantity} package{row.netQuantity === 1 ? '' : 's'} · {row.netBaseUnitQuantity} base units · {describeSellingUnit(row)}
         </p>
       </div>
       <div className="font-mono text-sm font-semibold text-gray-900">{formatCurrency(row.netRevenue)}</div>

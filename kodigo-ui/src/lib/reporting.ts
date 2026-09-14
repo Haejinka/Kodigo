@@ -1,10 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import {
-  getProductSellingOptions,
-  getAvailableSellingUnits,
-  getOptionPurchaseCost,
   getSaleItemUnitLabel,
-  getSellingOptionLabel,
 } from '@/types';
 import { normalizeSaleLineQuantityToBaseUnits } from '@/lib/sales-velocity';
 import type { PaymentMethod, Product, SaleStatus, UserRole } from '@/types';
@@ -34,6 +30,7 @@ export interface SalesReportSummary {
   completedTransactions: number;
   voidedTransactions: number;
   totalItemsSold: number;
+  totalPackagesSold: number;
   returnedItems: number;
   netItemsSold: number;
   averageTransactionValue: number;
@@ -73,8 +70,11 @@ export interface SalesLineReportRow {
   packageUnit?: string;
   stockSource?: string;
   quantity: number;
+  baseUnitQuantity: number;
   returnedQuantity: number;
+  returnedBaseUnitQuantity: number;
   netQuantity: number;
+  netBaseUnitQuantity: number;
   unitPrice: number;
   costPrice: number;
   grossRevenue: number;
@@ -100,8 +100,11 @@ export interface SalesGroupReportRow {
   packageSize?: number;
   packageUnit?: string;
   quantity: number;
+  baseUnitQuantity: number;
   returnedQuantity: number;
+  returnedBaseUnitQuantity: number;
   netQuantity: number;
+  netBaseUnitQuantity: number;
   grossRevenue: number;
   discounts: number;
   refunds: number;
@@ -215,6 +218,18 @@ interface SaleItemRow {
   package_size: number | null;
   package_unit: string | null;
   stock_source: string | null;
+  purchase_mode: 'unit' | 'bulk' | null;
+  bulk_option_id: string | null;
+  bulk_option_label: string | null;
+  bulk_quantity: number | null;
+  units_per_package: number | null;
+  base_unit_quantity: number | null;
+  regular_unit_price: number | null;
+  regular_value: number | null;
+  bulk_discount_type: 'percent' | 'amount' | null;
+  bulk_discount_value: number | null;
+  bulk_discount_amount: number | null;
+  final_selling_price: number | null;
   quantity: number;
   unit_price: number;
   cost_price: number | null;
@@ -250,6 +265,7 @@ const zeroSummary: SalesReportSummary = {
   completedTransactions: 0,
   voidedTransactions: 0,
   totalItemsSold: 0,
+  totalPackagesSold: 0,
   returnedItems: 0,
   netItemsSold: 0,
   averageTransactionValue: 0,
@@ -310,39 +326,27 @@ export function describeSellingUnit(input: {
 }
 
 export function buildInventoryReport(products: Product[]): InventoryReportRow[] {
-  return products.flatMap((product) =>
-    getProductSellingOptions(product).map((option) => {
-      const availableStock = getAvailableSellingUnits(product, option);
-      const stockStatus =
-        availableStock === 0
-          ? 'out-of-stock'
-          : availableStock <= option.lowStockThreshold
-            ? 'low-stock'
-            : 'in-stock';
-
-      return {
-        productId: product.id,
-        productName: product.name,
-        categoryName: product.categoryName || 'Uncategorized',
-        sellingUnitKey: getSellingUnitKey({
-          sellingOptionId: option.id,
-          sellingOptionLabel: getSellingOptionLabel(option),
-          unitLabel: option.unitLabel,
-          packageSize: option.quantityValue,
-          packageUnit: option.quantityUnit,
-        }),
-        sellingOptionLabel: getSellingOptionLabel(option),
-        unitLabel: option.unitLabel,
-        packageSize: option.quantityValue,
-        packageUnit: option.quantityUnit,
-        stockQuantity: availableStock,
-        lowStockThreshold: option.lowStockThreshold,
-        stockStatus,
-        sellingPrice: option.sellingPrice,
-        costPrice: getOptionPurchaseCost(product, option),
-      };
-    })
-  );
+  return products.map((product) => ({
+    productId: product.id,
+    productName: product.name,
+    categoryName: product.categoryName || 'Uncategorized',
+    sellingUnitKey: getSellingUnitKey({
+      sellingOptionId: `base:${product.id}`,
+      sellingOptionLabel: `${product.unit} (base unit)`,
+      unitLabel: product.unit,
+    }),
+    sellingOptionLabel: `${product.unit} (base unit)`,
+    unitLabel: product.unit,
+    stockQuantity: product.currentStock,
+    lowStockThreshold: product.minStockLevel,
+    stockStatus: product.currentStock === 0
+      ? 'out-of-stock'
+      : product.currentStock <= Math.max(product.minStockLevel, product.safetyStock)
+        ? 'low-stock'
+        : 'in-stock',
+    sellingPrice: product.sellingPrice,
+    costPrice: product.costPrice,
+  }));
 }
 
 export async function fetchStockMovementReport(
@@ -635,8 +639,9 @@ function buildSalesReport(
     const discountAllocated = sale.discount * factor;
     const taxAllocated = sale.tax * factor;
     const totalAllocated = sale.total * factor;
-    const itemQuantity = sum(filteredSaleItems.map((item) => item.quantity));
-    const returnedQuantity = sum(filteredSaleItems.map((item) => returnedQuantityByItem.get(item.id) || 0));
+    const packageQuantity = sum(filteredSaleItems.map((item) => item.quantity));
+    const itemQuantity = sum(filteredSaleItems.map((item) => getBaseUnitQuantity(item)));
+    const returnedQuantity = sum(filteredSaleItems.map((item) => getReturnedBaseUnitQuantity(item, returnedQuantityByItem.get(item.id) || 0)));
     const cost = sum(filteredSaleItems.map((item) => (item.cost_price || 0) * Math.max(0, item.quantity - (returnedQuantityByItem.get(item.id) || 0))));
     const netSales = totalAllocated - refundAllocated;
     const grossProfit = matchingLineGross - discountAllocated - refundAllocated - cost;
@@ -648,6 +653,7 @@ function buildSalesReport(
     summary.tax += taxAllocated;
     summary.refunds += refundAllocated;
     summary.netSales += netSales;
+    summary.totalPackagesSold += packageQuantity;
     summary.totalItemsSold += itemQuantity;
     summary.returnedItems += returnedQuantity;
     summary.netItemsSold += Math.max(0, itemQuantity - returnedQuantity);
@@ -722,7 +728,7 @@ function buildSalesReport(
     const line = mapSaleLine(item, sale, cashierNames, returnedQuantity, lineDiscount, lineRefund, netRevenue, cost);
     saleLines.push(line);
 
-    addLineToGroup(productMap, getProductGroupKey(item), getProductGroupLabel(item), line);
+    addLineToGroup(productMap, getProductGroupKey(item), getProductGroupLabel(item), line, false, true);
     addLineToGroup(categoryMap, item.category_name || 'Uncategorized', item.category_name || 'Uncategorized', line);
     categoryMap.get(item.category_name || 'Uncategorized')!.productName = undefined;
     addLineToGroup(unitMap, getItemUnitKey(item), `${item.product_name} - ${describeSellingUnit(line)}`, line);
@@ -784,6 +790,9 @@ function mapSaleLine(
   cost: number,
 ): SalesLineReportRow {
   const grossProfit = netRevenue - cost;
+  const unitsPerPackage = Math.max(1, toNumber(item.units_per_package ?? item.package_size ?? 1));
+  const baseUnitQuantity = Math.max(0, toNumber(item.base_unit_quantity ?? item.quantity * unitsPerPackage));
+  const returnedBaseUnitQuantity = returnedQuantity * unitsPerPackage;
   return {
     saleId: sale.id,
     saleItemId: item.id,
@@ -799,8 +808,11 @@ function mapSaleLine(
     packageUnit: item.package_unit || undefined,
     stockSource: item.stock_source || undefined,
     quantity: item.quantity,
+    baseUnitQuantity,
     returnedQuantity,
+    returnedBaseUnitQuantity,
     netQuantity: Math.max(0, item.quantity - returnedQuantity),
+    netBaseUnitQuantity: Math.max(0, baseUnitQuantity - returnedBaseUnitQuantity),
     unitPrice: item.unit_price,
     costPrice: item.cost_price || 0,
     grossRevenue: item.line_total,
@@ -821,6 +833,7 @@ function addLineToGroup(
   label: string,
   line: SalesLineReportRow,
   keepKey = false,
+  mergePurchaseModes = false,
 ) {
   const row = getOrSet(map, keepKey ? key : key, {
     key,
@@ -832,10 +845,13 @@ function addLineToGroup(
     sellingOptionLabel: line.sellingOptionLabel,
     unitLabel: line.unitLabel,
     packageSize: line.packageSize,
-    packageUnit: line.packageUnit,
-    quantity: 0,
-    returnedQuantity: 0,
-    netQuantity: 0,
+     packageUnit: line.packageUnit,
+     quantity: 0,
+     baseUnitQuantity: 0,
+     returnedQuantity: 0,
+     returnedBaseUnitQuantity: 0,
+     netQuantity: 0,
+     netBaseUnitQuantity: 0,
     grossRevenue: 0,
     discounts: 0,
     refunds: 0,
@@ -846,8 +862,11 @@ function addLineToGroup(
     transactions: 0,
   });
   row.quantity += line.quantity;
+  row.baseUnitQuantity += line.baseUnitQuantity;
   row.returnedQuantity += line.returnedQuantity;
+  row.returnedBaseUnitQuantity += line.returnedBaseUnitQuantity;
   row.netQuantity += line.netQuantity;
+  row.netBaseUnitQuantity += line.netBaseUnitQuantity;
   row.grossRevenue += line.grossRevenue;
   row.discounts += line.discountAllocated;
   row.refunds += line.refundAllocated;
@@ -855,6 +874,11 @@ function addLineToGroup(
   row.cost += line.costPrice * line.netQuantity;
   row.grossProfit += line.grossProfit;
   row.transactions += 1;
+  if (mergePurchaseModes && row.sellingOptionLabel !== line.sellingOptionLabel) {
+    row.sellingOptionLabel = 'Multiple purchase modes';
+    row.packageSize = undefined;
+    row.packageUnit = undefined;
+  }
 }
 
 function finalizeGroups(map: Map<string, SalesGroupReportRow[]> | Map<string, SalesGroupReportRow>) {
@@ -862,8 +886,11 @@ function finalizeGroups(map: Map<string, SalesGroupReportRow[]> | Map<string, Sa
     .map((row) => ({
       ...row,
       quantity: round(row.quantity),
+      baseUnitQuantity: round(row.baseUnitQuantity, 3),
       returnedQuantity: round(row.returnedQuantity),
+      returnedBaseUnitQuantity: round(row.returnedBaseUnitQuantity, 3),
       netQuantity: round(row.netQuantity),
+      netBaseUnitQuantity: round(row.netBaseUnitQuantity, 3),
       grossRevenue: round(row.grossRevenue),
       discounts: round(row.discounts),
       refunds: round(row.refunds),
@@ -878,7 +905,7 @@ function finalizeGroups(map: Map<string, SalesGroupReportRow[]> | Map<string, Sa
 async function fetchSaleItems(saleIds: string[]): Promise<SaleItemRow[]> {
   const { data, error } = await supabase
     .from('sale_items')
-    .select('id,sale_id,product_id,product_name,category_name,selling_option_id,selling_option_label,unit_label,package_size,package_unit,stock_source,quantity,unit_price,cost_price,line_total')
+    .select('id,sale_id,product_id,product_name,category_name,selling_option_id,selling_option_label,unit_label,package_size,package_unit,stock_source,purchase_mode,bulk_option_id,bulk_option_label,bulk_quantity,units_per_package,base_unit_quantity,regular_unit_price,regular_value,bulk_discount_type,bulk_discount_value,bulk_discount_amount,final_selling_price,quantity,unit_price,cost_price,line_total')
     .in('sale_id', saleIds)
     .limit(5000);
 
@@ -895,6 +922,18 @@ async function fetchSaleItems(saleIds: string[]): Promise<SaleItemRow[]> {
     package_size: row.package_size == null ? null : toNumber(row.package_size),
     package_unit: row.package_unit ?? null,
     stock_source: row.stock_source ?? null,
+    purchase_mode: row.purchase_mode ?? null,
+    bulk_option_id: row.bulk_option_id ?? null,
+    bulk_option_label: row.bulk_option_label ?? null,
+    bulk_quantity: row.bulk_quantity == null ? null : toNumber(row.bulk_quantity),
+    units_per_package: row.units_per_package == null ? null : toNumber(row.units_per_package),
+    base_unit_quantity: row.base_unit_quantity == null ? null : toNumber(row.base_unit_quantity),
+    regular_unit_price: row.regular_unit_price == null ? null : toNumber(row.regular_unit_price),
+    regular_value: row.regular_value == null ? null : toNumber(row.regular_value),
+    bulk_discount_type: row.bulk_discount_type ?? null,
+    bulk_discount_value: row.bulk_discount_value == null ? null : toNumber(row.bulk_discount_value),
+    bulk_discount_amount: row.bulk_discount_amount == null ? null : toNumber(row.bulk_discount_amount),
+    final_selling_price: row.final_selling_price == null ? null : toNumber(row.final_selling_price),
     quantity: toNumber(row.quantity),
     unit_price: toNumber(row.unit_price),
     cost_price: toNumber(row.cost_price),
@@ -1032,21 +1071,23 @@ function getItemUnitKey(item: SaleItemRow): string {
 }
 
 function getProductGroupKey(item: SaleItemRow): string {
-  return [
-    item.product_id || item.product_name,
-    item.selling_option_id || item.selling_option_label || item.unit_label || 'unit',
-    item.package_size ?? '',
-    item.package_unit || '',
-  ].join('|');
+  return item.product_id || item.product_name;
 }
 
 function getProductGroupLabel(item: SaleItemRow): string {
-  return `${item.product_name} - ${describeSellingUnit({
-    sellingOptionLabel: item.selling_option_label,
-    unitLabel: item.unit_label,
-    packageSize: item.package_size,
-    packageUnit: item.package_unit,
-  })}`;
+  return item.product_name;
+}
+
+function getUnitsPerPackage(item: SaleItemRow): number {
+  return Math.max(1, toNumber(item.units_per_package ?? item.package_size ?? 1));
+}
+
+function getBaseUnitQuantity(item: SaleItemRow): number {
+  return Math.max(0, toNumber(item.base_unit_quantity ?? item.quantity * getUnitsPerPackage(item)));
+}
+
+function getReturnedBaseUnitQuantity(item: SaleItemRow, returnedPackages: number): number {
+  return Math.max(0, returnedPackages) * getUnitsPerPackage(item);
 }
 
 function isRiceLine(line: SalesLineReportRow) {
@@ -1082,6 +1123,7 @@ function roundSummary(summary: SalesReportSummary): SalesReportSummary {
     refunds: round(summary.refunds),
     voidedSales: round(summary.voidedSales),
     netSales: round(summary.netSales),
+    totalPackagesSold: round(summary.totalPackagesSold, 3),
     totalTransactions: summary.totalTransactions,
     completedTransactions: summary.completedTransactions,
     voidedTransactions: summary.voidedTransactions,
@@ -1146,6 +1188,7 @@ function buildSummarySheet(report: SalesReportData, generatedAt: Date) {
     ['Voided Sales', report.summary.voidedSales],
     ['Tax', report.summary.tax],
     ['Transactions', report.summary.totalTransactions],
+    ['Packages Sold', report.summary.totalPackagesSold],
     ['Items Sold', report.summary.totalItemsSold],
     ['Returned Items', report.summary.returnedItems],
     ['Net Items Sold', report.summary.netItemsSold],
@@ -1160,9 +1203,10 @@ function groupToExportRow(row: SalesGroupReportRow) {
     Product: row.productName || row.label,
     Category: row.categoryName || 'Uncategorized',
     Unit: describeSellingUnit(row),
-    Quantity: row.quantity,
+    Packages: row.quantity,
+    'Base Units': row.baseUnitQuantity,
     Returns: row.returnedQuantity,
-    'Net Quantity': row.netQuantity,
+    'Net Base Units': row.netBaseUnitQuantity,
     'Gross Revenue': row.grossRevenue,
     Discounts: row.discounts,
     Refunds: row.refunds,
