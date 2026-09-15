@@ -4,7 +4,7 @@ import { useCartStore } from '@/stores/cartStore';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/shared/Button';
 import { useState } from 'react';
-import { getAvailableSellingUnits, getOptionInventoryMultiplier, getSellingOptionLabel, isBulkSellingOption } from '@/types';
+import { getAvailableSellingUnits, getOptionInventoryMultiplier, getOptionSellingPrice, getSellingOptionLabel, isBulkSellingOption } from '@/types';
 
 interface CartProps {
   onCharge: () => void;
@@ -116,7 +116,7 @@ export function Cart({ onCharge }: CartProps) {
                     {isBulkSellingOption(item.sellingOption) ? `${item.quantity} ${getSellingOptionLabel(item.sellingOption)}` : `${item.quantity} ${item.product.unit}`}
                   </p>
                   <p className="text-xs text-gray-400 font-mono">
-                    {formatCurrency(item.sellingOption.sellingPrice)} per {isBulkSellingOption(item.sellingOption) ? getSellingOptionLabel(item.sellingOption) : item.product.unit}
+                    {formatCurrency(getOptionSellingPrice(item.product, item.sellingOption))} per {isBulkSellingOption(item.sellingOption) ? getSellingOptionLabel(item.sellingOption) : item.product.unit}
                   </p>
                   <p className="text-[11px] text-blue-600 font-medium">
                     {item.quantity * getOptionInventoryMultiplier(item.sellingOption)} {item.product.unit}s deducted

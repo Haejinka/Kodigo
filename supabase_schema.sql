@@ -177,6 +177,7 @@ create table public.products (
   lead_time_days   integer      not null default 1 check (lead_time_days > 0),
   supplier_id      uuid         references public.suppliers (id) on delete set null,
   image_url        text,
+  is_active        boolean      not null default true,
   created_at       timestamptz  not null default now(),
   updated_at       timestamptz  not null default now()
 );

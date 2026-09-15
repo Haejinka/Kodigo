@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Sliders, History } from 'lucide-react';
+import { Archive, ArchiveRestore, Plus, Edit, Trash2, Sliders, History } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
 import { SearchInput } from '@/components/shared/SearchInput';
@@ -28,6 +28,7 @@ import type { Product, AdjustmentReason } from '@/types';
 import type { Column } from '@/components/shared/DataTable';
 
 type Tab = 'products' | 'restocking' | 'velocity' | 'log';
+type ProductLifecycleFilter = 'active' | 'archived' | 'all';
 
 function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onClose: () => void; storeId: string }) {
   const { toast } = useToast();
@@ -228,16 +229,19 @@ function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onCl
 export function InventoryPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { products, deleteProduct, adjustStock, stockAdjustments } = useProductStore();
+  const { products, deleteProduct, setProductActive, adjustStock, updateSellingPrice, stockAdjustments } = useProductStore();
   const { activeStoreId, stores, role } = useAuthStore();
   const [tab, setTab] = useState<Tab>('products');
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [lifecycleFilter, setLifecycleFilter] = useState<ProductLifecycleFilter>('active');
   const [viewMode, setViewMode] = useState<'separate' | 'combined'>('separate');
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  const [statusTarget, setStatusTarget] = useState<Product | null>(null);
   const [adjustTarget, setAdjustTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   // Category modal state
   const [catModalOpen, setCatModalOpen] = useState(false);
   const categoryStoreId = activeStoreId && activeStoreId !== 'all' ? activeStoreId : '';
@@ -250,6 +254,8 @@ export function InventoryPage() {
     const matchesSearch =
       !search || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
     const matchesCategory = categoryFilter === 'all' || p.categoryName === categoryFilter;
+    const matchesLifecycle = lifecycleFilter === 'all'
+      || (lifecycleFilter === 'active' ? p.isActive !== false : p.isActive === false);
     const matchesStock = (() => {
       if (stockFilter === 'all') return true;
       const status = getStockStatus(p);
@@ -258,7 +264,7 @@ export function InventoryPage() {
       if (stockFilter === 'ok') return status === 'in-stock' || status === 'overstock';
       return true;
     })();
-    return matchesSearch && matchesCategory && matchesStock;
+    return matchesSearch && matchesCategory && matchesStock && matchesLifecycle;
   });
 
   if (activeStoreId === 'all' && viewMode === 'combined') {
@@ -298,7 +304,10 @@ export function InventoryPage() {
       header: 'Product',
       accessor: (p) => (
         <div>
-          <p className="font-medium text-gray-900">{p.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-medium text-gray-900">{p.name}</p>
+            {p.isActive === false && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">Archived</span>}
+          </div>
           <p className="text-xs text-gray-400 font-mono">{p.sku}</p>
         </div>
       ),
@@ -378,12 +387,26 @@ export function InventoryPage() {
               >
                 <Edit className="w-4 h-4" />
               </button>
+              {(role === 'admin' || role === 'inventory') && <button
+                type="button"
+                onClick={() => setStatusTarget(p)}
+                aria-label={p.isActive === false ? `Restore ${p.name}` : `Archive ${p.name}`}
+                className={cn(
+                  'p-1.5 rounded-lg transition-colors',
+                  p.isActive === false
+                    ? 'text-gray-400 hover:bg-green-50 hover:text-green-600'
+                    : 'text-gray-400 hover:bg-amber-50 hover:text-amber-600',
+                )}
+                title={p.isActive === false ? 'Restore to active inventory' : 'Archive product'}
+              >
+                {p.isActive === false ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+              </button>}
               {role === 'admin' && <button
                 type="button"
                 onClick={() => setDeleteTarget(p)}
                 aria-label={`Delete ${p.name}`}
                 className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-                title="Delete"
+                title="Delete unused product"
               >
                 <Trash2 className="w-4 h-4" />
               </button>}
@@ -410,11 +433,10 @@ export function InventoryPage() {
     }
   };
 
-  const handleAdjust = async (sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { quantity: number; purchaseUnit: string; piecesPerUnit: number; purchasePricePerUnit: number }) => {
+  const handleAdjust = async (sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { restockingOptionId?: string; quantity: number; purchaseUnit: string; piecesPerUnit: number; totalSupplierCost?: number }) => {
     await new Promise((r) => setTimeout(r, 600));
     if (!adjustTarget) throw new Error('Select a product before adjusting stock.');
-    await adjustStock(adjustTarget.id, sellingOptionId, delta, reason, note, restock);
-    setAdjustTarget(null);
+    return adjustStock(adjustTarget.id, sellingOptionId, delta, reason, note, restock);
   };
 
   const toolbar = (
@@ -437,6 +459,16 @@ export function InventoryPage() {
         <option value="ok">In Stock</option>
         <option value="low">Low Stock</option>
         <option value="out">Out of Stock</option>
+      </select>
+      <select
+        value={lifecycleFilter}
+        onChange={(e) => setLifecycleFilter(e.target.value as ProductLifecycleFilter)}
+        aria-label="Product lifecycle"
+        className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="active">Active Products</option>
+        <option value="archived">Archived Products</option>
+        <option value="all">All Products</option>
       </select>
       {activeStoreId === 'all' && (
         <select
@@ -475,7 +507,7 @@ export function InventoryPage() {
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-gray-200 mb-5">
-        {role === 'admin' && <button
+        {(role === 'admin' || role === 'inventory') && <button
           onClick={() => setTab('restocking')}
           className={cn(
             'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
@@ -549,17 +581,42 @@ export function InventoryPage() {
       )}
 
       {tab === 'velocity' && <SalesVelocityPanel products={products} />}
-      {tab === 'restocking' && role === 'admin' && <RestockingPage embedded />}
+      {tab === 'restocking' && (role === 'admin' || role === 'inventory') && <RestockingPage embedded />}
 
       {role === 'admin' && <ConfirmDialog
         open={!!deleteTarget}
         title="Delete Product"
-        description={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
+        description={`Delete "${deleteTarget?.name}" permanently? Only products with no sales history can be deleted. Sold products must be archived instead.`}
         confirmLabel="Delete"
         danger
         loading={deleting}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
+      />}
+
+      {(role === 'admin' || role === 'inventory') && <ConfirmDialog
+        open={!!statusTarget}
+        title={statusTarget?.isActive === false ? 'Restore Product' : 'Archive Product'}
+        description={statusTarget?.isActive === false
+          ? `Restore "${statusTarget?.name}" to active inventory and make it available in POS again?`
+          : `Archive "${statusTarget?.name}"? It will be removed from active inventory and POS, while sales history is preserved.`}
+        confirmLabel={statusTarget?.isActive === false ? 'Restore' : 'Archive'}
+        loading={updatingStatus}
+        onConfirm={async () => {
+          if (!statusTarget) return;
+          const restoring = statusTarget.isActive === false;
+          setUpdatingStatus(true);
+          try {
+            await setProductActive(statusTarget.id, restoring);
+            toast('success', `"${statusTarget.name}" ${restoring ? 'restored to active inventory' : 'archived'}.`);
+            setStatusTarget(null);
+          } catch (err: any) {
+            toast('error', err?.message || `Failed to ${restoring ? 'restore' : 'archive'} product.`);
+          } finally {
+            setUpdatingStatus(false);
+          }
+        }}
+        onCancel={() => setStatusTarget(null)}
       />}
 
       <StockAdjustmentModal
@@ -570,9 +627,11 @@ export function InventoryPage() {
         unit={adjustTarget?.unit}
         purchaseUnit={adjustTarget?.purchaseUnit}
         conversionFactor={adjustTarget?.conversionFactor}
-        bulkPurchasePrice={adjustTarget?.bulkPurchasePrice ?? adjustTarget?.costPrice}
+        restockingOptions={adjustTarget?.restockingOptions}
+        sellingOptions={adjustTarget?.sellingOptions}
         onClose={() => setAdjustTarget(null)}
         onSubmit={handleAdjust}
+        onUpdateSuggestedPrice={(sellingPrice) => updateSellingPrice(adjustTarget?.id ?? '', sellingPrice, undefined, true)}
       />
 
     </div>

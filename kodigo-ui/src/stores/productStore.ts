@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { calculateBulkPrice, getOptionInventoryMultiplier, isBulkSellingOption, isLegacySellingOption } from '@/types';
-import type { Product, AdjustmentReason, StockAdjustment, Category, ProductSellingOption } from '@/types';
+import type { Product, AdjustmentReason, StockAdjustment, Category, ProductSellingOption, ProductRestockingOption, RestockResult } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from './authStore';
 import { cacheProductsLocally, getCachedProducts, executeOrQueueMutation } from '@/lib/offline-sync';
@@ -21,8 +21,10 @@ interface ProductStore {
   fetchStockAdjustments: () => Promise<void>;
   addProduct: (data: ProductFormData, supplierName?: string) => Promise<Product | undefined>;
   updateProduct: (id: string, data: ProductFormData, supplierName?: string) => Promise<void>;
+  setProductActive: (id: string, isActive: boolean) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
-  adjustStock: (id: string, sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { quantity: number; purchaseUnit: string; piecesPerUnit: number; purchasePricePerUnit: number }) => Promise<void>;
+  adjustStock: (id: string, sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { restockingOptionId?: string; quantity: number; purchaseUnit: string; piecesPerUnit: number; totalSupplierCost?: number }) => Promise<RestockResult | void>;
+  updateSellingPrice: (id: string, sellingPrice: number, reason?: string, updateFixedBundles?: boolean) => Promise<void>;
 }
 
 export const DEFAULT_CATEGORY_NAMES = [
@@ -109,6 +111,22 @@ const mapSellingOption = (row: any): ProductSellingOption => ({
   isBulk: row.is_bulk == null ? undefined : Boolean(row.is_bulk),
   discountType: row.discount_type === 'amount' ? 'amount' : 'percent',
   discountValue: Number(row.discount_value ?? 0),
+  pricingMethod: row.pricing_method === 'fixed' || row.pricing_method === 'amount' || row.pricing_method === 'percent'
+    ? row.pricing_method
+    : row.discount_type === 'amount' ? 'amount' : 'percent',
+  manualSellingPrice: row.manual_selling_price == null ? undefined : Number(row.manual_selling_price),
+  isDefault: Boolean(row.is_default),
+  isActive: row.is_active !== false,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const mapRestockingOption = (row: any): ProductRestockingOption => ({
+  id: row.id,
+  productId: row.product_id,
+  storeId: row.store_id,
+  label: row.label ?? row.unit_label ?? 'unit',
+  conversionFactor: Math.max(1, Number(row.conversion_factor ?? 1)),
   isDefault: Boolean(row.is_default),
   isActive: row.is_active !== false,
   createdAt: row.created_at,
@@ -140,6 +158,8 @@ const normalizeSellingOptions = (
         sharesBaseStock: true,
         isDefault: true,
         isActive: true,
+        pricingMethod: 'percent' as const,
+        manualSellingPrice: undefined,
       }];
 
   const baseUnit = data.unit?.trim() || 'unit';
@@ -151,8 +171,16 @@ const normalizeSellingOptions = (
     const unitsPerPackage = isBulk
       ? Math.max(2, getOptionInventoryMultiplier(option))
       : 1;
-    const discountType = option.discountType === 'amount' ? 'amount' as const : 'percent' as const;
-    const discountValue = Math.max(0, Number(option.discountValue) || 0);
+    const pricingMethod = option.pricingMethod
+      ?? (option.discountType === 'amount' ? 'amount' as const : 'percent' as const);
+    const discountType = pricingMethod === 'amount' || pricingMethod === 'fixed' ? 'amount' as const : 'percent' as const;
+    const manualSellingPrice = pricingMethod === 'fixed'
+      ? Math.max(0, Number(option.manualSellingPrice ?? option.sellingPrice) || 0)
+      : undefined;
+    const regularValue = data.sellingPrice * unitsPerPackage;
+    const discountValue = pricingMethod === 'fixed'
+      ? Math.max(0, regularValue - (manualSellingPrice ?? 0))
+      : Math.max(0, Number(option.discountValue) || 0);
     return {
       ...option,
       id: option.id && !isLegacySellingOption(option) ? option.id : crypto.randomUUID(),
@@ -165,7 +193,9 @@ const normalizeSellingOptions = (
       quantityUnit: isBulk ? baseUnit : undefined,
       stockQuantity: Math.floor(Math.max(0, Number(data.currentStock) || 0) / unitsPerPackage),
       sellingPrice: isBulk
-        ? calculateBulkPrice(data.sellingPrice, unitsPerPackage, discountType, discountValue)
+        ? pricingMethod === 'fixed'
+          ? manualSellingPrice ?? calculateBulkPrice(data.sellingPrice, unitsPerPackage, 'percent', 0)
+            : calculateBulkPrice(data.sellingPrice, unitsPerPackage, discountType, discountValue)
         : Math.max(0, Number(data.sellingPrice) || Number(option.sellingPrice) || 0),
       lowStockThreshold: isBulk ? Math.floor(Math.max(0, Number(data.minStockLevel) || 0) / unitsPerPackage) : Math.max(0, Number(data.minStockLevel) || 0),
       inventoryMultiplier: unitsPerPackage,
@@ -173,6 +203,8 @@ const normalizeSellingOptions = (
       isBulk,
       discountType,
       discountValue,
+      pricingMethod,
+      manualSellingPrice,
       isDefault: !isBulk,
       isActive: option.isActive !== false && (data.bulkPurchaseEnabled !== false || !isBulk),
       createdAt: option.createdAt,
@@ -196,6 +228,8 @@ const normalizeSellingOptions = (
       isBulk: false,
       discountType: 'percent',
       discountValue: 0,
+      pricingMethod: 'percent',
+      manualSellingPrice: undefined,
       quantityValue: undefined,
       quantityUnit: undefined,
       isDefault: true,
@@ -210,6 +244,38 @@ const normalizeSellingOptions = (
   return sanitized.map((option, index) => ({
     ...option,
     isDefault: option.id === defaultId || (!defaultId && index === 0),
+  }));
+};
+
+const normalizeRestockingOptions = (
+  data: ProductFormData,
+  productId: string,
+  storeId: string,
+): ProductRestockingOption[] => {
+  const rawOptions = data.restockingOptions?.length
+    ? data.restockingOptions
+    : data.purchaseUnit
+      ? [{
+          id: crypto.randomUUID(),
+          productId,
+          storeId,
+          label: data.purchaseUnit,
+          conversionFactor: data.conversionFactor || 1,
+          isDefault: true,
+          isActive: true,
+        }]
+      : [];
+  const active = rawOptions.filter((option) => option.isActive !== false);
+  const defaultId = active.find((option) => option.isDefault)?.id ?? active[0]?.id;
+  return rawOptions.map((option) => ({
+    ...option,
+    id: option.id || crypto.randomUUID(),
+    productId,
+    storeId,
+    label: option.label?.trim() || 'unit',
+    conversionFactor: Math.max(1, Number(option.conversionFactor) || 1),
+    isDefault: option.id === defaultId,
+    isActive: option.isActive !== false,
   }));
 };
 
@@ -230,6 +296,18 @@ const toSellingOptionRow = (option: ProductSellingOption) => ({
   is_bulk: isBulkSellingOption(option),
   discount_type: option.discountType ?? 'percent',
   discount_value: option.discountValue ?? 0,
+  pricing_method: option.pricingMethod ?? (option.discountType === 'amount' ? 'amount' : 'percent'),
+  manual_selling_price: option.manualSellingPrice ?? null,
+  is_default: option.isDefault,
+  is_active: option.isActive,
+});
+
+const toRestockingOptionRow = (option: ProductRestockingOption) => ({
+  id: option.id,
+  store_id: option.storeId,
+  product_id: option.productId,
+  label: option.label.trim(),
+  conversion_factor: option.conversionFactor,
   is_default: option.isDefault,
   is_active: option.isActive,
 });
@@ -395,6 +473,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       const productRows = data || [];
       const productIds = productRows.map((product: any) => product.id).filter(Boolean);
       let supplierLinks: any[] = [];
+      let restockingRows: any[] = [];
       if (productIds.length > 0) {
         const { data: relationRows, error: supplierLinksError } = await supabase
           .from('product_suppliers')
@@ -404,6 +483,15 @@ export const useProductStore = create<ProductStore>((set, get) => ({
         // being upgraded to migration 33.
         if (supplierLinksError && supplierLinksError.code !== '42P01') throw supplierLinksError;
         supplierLinks = relationRows || [];
+
+          const { data: restockingData, error: restockingError } = await supabase
+            .from('product_restocking_options')
+            .select('*')
+          .in('product_id', productIds)
+          .eq('is_active', true);
+        // The fallback keeps older projects usable until migration 37 is applied.
+        if (restockingError && restockingError.code !== '42P01') throw restockingError;
+        restockingRows = restockingData || [];
       }
 
       const linksByProduct = new Map<string, any[]>();
@@ -411,6 +499,12 @@ export const useProductStore = create<ProductStore>((set, get) => ({
         const links = linksByProduct.get(link.product_id) || [];
         links.push(link);
         linksByProduct.set(link.product_id, links);
+      }
+      const restockingByProduct = new Map<string, ProductRestockingOption[]>();
+      for (const row of restockingRows) {
+        const options = restockingByProduct.get(row.product_id) || [];
+        options.push(mapRestockingOption(row));
+        restockingByProduct.set(row.product_id, options);
       }
       
       const mapped: Product[] = productRows.map((p: any) => {
@@ -433,6 +527,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
         return {
           id: p.id,
           storeId: p.store_id,
+          isActive: p.is_active !== false,
           name: p.name,
           sku: p.sku,
           barcode: p.barcode,
@@ -456,6 +551,16 @@ export const useProductStore = create<ProductStore>((set, get) => ({
           supplierName: primarySupplierLink?.suppliers?.name || p.suppliers?.name || undefined,
           supplierIds,
           imageUrl: p.image_url || undefined,
+          restockingOptions: restockingByProduct.get(p.id) || (p.purchase_unit ? [{
+            id: `legacy-restock-${p.id}`,
+            productId: p.id,
+            storeId: p.store_id,
+            label: p.purchase_unit,
+            conversionFactor: Math.max(1, Number(p.conversion_factor || 1)),
+            isDefault: true,
+            isActive: true,
+          }] : []),
+          priceRounding: p.price_rounding == null ? 1 : Math.max(1, Number(p.price_rounding)),
           sellingOptions,
           createdAt: p.created_at,
           updatedAt: p.updated_at,
@@ -531,6 +636,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     const supplierIds = normalizeSupplierIds(data);
     const primarySupplierId = supplierIds[0] || null;
     const sellingOptions = normalizeSellingOptions(data, newId, storeId);
+    const restockingOptions = normalizeRestockingOptions(data, newId, storeId);
     const newProd = {
       id: newId,
       store_id: storeId,
@@ -551,9 +657,11 @@ export const useProductStore = create<ProductStore>((set, get) => ({
        bulk_purchase_price: data.bulkPurchasePrice ?? null,
        bulk_purchase_enabled: Boolean(data.bulkPurchaseEnabled),
       auto_pricing_enabled: Boolean(data.autoPricingEnabled),
-      margin_percentage: data.marginPercentage ?? null,
+       margin_percentage: data.marginPercentage ?? null,
+      price_rounding: data.priceRounding ?? 1,
       supplier_id: primarySupplierId,
       image_url: data.imageUrl || null,
+      is_active: true,
     };
 
     // Optimistic Update
@@ -561,12 +669,15 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       ...data,
       id: newId,
       storeId,
+      isActive: true,
        unit: data.unit,
        sellingPrice: data.sellingPrice,
        currentStock: Math.round(data.currentStock),
       minStockLevel: Math.round(data.minStockLevel),
       supplierId: primarySupplierId || undefined,
       supplierIds,
+      restockingOptions,
+      priceRounding: data.priceRounding ?? 1,
       sellingOptions,
       categoryName: get().categories.find(c => c.id === data.categoryId)?.name || '',
       createdAt: new Date().toISOString(),
@@ -582,6 +693,9 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     try {
       await executeOrQueueMutation('products', 'INSERT', newProd);
       await executeOrQueueMutation('product_selling_options', 'INSERT', sellingOptions.map(toSellingOptionRow));
+      if (restockingOptions.length > 0) {
+        await executeOrQueueMutation('product_restocking_options', 'INSERT', restockingOptions.map(toRestockingOptionRow));
+      }
       await replaceProductSuppliers(newId, supplierIds);
       return optimisticProd;
     } catch (err) {
@@ -608,6 +722,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     const supplierIds = normalizeSupplierIds(data);
     const primarySupplierId = supplierIds[0] || null;
     const sellingOptions = normalizeSellingOptions(data, id, storeId);
+    const restockingOptions = normalizeRestockingOptions(data, id, storeId);
     const updates = {
       name: data.name,
       sku: data.sku,
@@ -626,9 +741,11 @@ export const useProductStore = create<ProductStore>((set, get) => ({
        bulk_purchase_price: data.bulkPurchasePrice ?? null,
        bulk_purchase_enabled: Boolean(data.bulkPurchaseEnabled),
       auto_pricing_enabled: Boolean(data.autoPricingEnabled),
-      margin_percentage: data.marginPercentage ?? null,
+       margin_percentage: data.marginPercentage ?? null,
+      price_rounding: data.priceRounding ?? 1,
       supplier_id: primarySupplierId,
       image_url: data.imageUrl || null,
+      is_active: data.isActive !== false,
       updated_at: new Date().toISOString(),
     };
 
@@ -639,6 +756,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       products: s.products.map(p => 
         p.id === id ? {
           ...p,
+          isActive: data.isActive !== false,
           ...data,
            unit: data.unit,
            sellingPrice: data.sellingPrice,
@@ -646,6 +764,8 @@ export const useProductStore = create<ProductStore>((set, get) => ({
            minStockLevel: Math.round(data.minStockLevel),
           supplierId: primarySupplierId || undefined,
           supplierIds,
+          restockingOptions,
+          priceRounding: data.priceRounding ?? 1,
           sellingOptions,
           categoryName: get().categories.find(c => c.id === data.categoryId)?.name || '',
           updatedAt: updates.updated_at,
@@ -680,6 +800,8 @@ export const useProductStore = create<ProductStore>((set, get) => ({
               is_bulk: row.is_bulk,
               discount_type: row.discount_type,
               discount_value: row.discount_value,
+              pricing_method: row.pricing_method,
+              manual_selling_price: row.manual_selling_price,
               is_default: row.is_default,
               is_active: row.is_active,
             }, 'id', option.id);
@@ -693,6 +815,27 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       await Promise.all(removedOptions.map((option) =>
         executeOrQueueMutation('product_selling_options', 'UPDATE', { is_active: false }, 'id', option.id)
       ));
+
+      const existingRestockingIds = new Set((targetProduct.restockingOptions || [])
+        .filter((option) => !option.id.startsWith('legacy-restock-'))
+        .map((option) => option.id));
+      for (const option of restockingOptions) {
+        const row = toRestockingOptionRow(option);
+        if (existingRestockingIds.has(option.id)) {
+          await executeOrQueueMutation('product_restocking_options', 'UPDATE', {
+            label: row.label,
+            conversion_factor: row.conversion_factor,
+            is_default: row.is_default,
+            is_active: row.is_active,
+          }, 'id', option.id);
+        } else {
+          await executeOrQueueMutation('product_restocking_options', 'INSERT', row);
+        }
+      }
+      const submittedRestockingIds = new Set(restockingOptions.map((option) => option.id));
+      await Promise.all((targetProduct.restockingOptions || [])
+        .filter((option) => !submittedRestockingIds.has(option.id) && !option.id.startsWith('legacy-restock-'))
+        .map((option) => executeOrQueueMutation('product_restocking_options', 'UPDATE', { is_active: false }, 'id', option.id)));
     } catch (err: any) {
       set({ products: previousProducts });
 
@@ -727,6 +870,37 @@ export const useProductStore = create<ProductStore>((set, get) => ({
         throw new Error('Delete blocked by permissions (RLS). Ensure you are an admin mapped to this store.');
       }
 
+      throw err;
+    }
+  },
+
+  setProductActive: async (id, isActive) => {
+    const previousProducts = get().products;
+    const targetProduct = previousProducts.find((product) => product.id === id);
+    if (!targetProduct) {
+      throw new Error('Product not found. Refresh the page and try again.');
+    }
+
+    const updatedAt = new Date().toISOString();
+    set((state) => ({
+      products: state.products.map((product) => product.id === id
+        ? { ...product, isActive, updatedAt }
+        : product),
+    }));
+
+    try {
+      await executeOrQueueMutation(
+        'products',
+        'UPDATE',
+        { is_active: isActive, updated_at: updatedAt },
+        'id',
+        id,
+      );
+    } catch (err: any) {
+      set({ products: previousProducts });
+      if (err?.code === '42501') {
+        throw new Error('Product status change blocked by permissions (RLS). Ensure you are an admin or inventory user mapped to this store.');
+      }
       throw err;
     }
   },
@@ -786,13 +960,14 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     set(s => ({ stockAdjustments: [newAdjustment, ...s.stockAdjustments] }));
 
     try {
-      const { error } = reason === 'restock' && restock
-        ? await supabase.rpc('restock_product_inventory', {
+      const { data: restockData, error } = reason === 'restock' && restock
+        ? await supabase.rpc('restock_product_inventory_v2', {
             p_product_id: id,
+            p_restocking_option_id: restock.restockingOptionId ?? null,
             p_quantity_in_purchase_units: restock.quantity,
             p_purchase_unit: restock.purchaseUnit,
             p_pieces_per_purchase_unit: restock.piecesPerUnit,
-            p_purchase_price_per_unit: restock.purchasePricePerUnit,
+            p_total_supplier_cost: restock.totalSupplierCost ?? null,
             p_note: note || null,
           })
         : await supabase.rpc('adjust_inventory_stock', {
@@ -805,9 +980,85 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       if (error) throw error;
       if (reason === 'restock' && restock) {
         await Promise.all([get().fetchProducts(), get().fetchStockAdjustments()]);
+        return {
+          restockId: String(restockData?.restockId ?? restockData?.restock_id ?? entryId),
+          productId: id,
+          purchaseUnit: String(restockData?.purchaseUnit ?? restockData?.purchase_unit ?? restock.purchaseUnit),
+          quantityReceived: Number(restockData?.quantityReceived ?? restockData?.quantity_received ?? restock.quantity),
+          conversionFactor: Number(restockData?.conversionFactor ?? restockData?.conversion_factor ?? restock.piecesPerUnit),
+          baseUnitsAdded: Number(restockData?.baseUnitsAdded ?? restockData?.base_units_added ?? delta),
+          stockBefore: Number(restockData?.stockBefore ?? restockData?.stock_before ?? stockBefore),
+          stockAfter: Number(restockData?.stockAfter ?? restockData?.stock_after ?? stockAfter),
+          totalSupplierCost: restockData?.totalSupplierCost == null && restockData?.total_supplier_cost == null
+            ? restock.totalSupplierCost
+            : Number(restockData?.totalSupplierCost ?? restockData?.total_supplier_cost),
+          previousCostPerBaseUnit: Number(restockData?.previousCostPerBaseUnit ?? restockData?.previous_cost_per_base_unit ?? product.costPrice),
+          newCostPerBaseUnit: Number(restockData?.newCostPerBaseUnit ?? restockData?.new_cost_per_base_unit ?? product.costPrice),
+          costChangePercent: restockData?.costChangePercent == null && restockData?.cost_change_percent == null
+            ? undefined
+            : Number(restockData?.costChangePercent ?? restockData?.cost_change_percent),
+          previousGrossMargin: Number(restockData?.previousGrossMargin ?? restockData?.previous_gross_margin ?? 0),
+          newGrossMargin: Number(restockData?.newGrossMargin ?? restockData?.new_gross_margin ?? 0),
+          currentSellingPrice: Number(restockData?.currentSellingPrice ?? restockData?.current_selling_price ?? product.sellingPrice),
+          suggestedSellingPrice: Number(restockData?.suggestedSellingPrice ?? restockData?.suggested_selling_price ?? product.sellingPrice),
+          rawSuggestedSellingPrice: Number(restockData?.rawSuggestedSellingPrice ?? restockData?.raw_suggested_selling_price ?? product.sellingPrice),
+          priceRounding: Number(restockData?.priceRounding ?? restockData?.price_rounding ?? product.priceRounding ?? 1),
+        } satisfies RestockResult;
       }
     } catch (error) {
       await Promise.all([get().fetchProducts(), get().fetchStockAdjustments()]);
+      throw error;
+    }
+  },
+
+  updateSellingPrice: async (id, sellingPrice, reason = 'Owner approved suggested price', updateFixedBundles = false) => {
+    const targetProduct = get().products.find((product) => product.id === id);
+    if (!targetProduct) throw new Error('Product not found. Refresh the page and try again.');
+    const safePrice = Math.max(0, Math.round((Number(sellingPrice) + Number.EPSILON) * 100) / 100);
+    const invalidFixedBundle = targetProduct.sellingOptions.find((option) => {
+      if (!option.isBulk || option.pricingMethod !== 'fixed') return false;
+      return (option.manualSellingPrice ?? option.sellingPrice) > safePrice * Math.max(1, option.inventoryMultiplier);
+    });
+    if (invalidFixedBundle && !updateFixedBundles) {
+      throw new Error(`${invalidFixedBundle.label} is priced above the new regular value. Review that bundle price first.`);
+    }
+    const previousProducts = get().products;
+    set((state) => ({
+      products: state.products.map((product) => product.id === id
+        ? { ...product, sellingPrice: safePrice, updatedAt: new Date().toISOString() }
+        : product),
+    }));
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ selling_price: safePrice, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+      if (updateFixedBundles) {
+        const fixedBundlesBelowCost = targetProduct.sellingOptions.filter((option) => {
+          if (!option.isBulk || option.pricingMethod !== 'fixed') return false;
+          return (option.manualSellingPrice ?? option.sellingPrice) < targetProduct.costPrice * Math.max(1, option.inventoryMultiplier);
+        });
+        for (const option of fixedBundlesBelowCost) {
+          const bundlePrice = Math.round((safePrice * Math.max(1, option.inventoryMultiplier) + Number.EPSILON) * 100) / 100;
+          const { error: optionError } = await supabase
+            .from('product_selling_options')
+            .update({
+              selling_price: bundlePrice,
+              manual_selling_price: bundlePrice,
+              discount_type: 'amount',
+              discount_value: 0,
+              pricing_method: 'fixed',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', option.id);
+          if (optionError) throw optionError;
+        }
+      }
+      void reason;
+      await get().fetchProducts();
+    } catch (error) {
+      set({ products: previousProducts });
       throw error;
     }
   },

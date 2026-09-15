@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getAvailableSellingUnits, getDefaultSellingOption, getOptionInventoryMultiplier, isLegacySellingOption } from '@/types';
+import { getAvailableSellingUnits, getDefaultSellingOption, getOptionInventoryMultiplier, getOptionSellingPrice, isLegacySellingOption } from '@/types';
 import type { CartItem, DiscountType, Product, ProductSellingOption } from '@/types';
 import { useAuthStore } from './authStore';
 
@@ -51,7 +51,7 @@ export const useCartStore = create<CartState>((set, get) => ({
         return {
           items: state.items.map((i) =>
             i.id === lineId
-              ? { ...i, quantity: newQty, lineTotal: newQty * i.sellingOption.sellingPrice }
+              ? { ...i, quantity: newQty, lineTotal: newQty * getOptionSellingPrice(i.product, i.sellingOption) }
               : i
           ),
         };
@@ -59,7 +59,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       return {
         items: [
           ...state.items,
-          { id: lineId, product, sellingOption: option, quantity: safeQty, lineTotal: safeQty * option.sellingPrice },
+          { id: lineId, product, sellingOption: option, quantity: safeQty, lineTotal: safeQty * getOptionSellingPrice(product, option) },
         ],
       };
     });
@@ -85,7 +85,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     set((state) => ({
       items: state.items.map((i) =>
         i.id === lineId
-          ? { ...i, quantity: safeQty, lineTotal: safeQty * i.sellingOption.sellingPrice }
+          ? { ...i, quantity: safeQty, lineTotal: safeQty * getOptionSellingPrice(i.product, i.sellingOption) }
           : i
       ),
     }));

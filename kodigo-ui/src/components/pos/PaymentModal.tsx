@@ -13,6 +13,7 @@ import {
   getAvailableSellingUnits,
   getOptionInventoryMultiplier,
   getOptionPurchaseCost,
+  getOptionSellingPrice,
   isLegacySellingOption,
   isBulkSellingOption,
 } from '@/types';
@@ -108,6 +109,10 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         const baseUnitQuantity = i.quantity * unitsPerPackage;
         const regularValue = i.product.sellingPrice * baseUnitQuantity;
         const bulkDiscountAmount = isBulk ? Math.max(0, regularValue - i.lineTotal) : 0;
+        const finalSellingPrice = getOptionSellingPrice(i.product, i.sellingOption);
+        const costPerBaseUnit = i.product.costPrice;
+        const cogs = costPerBaseUnit * baseUnitQuantity;
+        const grossProfit = i.lineTotal - cogs;
         return {
         productId: i.product.id,
         productName: i.product.name,
@@ -129,9 +134,14 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         bulkDiscountType: isBulk ? i.sellingOption.discountType : undefined,
         bulkDiscountValue: isBulk ? i.sellingOption.discountValue : undefined,
         bulkDiscountAmount,
-        finalSellingPrice: i.sellingOption.sellingPrice,
+        finalSellingPrice,
+        baseUnitLabel: i.product.unit,
+        costPerBaseUnit,
+        cogs,
+        grossProfit,
+        grossMargin: i.lineTotal > 0 ? grossProfit / i.lineTotal : 0,
         quantity: i.quantity,
-        unitPrice: i.sellingOption.sellingPrice,
+        unitPrice: finalSellingPrice,
         costPrice: getOptionPurchaseCost(i.product, i.sellingOption),
         lineTotal: i.lineTotal,
         };

@@ -72,7 +72,20 @@ export interface Supplier {
 
 export type SellingOptionKind = 'unit' | 'kilo' | 'sack' | 'custom';
 export type BulkDiscountType = 'percent' | 'amount';
+export type PricingMethod = 'fixed' | 'percent' | 'amount';
 export type PurchaseMode = 'unit' | 'bulk';
+
+export interface ProductRestockingOption {
+  id: string;
+  productId: string;
+  storeId: string;
+  label: string;
+  conversionFactor: number;
+  isDefault: boolean;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 export interface ProductSellingOption {
   id: string;
@@ -95,6 +108,10 @@ export interface ProductSellingOption {
   /** Discount applied to the regular unit price multiplied by the package size. */
   discountType?: BulkDiscountType;
   discountValue?: number;
+  /** Fixed is the simple default; percent/amount are the advanced discount modes. */
+  pricingMethod?: PricingMethod;
+  /** Price entered by the owner when pricingMethod is fixed. */
+  manualSellingPrice?: number;
   isDefault: boolean;
   isActive: boolean;
   createdAt?: string;
@@ -104,6 +121,8 @@ export interface ProductSellingOption {
 export interface Product {
   id: string;
   storeId: string;
+  /** Archived products stay in history but are unavailable in active workflows. */
+  isActive?: boolean;
   name: string;
   sku: string;
   barcode?: string;
@@ -142,6 +161,9 @@ export interface Product {
   /** All suppliers that can provide this product, including the primary one. */
   supplierIds?: string[];
   imageUrl?: string;
+  restockingOptions?: ProductRestockingOption[];
+  /** Price increments used when suggesting a new price after a cost change. */
+  priceRounding?: number;
   sellingOptions: ProductSellingOption[];
   createdAt: string;
   updatedAt: string;
@@ -200,6 +222,22 @@ export function getOptionPurchaseCost(product: Product, option: ProductSellingOp
   return product.costPrice * getOptionInventoryMultiplier(option);
 }
 
+export function getOptionSellingPrice(product: Product, option: ProductSellingOption): number {
+  if (!isBulkSellingOption(option)) return product.sellingPrice;
+  const unitsPerPackage = getOptionUnitsPerPackage(option);
+  const pricingMethod = option.pricingMethod
+    ?? (option.discountType === 'amount' ? 'amount' : 'percent');
+  if (pricingMethod === 'fixed') {
+    return Math.max(0, Number(option.manualSellingPrice ?? option.sellingPrice) || 0);
+  }
+  return calculateBulkPrice(
+    product.sellingPrice,
+    unitsPerPackage,
+    pricingMethod,
+    option.discountValue,
+  );
+}
+
 export function isBulkSellingOption(option: ProductSellingOption): boolean {
   return Boolean(
     option.isBulk
@@ -229,7 +267,30 @@ export function getOptionRegularValue(product: Product, option: ProductSellingOp
 }
 
 export function getOptionSavings(product: Product, option: ProductSellingOption): number {
-  return Math.max(0, getOptionRegularValue(product, option) - option.sellingPrice);
+  return Math.max(0, getOptionRegularValue(product, option) - getOptionSellingPrice(product, option));
+}
+
+export interface BulkPricingPreview {
+  regularValue: number;
+  bulkPrice: number;
+  savings: number;
+  savingsPercentage: number;
+  effectiveUnitPrice: number;
+}
+
+export function getBulkPricingPreview(product: Product, option: ProductSellingOption): BulkPricingPreview {
+  const regularValue = getOptionRegularValue(product, option);
+  const bulkPrice = getOptionSellingPrice(product, option);
+  const savings = Math.max(0, regularValue - bulkPrice);
+  return {
+    regularValue,
+    bulkPrice,
+    savings,
+    savingsPercentage: regularValue > 0 ? (savings / regularValue) * 100 : 0,
+    effectiveUnitPrice: getOptionUnitsPerPackage(option) > 0
+      ? bulkPrice / getOptionUnitsPerPackage(option)
+      : bulkPrice,
+  };
 }
 
 export function getProductSellingOptions(product: Product): ProductSellingOption[] {
@@ -296,6 +357,7 @@ export interface SaleItem {
   sellingOptionId?: string;
   sellingOptionLabel?: string;
   unitLabel?: string;
+  baseUnitLabel?: string;
   packageSize?: number;
   packageUnit?: string;
   stockSource?: string;
@@ -311,6 +373,10 @@ export interface SaleItem {
   bulkDiscountValue?: number;
   bulkDiscountAmount?: number;
   finalSellingPrice?: number;
+  costPerBaseUnit?: number;
+  cogs?: number;
+  grossProfit?: number;
+  grossMargin?: number;
   quantity: number;
   unitPrice: number;
   costPrice?: number;
@@ -411,6 +477,7 @@ export interface ReceiptSnapshot {
     product_name: string;
     selling_option_label?: string;
     unit_label?: string;
+    base_unit_label?: string;
     package_size?: number;
     package_unit?: string;
     purchase_mode?: PurchaseMode;
@@ -425,6 +492,10 @@ export interface ReceiptSnapshot {
     bulk_discount_value?: number;
     bulk_discount_amount?: number;
     final_selling_price?: number;
+    cost_per_base_unit?: number;
+    cogs?: number;
+    gross_profit?: number;
+    gross_margin?: number;
     quantity: number;
     unit_price: number;
     line_total: number;
@@ -552,6 +623,9 @@ export interface RestockItem {
   suggestedSupplierId: string;
   suggestedSupplierName: string;
   estimatedCost: number;
+  suggestedBaseUnits?: number;
+  suggestedPurchaseQty?: number;
+  purchaseUnitCost?: number;
   urgency: 'high' | 'medium' | 'low';
   /** Selling unit (e.g. "stick", "piece") for display */
   unit?: string;
@@ -559,6 +633,41 @@ export interface RestockItem {
   purchaseUnit?: string;
   /** Conversion factor: selling units per purchase unit */
   conversionFactor?: number;
+  restockingOptions?: ProductRestockingOption[];
+}
+
+export interface RestockResult {
+  restockId: string;
+  productId: string;
+  purchaseUnit: string;
+  quantityReceived: number;
+  conversionFactor: number;
+  baseUnitsAdded: number;
+  stockBefore: number;
+  stockAfter: number;
+  totalSupplierCost?: number;
+  previousCostPerBaseUnit: number;
+  newCostPerBaseUnit: number;
+  costChangePercent?: number;
+  previousGrossMargin: number;
+  newGrossMargin: number;
+  currentSellingPrice: number;
+  suggestedSellingPrice: number;
+  rawSuggestedSellingPrice: number;
+  priceRounding: number;
+}
+
+export interface PriceHistoryRecord {
+  id: string;
+  storeId: string;
+  productId: string;
+  productName: string;
+  changeType: 'supplier_cost' | 'selling_price';
+  previousValue: number;
+  newValue: number;
+  reason: string;
+  createdBy?: string;
+  createdAt: string;
 }
 
 export interface PurchaseOrder {

@@ -1,7 +1,7 @@
 import { Package, AlertCircle } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Product, ProductSellingOption } from '@/types';
-import { getAvailableSellingUnits, getProductOptionStockLabel, getProductSellingOptions, getSellingOptionLabel, getStockStatus, getOptionUnitsPerPackage, isBulkSellingOption } from '@/types';
+import { getAvailableSellingUnits, getOptionSellingPrice, getProductOptionStockLabel, getProductSellingOptions, getSellingOptionLabel, getStockStatus, getOptionUnitsPerPackage, isBulkSellingOption } from '@/types';
 
 interface ProductCardProps {
   product: Product;
@@ -64,7 +64,12 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
         {options.length > 1 && <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Purchase as</p>}
         {options.map((option, optionIndex) => {
           const status = getStockStatus(product, option);
-          const optionOut = getAvailableSellingUnits(product, option) <= 0;
+          const availableUnits = getAvailableSellingUnits(product, option);
+          const unitsRequired = getOptionUnitsPerPackage(option);
+          const optionOut = availableUnits <= 0;
+          const stockMessage = optionOut && unitsRequired > 1 && product.currentStock > 0
+            ? `Not enough stock: this option requires ${unitsRequired} ${product.unit}s, but only ${product.currentStock} are available`
+            : 'Out of stock';
 
           return (
             <button
@@ -88,7 +93,7 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
                   {hasBulkOptions && optionIndex < 9 && <kbd className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded border border-gray-200 bg-gray-50 px-1 text-[9px] font-bold leading-none text-gray-500">{optionIndex + 1}</kbd>}
                   <span className="truncate text-[11px] font-semibold text-gray-700">{isBulkSellingOption(option) ? `${getSellingOptionLabel(option)} (${getOptionUnitsPerPackage(option)} units)` : `${getSellingOptionLabel(option)} — ${product.unit}`}</span>
                 </span>
-                <span className="text-xs font-bold text-blue-600 font-mono shrink-0">{formatCurrency(option.sellingPrice)}</span>
+                <span className="text-xs font-bold text-blue-600 font-mono shrink-0">{formatCurrency(getOptionSellingPrice(product, option))}</span>
               </span>
               <span className="flex items-center gap-1 mt-0.5">
                 {optionOut ? (
@@ -100,8 +105,8 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
                     'bg-orange-500': status === 'critical',
                   })} />
                 )}
-                <span className="text-[10px] text-gray-400 font-mono">
-                  {optionOut ? 'Out of stock' : `${getProductOptionStockLabel(product, option)} left`}
+                <span className="text-[10px] text-gray-400 font-mono" title={optionOut ? stockMessage : undefined}>
+                  {optionOut ? stockMessage : `${getProductOptionStockLabel(product, option)} left`}
                 </span>
               </span>
             </button>

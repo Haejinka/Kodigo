@@ -13,6 +13,7 @@ import {
   getSellingOptionLabel,
   getProductOptionStockLabel,
   getOptionUnitsPerPackage,
+  getOptionSellingPrice,
   isBulkSellingOption,
 } from '@/types';
 import type { Product, ProductSellingOption } from '@/types';
@@ -35,16 +36,17 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const products = useProductStore((s) => s.products);
+  const activeProducts = useMemo(() => products.filter((product) => product.isActive !== false), [products]);
 
   const categories = useMemo(() => {
-    const cats = [...new Set(products.map((p) => p.categoryName))].sort();
+    const cats = [...new Set(activeProducts.map((p) => p.categoryName))].sort();
     return ['All', ...cats];
-  }, [products]);
+  }, [activeProducts]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
 
-    return products.filter((p) => {
+    return activeProducts.filter((p) => {
       const matchesQuery =
         !q ||
         p.name.toLowerCase().includes(q) ||
@@ -54,7 +56,7 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
       const matchesCategory = activeCategory === 'All' || p.categoryName === activeCategory;
       return matchesQuery && matchesCategory;
     });
-  }, [products, query, activeCategory]);
+  }, [activeProducts, query, activeCategory]);
 
   const quickLookupResults = useMemo(() => {
     return query.trim()
@@ -85,7 +87,7 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
   }, [quickLookupResults, firstAvailableIndex]);
 
   const handleScan = (barcode: string) => {
-    const found = products.find((p) => p.barcode === barcode);
+    const found = activeProducts.find((p) => p.barcode === barcode);
     if (!found) return;
     const options = getProductSellingOptions(found).filter((option) => getAvailableSellingUnits(found, option) > 0);
     if (options.length === 1) {
@@ -205,6 +207,10 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
           <div id="pos-quick-lookup-list" role="listbox" aria-label="Quick lookup results" className="grid gap-2 pb-3">
             {quickLookupResults.map(({ product, option }, index) => {
               const outOfStock = getAvailableSellingUnits(product, option) <= 0;
+              const unitsRequired = getOptionUnitsPerPackage(option);
+              const stockMessage = outOfStock && unitsRequired > 1 && product.currentStock > 0
+                ? `Not enough stock: requires ${unitsRequired} ${product.unit}s, only ${product.currentStock} available`
+                : 'Out of stock';
               const isActive = index === highlightedIndex;
 
               return (
@@ -235,9 +241,9 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
                     </span>
                   </span>
                   <span className="shrink-0 text-right">
-                    <span className="block font-mono font-semibold text-blue-700">{formatCurrency(option.sellingPrice)}</span>
-                    <span className="block text-xs text-gray-500">
-                      {outOfStock ? 'Out of stock' : `${getProductOptionStockLabel(product, option)} left`}
+                    <span className="block font-mono font-semibold text-blue-700">{formatCurrency(getOptionSellingPrice(product, option))}</span>
+                    <span className="block text-xs text-gray-500" title={outOfStock ? stockMessage : undefined}>
+                      {outOfStock ? stockMessage : `${getProductOptionStockLabel(product, option)} left`}
                     </span>
                   </span>
                 </button>

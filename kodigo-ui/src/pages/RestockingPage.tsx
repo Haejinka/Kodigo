@@ -4,13 +4,14 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
 import { Badge } from '@/components/shared/Badge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { StockAdjustmentModal } from '@/components/inventory/StockAdjustmentModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useToast } from '@/components/shared/Toast';
 import { formatCurrency } from '@/lib/utils';
 import { useProductStore } from '@/stores/productStore';
 import { useSupplierStore } from '@/stores/supplierStore';
 import { useAuthStore } from '@/stores/authStore';
-import { getDefaultSellingOption, getStockStatus } from '@/types';
+import { getStockStatus } from '@/types';
 import type { RestockItem } from '@/types';
 
 const urgencyVariant: Record<string, 'danger' | 'warning' | 'info'> = {
@@ -25,17 +26,20 @@ function useRestockItems(): RestockItem[] {
   return useMemo(() => {
     return products
       .filter((p) => {
-        const defaultOption = getDefaultSellingOption(p);
-        const stockStatus = getStockStatus(p, defaultOption);
+        if (p.isActive === false) return false;
+        const stockStatus = getStockStatus(p);
         const hasAlertStatus = stockStatus === 'out-of-stock' || stockStatus === 'critical' || stockStatus === 'low';
-        const belowReorder = defaultOption.stockQuantity <= p.reorderLevel;
+        const belowReorder = p.currentStock <= p.reorderLevel;
         return hasAlertStatus || belowReorder;
       })
       .map((p) => {
-        const defaultOption = getDefaultSellingOption(p);
-        const effectiveReorder = Math.max(p.reorderLevel, defaultOption.lowStockThreshold, p.safetyStock);
-        const suggestedQty = Math.max(effectiveReorder * 2 - defaultOption.stockQuantity, effectiveReorder);
-        const stockStatus = getStockStatus(p, defaultOption);
+        const defaultRestockingOption = p.restockingOptions?.find((option) => option.isActive && option.isDefault)
+          || p.restockingOptions?.find((option) => option.isActive)
+          || { label: p.purchaseUnit || p.unit, conversionFactor: p.conversionFactor || 1 };
+        const effectiveReorder = Math.max(p.reorderLevel, p.safetyStock, p.minStockLevel);
+        const suggestedBaseUnits = Math.max(effectiveReorder * 2 - p.currentStock, effectiveReorder);
+        const suggestedPurchaseQty = Math.ceil(suggestedBaseUnits / Math.max(1, defaultRestockingOption.conversionFactor));
+        const stockStatus = getStockStatus(p);
         const urgency: RestockItem['urgency'] =
           stockStatus === 'out-of-stock' || stockStatus === 'critical'
             ? 'high'
@@ -46,15 +50,19 @@ function useRestockItems(): RestockItem[] {
           productId: p.id,
           storeId: p.storeId,
           productName: p.name,
-          currentStock: defaultOption.stockQuantity,
-          suggestedQty,
+          currentStock: p.currentStock,
+          suggestedQty: suggestedPurchaseQty,
           suggestedSupplierId: p.supplierId ?? p.supplierIds?.[0] ?? '',
           suggestedSupplierName: p.supplierName ?? 'No supplier assigned',
-          estimatedCost: suggestedQty * p.costPrice,
+          estimatedCost: suggestedBaseUnits * p.costPrice,
           urgency,
-          unit: defaultOption.unitLabel,
-          purchaseUnit: p.purchaseUnit,
-          conversionFactor: p.conversionFactor,
+          unit: p.unit,
+          purchaseUnit: defaultRestockingOption.label,
+          conversionFactor: defaultRestockingOption.conversionFactor,
+          suggestedBaseUnits,
+          suggestedPurchaseQty,
+          purchaseUnitCost: suggestedBaseUnits > 0 ? (suggestedBaseUnits * p.costPrice) / suggestedPurchaseQty : 0,
+          restockingOptions: p.restockingOptions,
         };
       })
       .sort((a, b) => {
@@ -68,11 +76,14 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
   const { toast } = useToast();
   const items = useRestockItems();
   const products = useProductStore((s) => s.products);
+  const adjustStock = useProductStore((s) => s.adjustStock);
+  const updateSellingPrice = useProductStore((s) => s.updateSellingPrice);
   const { createPurchaseOrder, recalculatePriceScores } = useSupplierStore();
   const { stores, activeStoreId } = useAuthStore();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [receiveTarget, setReceiveTarget] = useState<string | null>(null);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -126,8 +137,8 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
           group.items.map((i) => ({
             productId: i.productId,
             productName: i.productName,
-            quantity: i.suggestedQty,
-            unitCost: i.estimatedCost / i.suggestedQty,
+            quantity: i.suggestedPurchaseQty ?? i.suggestedQty,
+            unitCost: i.purchaseUnitCost ?? (i.estimatedCost / Math.max(1, i.suggestedQty)),
           })),
         )
       ));
@@ -236,8 +247,8 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
                       <span>
                         Order: <span className="font-mono font-semibold text-gray-900">
                           {item.purchaseUnit && item.conversionFactor && item.conversionFactor > 1
-                            ? `${Math.ceil(item.suggestedQty / item.conversionFactor)} ${item.purchaseUnit}${Math.ceil(item.suggestedQty / item.conversionFactor) !== 1 ? 's' : ''} (${item.suggestedQty} ${item.unit}s)`
-                            : `+${item.suggestedQty}${item.unit ? ` ${item.unit}s` : ''}`}
+                            ? `${item.suggestedPurchaseQty ?? item.suggestedQty} ${item.purchaseUnit}${(item.suggestedPurchaseQty ?? item.suggestedQty) !== 1 ? 's' : ''} (${item.suggestedBaseUnits ?? item.suggestedQty} ${item.unit}s)`
+                            : `+${item.suggestedBaseUnits ?? item.suggestedQty}${item.unit ? ` ${item.unit}s` : ''}`}
                         </span>
                       </span>
                       <span>Supplier: <span className="font-medium text-gray-700">{item.suggestedSupplierName}</span></span>
@@ -248,6 +259,9 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
                     <p className="font-bold font-mono text-gray-900">{formatCurrency(item.estimatedCost)}</p>
                     <p className="text-xs text-gray-400">estimated</p>
                   </div>
+                  <Button variant="secondary" className="shrink-0" onClick={() => setReceiveTarget(item.productId)}>
+                    Receive stock
+                  </Button>
                 </div>
               </div>
             ))}
@@ -264,6 +278,27 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
         onConfirm={handleCreatePO}
         onCancel={() => setConfirmOpen(false)}
       />
+
+      {receiveTarget && (() => {
+        const product = products.find((candidate) => candidate.id === receiveTarget);
+        if (!product) return null;
+        return (
+          <StockAdjustmentModal
+            open
+            productId={product.id}
+            productName={product.name}
+            currentStock={product.currentStock}
+            unit={product.unit}
+            purchaseUnit={product.purchaseUnit}
+            conversionFactor={product.conversionFactor}
+            restockingOptions={product.restockingOptions}
+            sellingOptions={product.sellingOptions}
+            onClose={() => setReceiveTarget(null)}
+            onSubmit={(_, delta, reason, note, restock) => adjustStock(product.id, undefined, delta, reason, note, restock)}
+            onUpdateSuggestedPrice={(sellingPrice) => updateSellingPrice(product.id, sellingPrice, undefined, true)}
+          />
+        );
+      })()}
     </div>
   );
 }

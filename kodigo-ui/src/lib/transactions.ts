@@ -84,7 +84,7 @@ export async function refundSale(
 export async function fetchSaleItems(saleId: string): Promise<SaleItem[]> {
   const { data, error } = await supabase
     .from('sale_items')
-    .select('id, product_id, product_name, category_name, selling_option_id, selling_option_label, unit_label, package_size, package_unit, stock_source, purchase_mode, bulk_option_id, bulk_option_label, bulk_quantity, units_per_package, base_unit_quantity, regular_unit_price, regular_value, bulk_discount_type, bulk_discount_value, bulk_discount_amount, final_selling_price, quantity, unit_price, cost_price, line_total')
+    .select('id, product_id, product_name, category_name, selling_option_id, selling_option_label, unit_label, base_unit_label, package_size, package_unit, stock_source, purchase_mode, bulk_option_id, bulk_option_label, bulk_quantity, units_per_package, base_unit_quantity, regular_unit_price, regular_value, bulk_discount_type, bulk_discount_value, bulk_discount_amount, final_selling_price, cost_per_base_unit, cogs, gross_profit, gross_margin, quantity, unit_price, cost_price, line_total')
     .eq('sale_id', saleId)
     .order('product_name', { ascending: true });
 
@@ -98,6 +98,7 @@ export async function fetchSaleItems(saleId: string): Promise<SaleItem[]> {
     sellingOptionId: row.selling_option_id ?? undefined,
     sellingOptionLabel: row.selling_option_label ?? undefined,
     unitLabel: row.unit_label ?? 'unit',
+    baseUnitLabel: row.base_unit_label ?? row.unit_label ?? 'unit',
     packageSize: row.package_size == null ? undefined : Number(row.package_size),
     packageUnit: row.package_unit ?? undefined,
     stockSource: row.stock_source ?? undefined,
@@ -113,6 +114,10 @@ export async function fetchSaleItems(saleId: string): Promise<SaleItem[]> {
     bulkDiscountValue: row.bulk_discount_value == null ? undefined : Number(row.bulk_discount_value),
     bulkDiscountAmount: row.bulk_discount_amount == null ? undefined : Number(row.bulk_discount_amount),
     finalSellingPrice: row.final_selling_price == null ? undefined : Number(row.final_selling_price),
+    costPerBaseUnit: row.cost_per_base_unit == null ? undefined : Number(row.cost_per_base_unit),
+    cogs: row.cogs == null ? undefined : Number(row.cogs),
+    grossProfit: row.gross_profit == null ? undefined : Number(row.gross_profit),
+    grossMargin: row.gross_margin == null ? undefined : Number(row.gross_margin),
     quantity: Number(row.quantity ?? 0),
     unitPrice: Number(row.unit_price ?? 0),
     costPrice: Number(row.cost_price ?? 0),

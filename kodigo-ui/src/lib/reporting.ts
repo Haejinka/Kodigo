@@ -3,7 +3,7 @@ import {
   getSaleItemUnitLabel,
 } from '@/types';
 import { normalizeSaleLineQuantityToBaseUnits } from '@/lib/sales-velocity';
-import type { PaymentMethod, Product, SaleStatus, UserRole } from '@/types';
+import type { PaymentMethod, PriceHistoryRecord, Product, SaleStatus, UserRole } from '@/types';
 import type { Cell, Sheet } from 'write-excel-file/browser';
 
 export type ReportStatusFilter = SaleStatus | 'all';
@@ -35,6 +35,7 @@ export interface SalesReportSummary {
   netItemsSold: number;
   averageTransactionValue: number;
   grossProfit: number;
+  totalCogs: number;
   grossMargin: number;
 }
 
@@ -66,8 +67,15 @@ export interface SalesLineReportRow {
   sellingUnitKey: string;
   sellingOptionLabel: string;
   unitLabel: string;
+  baseUnitLabel: string;
+  purchaseMode: 'unit' | 'bulk';
   packageSize?: number;
   packageUnit?: string;
+  unitsPerPackage: number;
+  regularUnitPrice: number;
+  regularValue: number;
+  bulkDiscountAmount: number;
+  finalSellingPrice: number;
   stockSource?: string;
   quantity: number;
   baseUnitQuantity: number;
@@ -77,11 +85,14 @@ export interface SalesLineReportRow {
   netBaseUnitQuantity: number;
   unitPrice: number;
   costPrice: number;
+  costPerBaseUnit: number;
+  cogs: number;
   grossRevenue: number;
   discountAllocated: number;
   refundAllocated: number;
   netRevenue: number;
   grossProfit: number;
+  grossMargin: number;
   status: SaleStatus;
   cashierId: string | null;
   cashierName: string;
@@ -192,6 +203,25 @@ export interface StockMovementReportRow {
   note: string;
 }
 
+export interface RestockReportRow {
+  id: string;
+  dateTime: string;
+  productId: string;
+  productName: string;
+  restockingUnit: string;
+  conversionFactor: number;
+  quantityReceived: number;
+  baseUnitsAdded: number;
+  totalSupplierCost: number;
+  supplierCostPerUnit: number;
+  priorCostPerBaseUnit: number;
+  newCostPerBaseUnit: number;
+  stockBefore: number;
+  stockAfter: number;
+  suggestedSellingPrice: number;
+  note: string;
+}
+
 interface SaleRow {
   id: string;
   store_id: string;
@@ -230,6 +260,11 @@ interface SaleItemRow {
   bulk_discount_value: number | null;
   bulk_discount_amount: number | null;
   final_selling_price: number | null;
+  base_unit_label: string | null;
+  cost_per_base_unit: number | null;
+  cogs: number | null;
+  gross_profit: number | null;
+  gross_margin: number | null;
   quantity: number;
   unit_price: number;
   cost_price: number | null;
@@ -270,6 +305,7 @@ const zeroSummary: SalesReportSummary = {
   netItemsSold: 0,
   averageTransactionValue: 0,
   grossProfit: 0,
+  totalCogs: 0,
   grossMargin: 0,
 };
 
@@ -318,11 +354,78 @@ export function describeSellingUnit(input: {
   packageSize?: number | null;
   packageUnit?: string | null;
 }): string {
+  if (input.sellingOptionLabel?.trim()) return input.sellingOptionLabel.trim();
   return getSaleItemUnitLabel({
     unitLabel: input.unitLabel || 'unit',
     packageSize: input.packageSize == null ? undefined : input.packageSize,
     packageUnit: input.packageUnit || undefined,
   });
+}
+
+export async function fetchRestockHistoryReport(
+  filters: ReportFilters,
+  activeStoreId: string | 'all' | null,
+): Promise<RestockReportRow[]> {
+  const { startIso, endIso } = normalizeDateRange(filters);
+  let query = supabase
+    .from('restock_history')
+    .select('id,store_id,product_id,purchase_unit,pieces_per_purchase_unit,quantity_in_purchase_units,pieces_added,total_supplier_cost,cost_before,cost_after,suggested_selling_price,stock_before,stock_after,note,restocked_at')
+    .gte('restocked_at', startIso)
+    .lte('restocked_at', endIso)
+    .order('restocked_at', { ascending: false })
+    .limit(2000);
+  if (activeStoreId && activeStoreId !== 'all') query = query.eq('store_id', activeStoreId);
+  if (filters.productId) query = query.eq('product_id', filters.productId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).map((row: any) => ({
+    id: row.id,
+    dateTime: row.restocked_at,
+    productId: row.product_id,
+    productName: row.product_name || 'Unknown product',
+    restockingUnit: row.purchase_unit || 'unit',
+    conversionFactor: toNumber(row.pieces_per_purchase_unit) || 1,
+    quantityReceived: toNumber(row.quantity_in_purchase_units),
+    baseUnitsAdded: toNumber(row.pieces_added),
+    totalSupplierCost: toNumber(row.total_supplier_cost ?? row.purchase_price_per_unit * row.quantity_in_purchase_units),
+    supplierCostPerUnit: toNumber(row.purchase_price_per_unit),
+    priorCostPerBaseUnit: toNumber(row.cost_before ?? row.purchase_price_per_piece),
+    newCostPerBaseUnit: toNumber(row.cost_after ?? row.purchase_price_per_piece),
+    stockBefore: toNumber(row.stock_before),
+    stockAfter: toNumber(row.stock_after),
+    suggestedSellingPrice: toNumber(row.suggested_selling_price),
+    note: row.note || '',
+  }));
+}
+
+export async function fetchPriceHistory(
+  filters: ReportFilters,
+  activeStoreId: string | 'all' | null,
+): Promise<PriceHistoryRecord[]> {
+  const { startIso, endIso } = normalizeDateRange(filters);
+  let query = supabase
+    .from('product_price_history')
+    .select('id,store_id,product_id,product_name,change_type,previous_value,new_value,reason,created_by,created_at')
+    .gte('created_at', startIso)
+    .lte('created_at', endIso)
+    .order('created_at', { ascending: false })
+    .limit(2000);
+  if (activeStoreId && activeStoreId !== 'all') query = query.eq('store_id', activeStoreId);
+  if (filters.productId) query = query.eq('product_id', filters.productId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).map((row: any) => ({
+    id: row.id,
+    storeId: row.store_id,
+    productId: row.product_id,
+    productName: row.product_name || 'Unknown product',
+    changeType: row.change_type,
+    previousValue: toNumber(row.previous_value),
+    newValue: toNumber(row.new_value),
+    reason: row.reason || '',
+    createdBy: row.created_by ?? undefined,
+    createdAt: row.created_at,
+  }));
 }
 
 export function buildInventoryReport(products: Product[]): InventoryReportRow[] {
@@ -489,12 +592,32 @@ export async function exportReportsWorkbook(input: {
   salesReport: SalesReportData;
   inventoryRows: InventoryReportRow[];
   stockMovements: StockMovementReportRow[];
+  restockRows?: RestockReportRow[];
+  priceHistory?: PriceHistoryRecord[];
   fileName?: string;
 }) {
   const { default: writeXlsxFile } = await import('write-excel-file/browser');
   const generatedAt = new Date(input.salesReport.generatedAt);
   const sheets: ReportWorkbookSheet[] = [
-    buildRowsSheet('Summary', buildSummarySheet(input.salesReport, generatedAt), true),
+    buildRowsSheet('Sales Summary', buildSummarySheet(input.salesReport, generatedAt), true),
+    buildObjectSheet('Transactions', input.salesReport.saleLines.map((row) => ({
+      'Date/Time': formatDateTimeForReport(row.dateTime),
+      'Transaction ID': row.saleId,
+      Product: row.productName,
+      'Base Unit': row.baseUnitLabel,
+      'Sold As': row.sellingOptionLabel,
+      'Quantity Sold': row.netQuantity,
+      'Conversion Factor': row.unitsPerPackage,
+      'Base Units Sold': row.netBaseUnitQuantity,
+      'Selling Price at Time of Sale': row.finalSellingPrice,
+      'Regular Value': row.regularValue,
+      Discount: row.discountAllocated + row.bulkDiscountAmount,
+      'Final Revenue': row.netRevenue,
+      'Cost Per Base Unit at Time of Sale': row.costPerBaseUnit,
+      COGS: row.cogs,
+      'Gross Profit': row.grossProfit,
+      'Gross Margin': row.grossMargin,
+    }))),
     buildObjectSheet('Sales Transactions', input.salesReport.transactions.map((row) => ({
       Receipt: row.receiptNumber,
       Date: formatDateTimeForReport(row.dateTime),
@@ -545,7 +668,7 @@ export async function exportReportsWorkbook(input: {
       'Selling Price': row.sellingPrice,
       'Purchase Price': row.costPrice,
     }))),
-    buildObjectSheet('Stock Movements', input.stockMovements.map((row) => ({
+    buildObjectSheet('Inventory Movement', input.stockMovements.map((row) => ({
       Date: formatDateTimeForReport(row.dateTime),
       Product: row.productName,
       Unit: describeSellingUnit(row),
@@ -554,6 +677,31 @@ export async function exportReportsWorkbook(input: {
       Before: row.stockBefore,
       After: row.stockAfter,
       Note: row.note,
+    }))),
+    buildObjectSheet('Restocking', (input.restockRows ?? []).map((row) => ({
+      'Date/Time': formatDateTimeForReport(row.dateTime),
+      Product: row.productName,
+      'Restocking Unit': row.restockingUnit,
+      'Conversion Factor': row.conversionFactor,
+      'Quantity Received': row.quantityReceived,
+      'Base Units Added': row.baseUnitsAdded,
+      'Total Supplier Cost': row.totalSupplierCost,
+      'Cost / Restocking Unit': row.supplierCostPerUnit,
+      'Prior Cost / Base Unit': row.priorCostPerBaseUnit,
+      'New Cost / Base Unit': row.newCostPerBaseUnit,
+      'Stock Before': row.stockBefore,
+      'Stock After': row.stockAfter,
+      'Suggested Selling Price': row.suggestedSellingPrice,
+      Note: row.note,
+    }))),
+    buildObjectSheet('Price History', (input.priceHistory ?? []).map((row) => ({
+      'Date/Time': formatDateTimeForReport(row.createdAt),
+      Product: row.productName,
+      Type: row.changeType === 'supplier_cost' ? 'Supplier cost' : 'Selling price',
+      'Previous Value': row.previousValue,
+      'New Value': row.newValue,
+      Reason: row.reason,
+      'Changed By': row.createdBy || '',
     }))),
   ];
 
@@ -642,7 +790,7 @@ function buildSalesReport(
     const packageQuantity = sum(filteredSaleItems.map((item) => item.quantity));
     const itemQuantity = sum(filteredSaleItems.map((item) => getBaseUnitQuantity(item)));
     const returnedQuantity = sum(filteredSaleItems.map((item) => getReturnedBaseUnitQuantity(item, returnedQuantityByItem.get(item.id) || 0)));
-    const cost = sum(filteredSaleItems.map((item) => (item.cost_price || 0) * Math.max(0, item.quantity - (returnedQuantityByItem.get(item.id) || 0))));
+    const cost = sum(filteredSaleItems.map((item) => getNetCogs(item, returnedQuantityByItem.get(item.id) || 0)));
     const netSales = totalAllocated - refundAllocated;
     const grossProfit = matchingLineGross - discountAllocated - refundAllocated - cost;
 
@@ -658,6 +806,7 @@ function buildSalesReport(
     summary.returnedItems += returnedQuantity;
     summary.netItemsSold += Math.max(0, itemQuantity - returnedQuantity);
     summary.grossProfit += grossProfit;
+    summary.totalCogs += cost;
 
     transactions.push({
       saleId: sale.id,
@@ -722,9 +871,8 @@ function buildSalesReport(
     const lineShare = allLineGross > 0 ? item.line_total / allLineGross : 0;
     const lineDiscount = sale.discount * lineShare;
     const lineRefund = (paymentRefundBySale.get(sale.id) || 0) * lineShare;
-    const netQuantity = Math.max(0, item.quantity - returnedQuantity);
     const netRevenue = item.line_total - lineDiscount - lineRefund;
-    const cost = (item.cost_price || 0) * netQuantity;
+    const cost = getNetCogs(item, returnedQuantity);
     const line = mapSaleLine(item, sale, cashierNames, returnedQuantity, lineDiscount, lineRefund, netRevenue, cost);
     saleLines.push(line);
 
@@ -793,6 +941,12 @@ function mapSaleLine(
   const unitsPerPackage = Math.max(1, toNumber(item.units_per_package ?? item.package_size ?? 1));
   const baseUnitQuantity = Math.max(0, toNumber(item.base_unit_quantity ?? item.quantity * unitsPerPackage));
   const returnedBaseUnitQuantity = returnedQuantity * unitsPerPackage;
+  const costPerBaseUnit = item.cost_per_base_unit == null
+    ? (item.cost_price || 0) / unitsPerPackage
+    : toNumber(item.cost_per_base_unit);
+  const regularUnitPrice = toNumber(item.regular_unit_price ?? item.unit_price);
+  const regularValue = toNumber(item.regular_value ?? regularUnitPrice * baseUnitQuantity);
+  const finalSellingPrice = toNumber(item.final_selling_price ?? item.unit_price);
   return {
     saleId: sale.id,
     saleItemId: item.id,
@@ -804,8 +958,15 @@ function mapSaleLine(
     sellingUnitKey: getItemUnitKey(item),
     sellingOptionLabel: item.selling_option_label || item.unit_label || 'unit',
     unitLabel: item.unit_label || 'unit',
+    baseUnitLabel: item.base_unit_label || item.unit_label || 'unit',
+    purchaseMode: item.purchase_mode || (unitsPerPackage > 1 ? 'bulk' : 'unit'),
     packageSize: item.package_size == null ? undefined : item.package_size,
     packageUnit: item.package_unit || undefined,
+    unitsPerPackage,
+    regularUnitPrice,
+    regularValue,
+    bulkDiscountAmount: toNumber(item.bulk_discount_amount),
+    finalSellingPrice,
     stockSource: item.stock_source || undefined,
     quantity: item.quantity,
     baseUnitQuantity,
@@ -815,11 +976,14 @@ function mapSaleLine(
     netBaseUnitQuantity: Math.max(0, baseUnitQuantity - returnedBaseUnitQuantity),
     unitPrice: item.unit_price,
     costPrice: item.cost_price || 0,
+    costPerBaseUnit,
+    cogs: cost,
     grossRevenue: item.line_total,
     discountAllocated,
     refundAllocated,
     netRevenue,
     grossProfit,
+    grossMargin: netRevenue > 0 ? grossProfit / netRevenue : 0,
     status: sale.status,
     cashierId: sale.cashier_id,
     cashierName: sale.cashier_id ? cashierNames.get(sale.cashier_id) || 'Unknown cashier' : 'Unknown cashier',
@@ -871,7 +1035,7 @@ function addLineToGroup(
   row.discounts += line.discountAllocated;
   row.refunds += line.refundAllocated;
   row.netRevenue += line.netRevenue;
-  row.cost += line.costPrice * line.netQuantity;
+  row.cost += line.cogs;
   row.grossProfit += line.grossProfit;
   row.transactions += 1;
   if (mergePurchaseModes && row.sellingOptionLabel !== line.sellingOptionLabel) {
@@ -905,7 +1069,7 @@ function finalizeGroups(map: Map<string, SalesGroupReportRow[]> | Map<string, Sa
 async function fetchSaleItems(saleIds: string[]): Promise<SaleItemRow[]> {
   const { data, error } = await supabase
     .from('sale_items')
-    .select('id,sale_id,product_id,product_name,category_name,selling_option_id,selling_option_label,unit_label,package_size,package_unit,stock_source,purchase_mode,bulk_option_id,bulk_option_label,bulk_quantity,units_per_package,base_unit_quantity,regular_unit_price,regular_value,bulk_discount_type,bulk_discount_value,bulk_discount_amount,final_selling_price,quantity,unit_price,cost_price,line_total')
+    .select('id,sale_id,product_id,product_name,category_name,selling_option_id,selling_option_label,unit_label,base_unit_label,package_size,package_unit,stock_source,purchase_mode,bulk_option_id,bulk_option_label,bulk_quantity,units_per_package,base_unit_quantity,regular_unit_price,regular_value,bulk_discount_type,bulk_discount_value,bulk_discount_amount,final_selling_price,cost_per_base_unit,cogs,gross_profit,gross_margin,quantity,unit_price,cost_price,line_total')
     .in('sale_id', saleIds)
     .limit(5000);
 
@@ -919,6 +1083,7 @@ async function fetchSaleItems(saleIds: string[]): Promise<SaleItemRow[]> {
     selling_option_id: row.selling_option_id ?? null,
     selling_option_label: row.selling_option_label ?? null,
     unit_label: row.unit_label ?? 'unit',
+    base_unit_label: row.base_unit_label ?? row.unit_label ?? 'unit',
     package_size: row.package_size == null ? null : toNumber(row.package_size),
     package_unit: row.package_unit ?? null,
     stock_source: row.stock_source ?? null,
@@ -934,6 +1099,10 @@ async function fetchSaleItems(saleIds: string[]): Promise<SaleItemRow[]> {
     bulk_discount_value: row.bulk_discount_value == null ? null : toNumber(row.bulk_discount_value),
     bulk_discount_amount: row.bulk_discount_amount == null ? null : toNumber(row.bulk_discount_amount),
     final_selling_price: row.final_selling_price == null ? null : toNumber(row.final_selling_price),
+    cost_per_base_unit: row.cost_per_base_unit == null ? null : toNumber(row.cost_per_base_unit),
+    cogs: row.cogs == null ? null : toNumber(row.cogs),
+    gross_profit: row.gross_profit == null ? null : toNumber(row.gross_profit),
+    gross_margin: row.gross_margin == null ? null : toNumber(row.gross_margin),
     quantity: toNumber(row.quantity),
     unit_price: toNumber(row.unit_price),
     cost_price: toNumber(row.cost_price),
@@ -1090,6 +1259,12 @@ function getReturnedBaseUnitQuantity(item: SaleItemRow, returnedPackages: number
   return Math.max(0, returnedPackages) * getUnitsPerPackage(item);
 }
 
+function getNetCogs(item: SaleItemRow, returnedPackages: number): number {
+  const netBaseUnits = Math.max(0, getBaseUnitQuantity(item) - getReturnedBaseUnitQuantity(item, returnedPackages));
+  if (item.cost_per_base_unit != null) return toNumber(item.cost_per_base_unit) * netBaseUnits;
+  return toNumber(item.cost_price) * Math.max(0, item.quantity - returnedPackages);
+}
+
 function isRiceLine(line: SalesLineReportRow) {
   return `${line.productName} ${line.categoryName}`.toLowerCase().includes('rice');
 }
@@ -1132,6 +1307,7 @@ function roundSummary(summary: SalesReportSummary): SalesReportSummary {
     netItemsSold: round(summary.netItemsSold, 3),
     averageTransactionValue: round(summary.averageTransactionValue),
     grossProfit: round(summary.grossProfit),
+    totalCogs: round(summary.totalCogs),
     grossMargin: round(summary.grossMargin, 4),
   };
 }
@@ -1194,6 +1370,7 @@ function buildSummarySheet(report: SalesReportData, generatedAt: Date) {
     ['Net Items Sold', report.summary.netItemsSold],
     ['Average Transaction Value', report.summary.averageTransactionValue],
     ['Gross Profit', report.summary.grossProfit],
+    ['Total COGS', report.summary.totalCogs],
     ['Gross Margin', report.summary.grossMargin],
   ];
 }
@@ -1344,6 +1521,7 @@ function numberFormatForLabel(label: string) {
     lowerLabel.includes('price') ||
     lowerLabel.includes('cost') ||
     lowerLabel.includes('profit') ||
+    lowerLabel.includes('cogs') ||
     lowerLabel.includes('total') ||
     lowerLabel.includes('discount') ||
     lowerLabel.includes('refund') ||

@@ -14,6 +14,8 @@ import {
   canAccessReports,
   describeSellingUnit,
   exportReportsWorkbook,
+  fetchPriceHistory,
+  fetchRestockHistoryReport,
   fetchSalesReport,
   fetchStockMovementReport,
   getDateRangeForDays,
@@ -22,9 +24,11 @@ import type {
   ReportFilters,
   SalesGroupReportRow,
   SalesReportData,
+  RestockReportRow,
   StockMovementReportRow,
 } from '@/lib/reporting';
 import type { PaymentMethod, SaleStatus } from '@/types';
+import type { PriceHistoryRecord } from '@/types';
 
 const paymentMethods: Array<PaymentMethod | 'all'> = ['all', 'cash', 'gcash', 'card', 'bank_transfer', 'other'];
 const statuses: Array<SaleStatus | 'all'> = ['all', 'completed', 'partially_refunded', 'refunded', 'voided'];
@@ -44,6 +48,8 @@ export function ReportsPage() {
   const [filters, setFilters] = useState<ReportFilters>(defaultFilters);
   const [report, setReport] = useState<SalesReportData | null>(null);
   const [stockMovements, setStockMovements] = useState<StockMovementReportRow[]>([]);
+  const [restockRows, setRestockRows] = useState<RestockReportRow[]>([]);
+  const [priceHistory, setPriceHistory] = useState<PriceHistoryRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const canExport = canAccessReports(role);
@@ -86,14 +92,25 @@ export function ReportsPage() {
     try {
       if (inventoryOnly) {
         setReport(null);
-        setStockMovements(await fetchStockMovementReport(filters, activeStoreId));
+        const [movements, restocks, prices] = await Promise.all([
+          fetchStockMovementReport(filters, activeStoreId),
+          fetchRestockHistoryReport(filters, activeStoreId),
+          fetchPriceHistory(filters, activeStoreId),
+        ]);
+        setStockMovements(movements);
+        setRestockRows(restocks);
+        setPriceHistory(prices);
       } else {
-        const [salesReport, movements] = await Promise.all([
+        const [salesReport, movements, restocks, prices] = await Promise.all([
           fetchSalesReport(filters, activeStoreId),
           fetchStockMovementReport(filters, activeStoreId),
+          fetchRestockHistoryReport(filters, activeStoreId),
+          fetchPriceHistory(filters, activeStoreId),
         ]);
         setReport(salesReport);
         setStockMovements(movements);
+        setRestockRows(restocks);
+        setPriceHistory(prices);
       }
     } catch (err) {
       console.error('Failed to load reports:', err);
@@ -163,6 +180,8 @@ export function ReportsPage() {
         salesReport: report,
         inventoryRows: filteredInventoryRows,
         stockMovements,
+        restockRows,
+        priceHistory,
         fileName,
       });
       await recordReportNotification('completed');
@@ -277,7 +296,7 @@ export function ReportsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         {inventoryOnly ? (
           <>
             <StatCard label="Products" value={String(products.length)} icon={FileSpreadsheet} color="blue" />
@@ -290,6 +309,7 @@ export function ReportsPage() {
             <StatCard label="Net Sales" value={formatCurrency(summary?.netSales ?? 0)} icon={FileSpreadsheet} color="blue" />
             <StatCard label="Transactions" value={String(summary?.totalTransactions ?? 0)} icon={FileSpreadsheet} color="green" />
             <StatCard label="Base Units Sold" value={String(summary?.netItemsSold ?? 0)} icon={FileSpreadsheet} color="amber" />
+            <StatCard label="Total COGS" value={formatCurrency(summary?.totalCogs ?? 0)} icon={FileSpreadsheet} color="purple" />
             <StatCard label="Gross Profit" value={formatCurrency(summary?.grossProfit ?? 0)} icon={FileSpreadsheet} color="purple" />
           </>
         )}
@@ -369,6 +389,35 @@ export function ReportsPage() {
               row.movementType,
               row.quantityDelta,
               row.stockAfter,
+            ])}
+          />
+        </ReportSection>
+
+        <ReportSection title="Restocking History">
+          <SimpleTable
+            headers={['Date', 'Product', 'Received as', 'Base Units', 'Supplier Cost', 'Cost / Unit', 'New Cost / Base']}
+            rows={restockRows.slice(0, 12).map((row) => [
+              new Date(row.dateTime).toLocaleString(),
+              row.productName,
+              `${row.quantityReceived} ${row.restockingUnit}`,
+              row.baseUnitsAdded,
+              formatCurrency(row.totalSupplierCost),
+              formatCurrency(row.supplierCostPerUnit),
+              formatCurrency(row.newCostPerBaseUnit),
+            ])}
+          />
+        </ReportSection>
+
+        <ReportSection title="Price History">
+          <SimpleTable
+            headers={['Date', 'Product', 'Type', 'Previous', 'New', 'Reason']}
+            rows={priceHistory.slice(0, 12).map((row) => [
+              new Date(row.createdAt).toLocaleString(),
+              row.productName,
+              row.changeType === 'supplier_cost' ? 'Supplier cost' : 'Selling price',
+              formatCurrency(row.previousValue),
+              formatCurrency(row.newValue),
+              row.reason,
             ])}
           />
         </ReportSection>
