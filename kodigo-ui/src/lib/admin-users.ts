@@ -1,10 +1,22 @@
 import { supabase } from '@/lib/supabase';
 import type { User, UserRole } from '@/types';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 type ManageableRole = Extract<UserRole, 'admin' | 'cashier' | 'inventory'>;
 
 async function invokeAdminUsers<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke('admin-users', { body });
+  if (error instanceof FunctionsHttpError) {
+    let message = error.message;
+    try {
+      const responseBody = await error.context.json() as { error?: unknown; message?: unknown };
+      if (typeof responseBody?.error === 'string') message = responseBody.error;
+      else if (typeof responseBody?.message === 'string') message = responseBody.message;
+    } catch {
+      // Keep the SDK error when the function did not return JSON.
+    }
+    throw new Error(message);
+  }
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   return data as T;

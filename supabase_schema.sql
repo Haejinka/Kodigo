@@ -223,6 +223,9 @@ create table public.sale_items (
   sale_id       uuid         not null references public.sales (id) on delete cascade,
   product_id    uuid         references public.products (id) on delete set null,
   product_name  text         not null,                     -- snapshot at time of sale
+  category_id   uuid         references public.categories (id) on delete set null,
+  category_name text         not null default 'Uncategorized',
+  cost_price    numeric(10,2) not null default 0,
   quantity      integer      not null check (quantity > 0),
   unit_price    numeric(10,2) not null check (unit_price >= 0),  -- snapshot
   line_total    numeric(10,2) not null check (line_total >= 0)

@@ -53,6 +53,24 @@ export function truncate(str: string, maxLen: number): string {
   return str.slice(0, maxLen - 1) + '…';
 }
 
+/** Convert native, Supabase/PostgREST, and unknown thrown values into a useful message. */
+export function formatErrorMessage(error: unknown, fallback = 'An unexpected error occurred.'): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string' && error.trim()) return error;
+
+  if (error && typeof error === 'object') {
+    const value = error as Record<string, unknown>;
+    const message = typeof value.message === 'string' ? value.message.trim() : '';
+    const details = typeof value.details === 'string' ? value.details.trim() : '';
+    const hint = typeof value.hint === 'string' ? value.hint.trim() : '';
+    const code = typeof value.code === 'string' ? value.code.trim() : '';
+    const description = [message, details, hint].filter(Boolean).join(' ');
+    if (description) return code ? `${description} (code ${code})` : description;
+  }
+
+  return fallback;
+}
+
 // Deterministic placeholder used only by scaffolded local user-management UI.
 export async function hashPassword(password: string): Promise<string> {
   // Production user creation should happen through Supabase Auth or a server-side function.

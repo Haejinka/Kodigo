@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 type UserRole = "admin" | "cashier" | "inventory";
@@ -57,6 +58,10 @@ serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+    return json({ error: "User management is not configured on the server." }, 503);
+  }
 
   const userClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
@@ -210,25 +215,31 @@ serve(async (req) => {
       });
       if (createError || !created.user) throw createError ?? new Error("User was not created");
 
-      const profilePayload = { id: created.user.id, name, role };
-      const { error: profileUpsertError } = await adminClient
-        .from("profiles")
-        .upsert(profilePayload);
-      if (profileUpsertError) throw profileUpsertError;
+      try {
+        const profilePayload = { id: created.user.id, name, role };
+        const { error: profileUpsertError } = await adminClient
+          .from("profiles")
+          .upsert(profilePayload);
+        if (profileUpsertError) throw profileUpsertError;
 
-      const { error: mapError } = await adminClient
-        .from("store_users")
-        .insert(storeIds.map((storeId) => ({ store_id: storeId, profile_id: created.user.id })));
-      if (mapError) throw mapError;
+        const { error: mapError } = await adminClient
+          .from("store_users")
+          .insert(storeIds.map((storeId) => ({ store_id: storeId, profile_id: created.user.id })));
+        if (mapError) throw mapError;
 
-      await adminClient.from("audit_logs").insert({
-        store_id: primaryStoreId,
-        actor_id: user.id,
-        action: "user.created",
-        entity_type: "profile",
-        entity_id: created.user.id,
-        details: { email, role, store_ids: storeIds },
-      });
+        const { error: auditError } = await adminClient.from("audit_logs").insert({
+          store_id: primaryStoreId,
+          actor_id: user.id,
+          action: "user.created",
+          entity_type: "profile",
+          entity_id: created.user.id,
+          details: { email, role, store_ids: storeIds },
+        });
+        if (auditError) throw auditError;
+      } catch (postCreateError) {
+        await adminClient.auth.admin.deleteUser(created.user.id);
+        throw postCreateError;
+      }
 
       return json({
         user: {

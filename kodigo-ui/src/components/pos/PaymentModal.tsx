@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ComponentType } from 'react';
 import { CheckCircle, X, User, CreditCard, Smartphone, Banknote, Landmark, Eye, Printer } from 'lucide-react';
-import { formatCurrency, formatDateTime } from '@/lib/utils';
+import { formatCurrency, formatDateTime, formatErrorMessage } from '@/lib/utils';
 import { openCashDrawer } from '@/lib/hardware';
 import { Button } from '@/components/shared/Button';
 import { useCartStore } from '@/stores/cartStore';
@@ -164,15 +164,29 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       createdAt: new Date().toISOString(),
     };
 
+    let recordedSale: Sale;
     try {
-      const recordedSale = await processSale(sale);
+      recordedSale = await processSale(sale);
+    } catch (err) {
+      console.error('Failed to record POS sale:', err);
+      alert(formatErrorMessage(err, 'Failed to process transaction.'));
+      setProcessing(false);
+      return;
+    }
+
+    // The database commit above is the transaction boundary. Everything below
+    // is local UI/peripheral work and must not turn a completed sale into a
+    // false failure (or encourage the cashier to charge the customer twice).
+    setCompletedSale(recordedSale);
+
+    try {
       useProductStore.setState((state) => ({
         products: state.products.map((product) => {
           const soldLines = items.filter((line) => line.product.id === product.id);
           if (soldLines.length === 0) return product;
           const sharedPieceDelta = soldLines
             .reduce((sum, line) => sum + line.quantity * getOptionInventoryMultiplier(line.sellingOption), 0);
-          const sellingOptions = product.sellingOptions.map((option) => {
+          const sellingOptions = (product.sellingOptions ?? []).map((option) => {
             return { ...option, stockQuantity: Math.floor(Math.max(0, product.currentStock - sharedPieceDelta) / getOptionInventoryMultiplier(option)) };
           });
           return {
@@ -183,7 +197,6 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         }),
       }));
       if (paymentMethod === 'cash') await openCashDrawer();
-      setCompletedSale(recordedSale);
       const activeStore = stores.find((store) => store.id === storeId);
       let nextReceiptSnapshot: ReceiptSnapshot | null = null;
       if (activeStore) {
@@ -214,15 +227,18 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       }
       if (nextReceiptSnapshot) {
         setReceiptSnapshot(nextReceiptSnapshot);
-        printReceipt(nextReceiptSnapshot, 'thermal');
+        try {
+          printReceipt(nextReceiptSnapshot, 'thermal');
+        } catch (err) {
+          console.warn('Sale recorded, but receipt printing failed:', err);
+        }
       }
-      setStep('confirmed');
     } catch (err) {
-      console.error(err);
-      alert(err instanceof Error ? err.message : 'Failed to process transaction.');
-    } finally {
-      setProcessing(false);
+      console.warn('Sale recorded, but POS post-processing failed:', err);
     }
+
+    setStep('confirmed');
+    setProcessing(false);
   };
 
   const handleDone = () => {

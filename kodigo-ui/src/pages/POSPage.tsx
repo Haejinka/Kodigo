@@ -22,7 +22,7 @@ function useClock() {
 
 export function POSPage() {
   const { addItem } = useCartStore();
-  const { user, role, logout, activeStoreId, stores } = useAuthStore();
+  const { user, profile, role, logout, activeStoreId, stores } = useAuthStore();
   const activeStoreName = stores.find(s => s.id === activeStoreId)?.name || 'Unknown Store';
   const navigate = useNavigate();
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -144,7 +144,7 @@ export function POSPage() {
         </span>
         <div className="w-px h-5 bg-gray-200" />
         <span className="text-sm text-gray-500">
-          Cashier: <span className="font-medium text-gray-800">{user?.name ?? '—'}</span>
+          Cashier: <span className="font-medium text-gray-800">{profile?.name ?? user?.user_metadata?.name ?? user?.email ?? '—'}</span>
         </span>
         <div className="flex-1" />
 

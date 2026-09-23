@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="supported-color-schemes" content="light dark" />
+    <title>Confirm your KodiGo account</title>
+    <style>
+      @media screen and (max-width: 600px) {
+        .email-shell {
+          width: 100% !important;
+        }
+
+        .email-card {
+          border-radius: 18px !important;
+        }
+
+        .email-padding {
+          padding: 34px 24px !important;
+        }
+
+        .email-title {
+          font-size: 30px !important;
+          line-height: 36px !important;
+        }
+
+        .email-button {
+          display: block !important;
+          width: auto !important;
+        }
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .email-bg {
+          background-color: #111827 !important;
+        }
+
+        .email-card {
+          background-color: #1f2937 !important;
+          border-color: #374151 !important;
+        }
+
+        .email-title,
+        .email-body,
+        .email-brand {
+          color: #f9fafb !important;
+        }
+
+        .email-muted,
+        .email-footer {
+          color: #cbd5e1 !important;
+        }
+
+        .email-divider {
+          border-color: #374151 !important;
+        }
+
+        .email-link-fallback {
+          color: #93c5fd !important;
+        }
+      }
+    </style>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #f4f7fb; color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+    <div style="display: none; max-height: 0; overflow: hidden; opacity: 0; color: transparent;">
+      Activate your KodiGo account with one secure click.
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="email-bg" style="width: 100%; background-color: #f4f7fb;">
+      <tr>
+        <td align="center" style="padding: 32px 16px 40px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="email-shell" style="width: 100%; max-width: 600px;">
+            <tr>
+              <td style="padding: 0 8px 20px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td align="center" valign="middle" style="width: 40px; height: 40px; border-radius: 12px; background-color: #2563eb; color: #ffffff; font-size: 20px; font-weight: 800; line-height: 40px;">
+                      K
+                    </td>
+                    <td style="padding-left: 12px;">
+                      <p class="email-brand" style="margin: 0; color: #0f172a; font-size: 16px; font-weight: 750; line-height: 22px;">KodiGo</p>
+                      <p style="margin: 1px 0 0; color: #64748b; font-size: 12px; line-height: 17px;">Cloud POS for sari-sari stores</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td class="email-card" style="overflow: hidden; border: 1px solid #e2e8f0; border-radius: 24px; background-color: #ffffff; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.07);">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td class="email-padding" style="padding: 46px 48px 42px;">
+                      <p style="margin: 0 0 14px; color: #2563eb; font-size: 11px; font-weight: 750; letter-spacing: 1.4px; line-height: 16px;">ACCOUNT VERIFICATION</p>
+                      <h1 class="email-title" style="margin: 0; color: #0f172a; font-size: 36px; font-weight: 750; letter-spacing: -0.8px; line-height: 42px;">Confirm your email address</h1>
+                      <p class="email-body" style="margin: 20px 0 0; color: #334155; font-size: 16px; line-height: 26px;">Thanks for signing up for KodiGo. Confirm your email address to activate your account and continue setting up your store.</p>
+
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 30px 0 0;">
+                        <tr>
+                          <td align="center" style="border-radius: 12px; background-color: #2563eb; box-shadow: 0 5px 12px rgba(37, 99, 235, 0.22);">
+                            <a href="{{ .ConfirmationURL }}" class="email-button" style="display: inline-block; padding: 15px 24px; border: 1px solid #2563eb; border-radius: 12px; color: #ffffff; font-size: 15px; font-weight: 700; line-height: 20px; text-align: center; text-decoration: none;">Confirm email address</a>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <p class="email-muted" style="margin: 16px 0 0; color: #64748b; font-size: 13px; line-height: 20px;">This secure link is unique to you and can only be used once.</p>
+
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 30px 0 0;">
+                        <tr>
+                          <td class="email-divider" style="border-top: 1px solid #e2e8f0; font-size: 0; line-height: 0;">&nbsp;</td>
+                        </tr>
+                      </table>
+
+                      <p class="email-muted" style="margin: 26px 0 0; color: #64748b; font-size: 13px; line-height: 20px;">If the button does not work, copy and paste this link into your browser:</p>
+                      <p style="margin: 8px 0 0; word-break: break-all; overflow-wrap: anywhere;">
+                        <a href="{{ .ConfirmationURL }}" class="email-link-fallback" style="color: #2563eb; font-size: 13px; line-height: 20px; text-decoration: underline;">{{ .ConfirmationURL }}</a>
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" class="email-footer" style="padding: 22px 16px 0; color: #64748b; font-size: 12px; line-height: 19px;">
+                <p style="margin: 0;">If you did not create a KodiGo account, you can safely ignore this email.</p>
+                <p style="margin: 8px 0 0;">KodiGo PH · Secure account email</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
