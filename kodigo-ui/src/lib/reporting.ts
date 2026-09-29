@@ -348,6 +348,43 @@ export function getSellingUnitKey(input: {
   ].join('|');
 }
 
+/** A cross-product unit filter key. Base units group by unit label; packages
+ * group by their displayed selling-option label and base-unit quantity. */
+export function getSellingUnitFilterKey(input: {
+  sellingOptionLabel?: string | null;
+  unitLabel?: string | null;
+  packageSize?: number | null;
+  packageUnit?: string | null;
+}): string {
+  const unit = (input.unitLabel || 'unit').trim().toLowerCase();
+  const packageSize = Number(input.packageSize) || 0;
+  if (packageSize > 1) {
+    const optionLabel = (input.sellingOptionLabel || '').trim().toLowerCase();
+    const packageUnit = (input.packageUnit || unit).trim().toLowerCase();
+    return `package|${optionLabel}|${packageSize}|${packageUnit}`;
+  }
+  return `base|${unit}`;
+}
+
+export function getSellingUnitFilterLabel(input: {
+  sellingOptionLabel?: string | null;
+  unitLabel?: string | null;
+  packageSize?: number | null;
+  packageUnit?: string | null;
+}): string {
+  const unit = input.unitLabel || 'unit';
+  const packageSize = Number(input.packageSize) || 0;
+  if (packageSize > 1) {
+    const label = (input.sellingOptionLabel || '').trim();
+    const packageUnit = input.packageUnit || unit;
+    const pluralUnit = packageUnit.toLowerCase().endsWith('y')
+      ? `${packageUnit.slice(0, -1)}ies`
+      : `${packageUnit}${packageUnit.toLowerCase().endsWith('s') ? '' : 's'}`;
+    return label ? `${label} (${packageSize} ${pluralUnit})` : `${packageSize} ${pluralUnit}`;
+  }
+  return `${unit} (base unit)`;
+}
+
 export function describeSellingUnit(input: {
   sellingOptionLabel?: string | null;
   unitLabel?: string | null;
@@ -766,7 +803,7 @@ function buildSalesReport(
   const lineMatchesFilters = (item: SaleItemRow) => {
     if (filters.productId && item.product_id !== filters.productId) return false;
     if (filters.categoryName && (item.category_name || 'Uncategorized') !== filters.categoryName) return false;
-    if (filters.sellingUnitKey && getItemUnitKey(item) !== filters.sellingUnitKey) return false;
+    if (filters.sellingUnitKey && getItemUnitFilterKey(item) !== filters.sellingUnitKey) return false;
     return true;
   };
 
@@ -1256,6 +1293,15 @@ function groupItemsBySale(items: SaleItemRow[]) {
 function getItemUnitKey(item: SaleItemRow): string {
   return getSellingUnitKey({
     sellingOptionId: item.selling_option_id,
+    sellingOptionLabel: item.selling_option_label,
+    unitLabel: item.unit_label,
+    packageSize: item.package_size,
+    packageUnit: item.package_unit,
+  });
+}
+
+function getItemUnitFilterKey(item: SaleItemRow): string {
+  return getSellingUnitFilterKey({
     sellingOptionLabel: item.selling_option_label,
     unitLabel: item.unit_label,
     packageSize: item.package_size,

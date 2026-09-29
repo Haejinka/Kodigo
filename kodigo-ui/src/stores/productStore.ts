@@ -23,7 +23,7 @@ interface ProductStore {
   updateProduct: (id: string, data: ProductFormData, supplierName?: string) => Promise<void>;
   setProductActive: (id: string, isActive: boolean) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
-  adjustStock: (id: string, sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { restockingOptionId?: string; quantity: number; purchaseUnit: string; piecesPerUnit: number; totalSupplierCost?: number }) => Promise<RestockResult | void>;
+  adjustStock: (id: string, sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { restockingOptionId?: string; quantity: number; purchaseUnit: string; piecesPerUnit: number; totalSupplierCost?: number; ownership?: 'store_owned' | 'consigned'; supplierId?: string }) => Promise<RestockResult | void>;
   updateSellingPrice: (id: string, sellingPrice: number, reason?: string, updateFixedBundles?: boolean) => Promise<void>;
 }
 
@@ -961,13 +961,15 @@ export const useProductStore = create<ProductStore>((set, get) => ({
 
     try {
       const { data: restockData, error } = reason === 'restock' && restock
-        ? await supabase.rpc('restock_product_inventory_v2', {
+        ? await supabase.rpc('receive_product_stock', {
             p_product_id: id,
             p_restocking_option_id: restock.restockingOptionId ?? null,
             p_quantity_in_purchase_units: restock.quantity,
             p_purchase_unit: restock.purchaseUnit,
             p_pieces_per_purchase_unit: restock.piecesPerUnit,
             p_total_supplier_cost: restock.totalSupplierCost ?? null,
+            p_ownership: restock.ownership ?? 'store_owned',
+            p_supplier_id: restock.supplierId ?? null,
             p_note: note || null,
           })
         : await supabase.rpc('adjust_inventory_stock', {

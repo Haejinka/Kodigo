@@ -19,6 +19,8 @@ import {
   fetchSalesReport,
   fetchStockMovementReport,
   getDateRangeForDays,
+  getSellingUnitFilterKey,
+  getSellingUnitFilterLabel,
 } from '@/lib/reporting';
 import type {
   ReportFilters,
@@ -60,7 +62,7 @@ export function ReportsPage() {
     return inventoryRows.filter((row) => {
       if (filters.productId && row.productId !== filters.productId) return false;
       if (filters.categoryName && row.categoryName !== filters.categoryName) return false;
-      if (filters.sellingUnitKey && row.sellingUnitKey !== filters.sellingUnitKey) return false;
+      if (filters.sellingUnitKey && getSellingUnitFilterKey(row) !== filters.sellingUnitKey) return false;
       return true;
     });
   }, [filters.categoryName, filters.productId, filters.sellingUnitKey, inventoryRows]);
@@ -74,8 +76,8 @@ export function ReportsPage() {
 
   const unitOptions = useMemo(() => {
     const units = new Map<string, string>();
-    for (const row of inventoryRows) units.set(row.sellingUnitKey, `${row.productName} - ${describeSellingUnit(row)}`);
-    for (const row of report?.salesBySellingUnit ?? []) units.set(row.sellingUnitKey || row.key, `${row.productName || row.label} - ${describeSellingUnit(row)}`);
+    for (const row of inventoryRows) units.set(getSellingUnitFilterKey(row), getSellingUnitFilterLabel(row));
+    for (const row of report?.salesBySellingUnit ?? []) units.set(getSellingUnitFilterKey(row), getSellingUnitFilterLabel(row));
     return Array.from(units.entries()).sort((a, b) => a[1].localeCompare(b[1]));
   }, [inventoryRows, report]);
 

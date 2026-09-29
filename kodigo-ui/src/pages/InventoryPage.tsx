@@ -12,12 +12,14 @@ import { StockAdjustmentLog } from '@/components/inventory/StockAdjustmentLog';
 import { SalesVelocityPanel } from '@/components/inventory/SalesVelocityPanel';
 import { RestockingPage } from '@/pages/RestockingPage';
 import { InventoryImportPanel } from '@/components/inventory/InventoryImportPanel';
+import { ConsignmentPanel } from '@/components/inventory/ConsignmentPanel';
 import type { InventoryImportRow } from '@/components/inventory/InventoryImportPanel';
 import { useToast } from '@/components/shared/Toast';
 import { formatCurrency } from '@/lib/utils';
 import { fetchInventoryConsumptionHistory } from '@/lib/reporting';
 import { isDefaultCategoryName, useProductStore } from '@/stores/productStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useSupplierStore } from '@/stores/supplierStore';
 import { cn } from '@/lib/utils';
 import {
   getDefaultSellingOption,
@@ -30,7 +32,7 @@ import {
 import type { Product, AdjustmentReason, Category } from '@/types';
 import type { Column } from '@/components/shared/DataTable';
 
-type Tab = 'products' | 'restocking' | 'velocity' | 'log';
+type Tab = 'products' | 'restocking' | 'velocity' | 'log' | 'consignment';
 type ProductLifecycleFilter = 'active' | 'archived' | 'all';
 
 function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onClose: () => void; storeId: string }) {
@@ -234,6 +236,7 @@ export function InventoryPage() {
   const { toast } = useToast();
   const { products, categories: storeCategories, fetchCategories, addCategory, addProduct, deleteProduct, setProductActive, adjustStock, updateSellingPrice, stockAdjustments } = useProductStore();
   const { activeStoreId, stores, role } = useAuthStore();
+  const { suppliers, fetchSuppliers } = useSupplierStore();
   const [tab, setTab] = useState<Tab>('products');
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState('all');
@@ -259,6 +262,10 @@ export function InventoryPage() {
   useEffect(() => {
     if (categoryStoreId) void fetchCategories(categoryStoreId);
   }, [categoryStoreId, fetchCategories]);
+
+  useEffect(() => {
+    if (role === 'admin' || role === 'inventory') void fetchSuppliers();
+  }, [fetchSuppliers, activeStoreId, role]);
 
   useEffect(() => {
     if (tab !== 'products') return;
@@ -557,7 +564,7 @@ export function InventoryPage() {
     }
   };
 
-  const handleAdjust = async (sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { restockingOptionId?: string; quantity: number; purchaseUnit: string; piecesPerUnit: number; totalSupplierCost?: number }) => {
+  const handleAdjust = async (sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { restockingOptionId?: string; quantity: number; purchaseUnit: string; piecesPerUnit: number; totalSupplierCost?: number; ownership?: 'store_owned' | 'consigned'; supplierId?: string }) => {
     await new Promise((r) => setTimeout(r, 600));
     if (!adjustTarget) throw new Error('Select a product before adjusting stock.');
     return adjustStock(adjustTarget.id, sellingOptionId, delta, reason, note, restock);
@@ -566,6 +573,10 @@ export function InventoryPage() {
   const handleImportProduct = async (row: InventoryImportRow) => {
     if (!categoryStoreId) throw new Error('Select one store before importing products.');
     const baseOptionId = crypto.randomUUID();
+    const defaultPurchaseOptionIndex = row.purchaseOptions.findIndex((option) => option.isDefault);
+    const inferredPurchaseOptionIndex = defaultPurchaseOptionIndex >= 0
+      ? defaultPurchaseOptionIndex
+      : Math.max(0, row.purchaseOptions.findIndex((option) => option.label.toLowerCase() === row.purchaseUnit.toLowerCase()));
     const created = await addProduct({
       storeId: categoryStoreId,
       isActive: true,
@@ -586,19 +597,29 @@ export function InventoryPage() {
       leadTimeDays: row.leadTimeDays,
       supplierIds: [],
       supplierId: '',
-      bulkPurchaseEnabled: false,
+      bulkPurchaseEnabled: row.sellingBundles.length > 0,
       autoPricingEnabled: false,
       marginPercentage: 20,
       priceRounding: 1,
-      restockingOptions: [{
-        id: crypto.randomUUID(),
-        productId: '',
-        storeId: categoryStoreId,
-        label: row.purchaseUnit,
-        conversionFactor: row.conversionFactor,
-        isDefault: true,
-        isActive: true,
-      }],
+      restockingOptions: row.purchaseOptions.length > 0
+        ? row.purchaseOptions.map((option, index) => ({
+            id: crypto.randomUUID(),
+            productId: '',
+            storeId: categoryStoreId,
+            label: option.label,
+            conversionFactor: option.conversionFactor,
+            isDefault: index === inferredPurchaseOptionIndex,
+            isActive: true,
+          }))
+        : [{
+            id: crypto.randomUUID(),
+            productId: '',
+            storeId: categoryStoreId,
+            label: row.purchaseUnit,
+            conversionFactor: row.conversionFactor,
+            isDefault: true,
+            isActive: true,
+          }],
       sellingOptions: [{
         id: baseOptionId,
         productId: '',
@@ -620,7 +641,28 @@ export function InventoryPage() {
         manualSellingPrice: row.sellingPrice,
         isDefault: true,
         isActive: true,
-      }],
+      }, ...row.sellingBundles.map((bundle) => ({
+        id: crypto.randomUUID(),
+        productId: '',
+        storeId: categoryStoreId,
+        kind: 'custom' as const,
+        label: bundle.label,
+        unitLabel: row.unit,
+        quantityValue: bundle.unitsPerBundle,
+        quantityUnit: row.unit,
+        stockQuantity: Math.floor(row.currentStock / bundle.unitsPerBundle),
+        sellingPrice: bundle.sellingPrice,
+        lowStockThreshold: Math.floor(row.minStockLevel / bundle.unitsPerBundle),
+        inventoryMultiplier: bundle.unitsPerBundle,
+        sharesBaseStock: true,
+        isBulk: true,
+        discountType: 'amount' as const,
+        discountValue: Math.max(0, row.sellingPrice * bundle.unitsPerBundle - bundle.sellingPrice),
+        pricingMethod: 'fixed' as const,
+        manualSellingPrice: bundle.sellingPrice,
+        isDefault: false,
+        isActive: true,
+      }))],
     });
     if (!created) throw new Error('Could not create product in the selected store.');
   };
@@ -765,6 +807,15 @@ export function InventoryPage() {
         >
           Restocking
         </button>}
+        {(role === 'admin' || role === 'inventory') && <button
+          onClick={() => setTab('consignment')}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
+            tab === 'consignment' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+          )}
+        >
+          Consignment
+        </button>}
         <button
           onClick={() => setTab('velocity')}
           className={cn(
@@ -870,6 +921,7 @@ export function InventoryPage() {
               purchaseUnit={product.purchaseUnit}
               conversionFactor={product.conversionFactor}
               restockingOptions={product.restockingOptions}
+              suppliers={suppliers.filter((supplier) => supplier.storeIds.includes(product.storeId))}
               sellingOptions={product.sellingOptions}
               onClose={() => setAdjustTarget(null)}
               onSubmit={handleAdjust}
@@ -888,6 +940,7 @@ export function InventoryPage() {
 
       {tab === 'velocity' && <SalesVelocityPanel products={products} />}
       {tab === 'restocking' && (role === 'admin' || role === 'inventory') && <RestockingPage embedded />}
+      {tab === 'consignment' && (role === 'admin' || role === 'inventory') && <ConsignmentPanel />}
 
       {role === 'admin' && <ConfirmDialog
         open={!!deleteTarget}
