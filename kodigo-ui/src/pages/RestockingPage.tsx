@@ -46,7 +46,7 @@ const urgencyVariant: Record<string, 'danger' | 'warning' | 'info'> = {
 };
 
 /** Derive restock items from current product data. */
-function useRestockItems(consumptionHistory: Map<string, { unitsConsumed: number; trackingStartedAt: string }>): RestockItem[] {
+function useRestockItems(consumptionHistory: Map<string, { unitsConsumed: number; trackingStartedAt: string }>, now: number): RestockItem[] {
   const products = useProductStore((s) => s.products);
   return useMemo(() => {
     return products
@@ -57,8 +57,8 @@ function useRestockItems(consumptionHistory: Map<string, { unitsConsumed: number
           || { label: p.purchaseUnit || p.unit, conversionFactor: p.conversionFactor || 1 };
         const effectiveReorder = Math.max(p.reorderLevel, p.safetyStock, p.minStockLevel);
         const history = consumptionHistory.get(p.id);
-        const trackedDays = history
-          ? Math.max(1, (Date.now() - new Date(history.trackingStartedAt).getTime()) / 86_400_000)
+        const trackedDays = history && now > 0
+          ? Math.max(1, (now - new Date(history.trackingStartedAt).getTime()) / 86_400_000)
           : 0;
         const unitsConsumed = Math.max(0, history?.unitsConsumed ?? 0);
         const perDay = trackedDays > 0 ? unitsConsumed / trackedDays : 0;
@@ -107,7 +107,7 @@ function useRestockItems(consumptionHistory: Map<string, { unitsConsumed: number
         const order = { high: 0, medium: 1, low: 2 };
         return order[a.urgency] - order[b.urgency];
       });
-  }, [products, consumptionHistory]);
+  }, [products, consumptionHistory, now]);
 }
 
 export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
@@ -118,9 +118,10 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
   const { createPurchaseOrder, recalculatePriceScores } = useSupplierStore();
   const { stores, activeStoreId } = useAuthStore();
   const [consumptionHistory, setConsumptionHistory] = useState<Map<string, { unitsConsumed: number; trackingStartedAt: string }>>(new Map());
+  const [now, setNow] = useState(0);
   const [consumptionHistoryLoading, setConsumptionHistoryLoading] = useState(false);
   const [consumptionHistoryFailed, setConsumptionHistoryFailed] = useState(false);
-  const items = useRestockItems(consumptionHistory);
+  const items = useRestockItems(consumptionHistory, now);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [restockDrafts, setRestockDrafts] = useState<Record<string, RestockDraft>>({});
   const [receiptDrafts, setReceiptDrafts] = useState<Record<string, ReceiptDraft>>({});
@@ -133,6 +134,10 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
   const [receivingId, setReceivingId] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    setNow(Date.now());
+  }, []);
 
   useEffect(() => {
     if (!activeStoreId || products.length === 0) {
