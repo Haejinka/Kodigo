@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { FileDown, FileSpreadsheet, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
@@ -26,12 +27,8 @@ import {
 import type {
   ReportFilters,
   SalesGroupReportRow,
-  SalesReportData,
-  RestockReportRow,
-  StockMovementReportRow,
 } from '@/lib/reporting';
 import type { PaymentMethod, SaleStatus } from '@/types';
-import type { PriceHistoryRecord } from '@/types';
 
 const paymentMethods: Array<PaymentMethod | 'all'> = ['all', 'cash', 'gcash', 'card', 'bank_transfer', 'other'];
 const statuses: Array<SaleStatus | 'all'> = ['all', 'completed', 'partially_refunded', 'refunded', 'voided'];
@@ -45,19 +42,47 @@ const defaultFilters: ReportFilters = {
 
 export function ReportsPage() {
   const { toast } = useToast();
-  const { activeStoreId, role } = useAuthStore();
+  const { activeStoreId, role, user } = useAuthStore();
   const { products } = useProductStore();
   const fetchNotifications = useAlertStore((s) => s.fetchNotifications);
   const [filters, setFilters] = useState<ReportFilters>(defaultFilters);
-  const [report, setReport] = useState<SalesReportData | null>(null);
-  const [stockMovements, setStockMovements] = useState<StockMovementReportRow[]>([]);
-  const [restockRows, setRestockRows] = useState<RestockReportRow[]>([]);
-  const [priceHistory, setPriceHistory] = useState<PriceHistoryRecord[]>([]);
-  const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const canExport = canAccessReports(role);
   const inventoryOnly = role === 'inventory';
+  const reportsQuery = useQuery({
+    queryKey: ['reporting', inventoryOnly ? 'inventory' : 'sales', user?.id ?? null, activeStoreId, filters],
+    enabled: Boolean(activeStoreId),
+    queryFn: async () => {
+      if (inventoryOnly) {
+        const [movements, restocks, prices] = await Promise.all([
+          fetchStockMovementReport(filters, activeStoreId),
+          fetchRestockHistoryReport(filters, activeStoreId),
+          fetchPriceHistory(filters, activeStoreId),
+        ]);
+        return { report: null, movements, restocks, prices };
+      }
+      const [salesReport, movements, restocks, prices] = await Promise.all([
+        fetchSalesReport(filters, activeStoreId),
+        fetchStockMovementReport(filters, activeStoreId),
+        fetchRestockHistoryReport(filters, activeStoreId),
+        fetchPriceHistory(filters, activeStoreId),
+      ]);
+      return { report: salesReport, movements, restocks, prices };
+    },
+  });
+  const report = reportsQuery.data?.report ?? null;
+  const stockMovements = reportsQuery.data?.movements ?? [];
+  const restockRows = reportsQuery.data?.restocks ?? [];
+  const priceHistory = reportsQuery.data?.prices ?? [];
+  const loading = reportsQuery.isFetching;
+
+  useEffect(() => {
+    if (reportsQuery.error) {
+      console.error('Failed to load reports:', reportsQuery.error);
+      toast('error', reportsQuery.error instanceof Error ? reportsQuery.error.message : 'Failed to load reports.');
+    }
+  }, [reportsQuery.error, toast]);
 
   const inventoryRows = useMemo(() => buildInventoryReport(products), [products]);
   const filteredInventoryRows = useMemo(() => {
@@ -90,43 +115,7 @@ export function ReportsPage() {
       .sort((a, b) => a[1].localeCompare(b[1]));
   }, [report]);
 
-  const loadReports = async () => {
-    if (!activeStoreId) return;
-    setLoading(true);
-    try {
-      if (inventoryOnly) {
-        setReport(null);
-        const [movements, restocks, prices] = await Promise.all([
-          fetchStockMovementReport(filters, activeStoreId),
-          fetchRestockHistoryReport(filters, activeStoreId),
-          fetchPriceHistory(filters, activeStoreId),
-        ]);
-        setStockMovements(movements);
-        setRestockRows(restocks);
-        setPriceHistory(prices);
-      } else {
-        const [salesReport, movements, restocks, prices] = await Promise.all([
-          fetchSalesReport(filters, activeStoreId),
-          fetchStockMovementReport(filters, activeStoreId),
-          fetchRestockHistoryReport(filters, activeStoreId),
-          fetchPriceHistory(filters, activeStoreId),
-        ]);
-        setReport(salesReport);
-        setStockMovements(movements);
-        setRestockRows(restocks);
-        setPriceHistory(prices);
-      }
-    } catch (err) {
-      console.error('Failed to load reports:', err);
-      toast('error', err instanceof Error ? err.message : 'Failed to load reports.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadReports();
-  }, [activeStoreId, filters]);
+  const loadReports = () => reportsQuery.refetch();
 
   const updateFilter = <K extends keyof ReportFilters>(key: K, value: ReportFilters[K]) => {
     setFilters((current) => ({ ...current, [key]: value || undefined }));

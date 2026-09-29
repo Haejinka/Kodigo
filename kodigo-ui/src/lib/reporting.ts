@@ -224,7 +224,6 @@ export interface RestockReportRow {
 
 interface SaleRow {
   id: string;
-  store_id: string;
   cashier_id: string | null;
   subtotal: number;
   tax: number;
@@ -249,22 +248,14 @@ interface SaleItemRow {
   package_unit: string | null;
   stock_source: string | null;
   purchase_mode: 'unit' | 'bulk' | null;
-  bulk_option_id: string | null;
-  bulk_option_label: string | null;
-  bulk_quantity: number | null;
   units_per_package: number | null;
   base_unit_quantity: number | null;
   regular_unit_price: number | null;
   regular_value: number | null;
-  bulk_discount_type: 'percent' | 'amount' | null;
-  bulk_discount_value: number | null;
   bulk_discount_amount: number | null;
   final_selling_price: number | null;
   base_unit_label: string | null;
   cost_per_base_unit: number | null;
-  cogs: number | null;
-  gross_profit: number | null;
-  gross_margin: number | null;
   quantity: number;
   unit_price: number;
   cost_price: number | null;
@@ -308,6 +299,84 @@ const zeroSummary: SalesReportSummary = {
   totalCogs: 0,
   grossMargin: 0,
 };
+
+interface ReportingRequestContext {
+  range?: string;
+  storeId?: string;
+  page?: number;
+}
+
+async function measureReportingRequest<T extends {
+  data: unknown;
+  error: { code?: string; message?: string } | null;
+}>(
+  operation: string,
+  resource: string,
+  context: ReportingRequestContext,
+  request: () => PromiseLike<T>,
+): Promise<T> {
+  const startedAt = performance.now();
+  const startedIso = new Date().toISOString();
+  let response: T | undefined;
+  let thrownError: unknown;
+  try {
+    response = await request();
+    return response;
+  } catch (error) {
+    thrownError = error;
+    throw error;
+  } finally {
+    if (import.meta.env.DEV) {
+      const error = response?.error;
+      const rawMessage = error?.message ?? (thrownError instanceof Error ? thrownError.message : undefined);
+      const rows = Array.isArray(response?.data) ? response.data.length : undefined;
+      const message = rawMessage
+        ?.replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, '[id]')
+        .replace(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi, '[email]')
+        .replace(/\b\d{8,}\b/g, '[number]')
+        .slice(0, 180);
+      const failed = Boolean(error || thrownError);
+      console.debug('[Reporting Performance]', {
+        operation,
+        resource,
+        startedAt: startedIso,
+        endedAt: new Date().toISOString(),
+        durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
+        rows,
+        range: context.range,
+        storeId: context.storeId,
+        page: context.page,
+        status: failed ? 'failure' : 'success',
+        ...(failed ? { error: { code: error?.code, message: message || 'Request failed before a response was received.' } } : {}),
+      });
+    }
+  }
+}
+
+async function fetchAllReportPages<T>(
+  operation: string,
+  resource: string,
+  context: ReportingRequestContext,
+  queryPage: (from: number, to: number) => PromiseLike<{
+    data: T[] | null;
+    error: { code?: string; message?: string } | null;
+  }>,
+): Promise<T[]> {
+  const pageSize = 1000;
+  const rows: T[] = [];
+  for (let from = 0, page = 1; ; from += pageSize, page += 1) {
+    const { data, error } = await measureReportingRequest(
+      operation,
+      resource,
+      { ...context, page },
+      () => queryPage(from, from + pageSize - 1),
+    );
+    if (error) throw error;
+    const pageRows = data ?? [];
+    rows.push(...pageRows);
+    if (pageRows.length < pageSize) return rows;
+  }
+}
 
 export function canAccessReports(role: UserRole | null): boolean {
   return role === 'admin' || role === 'inventory';
@@ -409,13 +478,15 @@ export async function fetchRestockHistoryReport(
     .select('id,store_id,product_id,purchase_unit,pieces_per_purchase_unit,quantity_in_purchase_units,pieces_added,total_supplier_cost,cost_before,cost_after,suggested_selling_price,stock_before,stock_after,note,restocked_at')
     .gte('restocked_at', startIso)
     .lte('restocked_at', endIso)
-    .order('restocked_at', { ascending: false })
-    .limit(2000);
+    .order('restocked_at', { ascending: false });
   if (activeStoreId && activeStoreId !== 'all') query = query.eq('store_id', activeStoreId);
   if (filters.productId) query = query.eq('product_id', filters.productId);
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data ?? []).map((row: any) => ({
+  const data = await fetchAllReportPages(
+    'fetch_restock_history', 'restock_history',
+    { range: `${filters.startDate} → ${filters.endDate}`, storeId: activeStoreId || undefined },
+    (from, to) => query.range(from, to),
+  );
+  return data.map((row: any) => ({
     id: row.id,
     dateTime: row.restocked_at,
     productId: row.product_id,
@@ -445,13 +516,15 @@ export async function fetchPriceHistory(
     .select('id,store_id,product_id,product_name,change_type,previous_value,new_value,reason,created_by,created_at')
     .gte('created_at', startIso)
     .lte('created_at', endIso)
-    .order('created_at', { ascending: false })
-    .limit(2000);
+    .order('created_at', { ascending: false });
   if (activeStoreId && activeStoreId !== 'all') query = query.eq('store_id', activeStoreId);
   if (filters.productId) query = query.eq('product_id', filters.productId);
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data ?? []).map((row: any) => ({
+  const data = await fetchAllReportPages(
+    'fetch_price_history', 'product_price_history',
+    { range: `${filters.startDate} → ${filters.endDate}`, storeId: activeStoreId || undefined },
+    (from, to) => query.range(from, to),
+  );
+  return data.map((row: any) => ({
     id: row.id,
     storeId: row.store_id,
     productId: row.product_id,
@@ -499,16 +572,18 @@ export async function fetchStockMovementReport(
     .select('id,product_id,product_name,selling_option_id,selling_option_label,unit_label,package_size,package_unit,movement_type,quantity_delta,stock_before,stock_after,note,created_at,store_id')
     .gte('created_at', startIso)
     .lte('created_at', endIso)
-    .order('created_at', { ascending: false })
-    .limit(2000);
+    .order('created_at', { ascending: false });
 
   if (activeStoreId && activeStoreId !== 'all') query = query.eq('store_id', activeStoreId);
   if (filters.productId) query = query.eq('product_id', filters.productId);
 
-  const { data, error } = await query;
-  if (error) throw error;
+  const data = await fetchAllReportPages(
+    'fetch_stock_movements', 'inventory_movements',
+    { range: `${filters.startDate} → ${filters.endDate}`, storeId: activeStoreId || undefined },
+    (from, to) => query.range(from, to),
+  );
 
-  return (data ?? []).map((row: any) => ({
+  return data.map((row: any) => ({
     id: row.id,
     dateTime: row.created_at,
     productId: row.product_id ?? null,
@@ -543,11 +618,10 @@ export async function fetchSalesReport(
   const { startIso, endIso } = normalizeDateRange(normalizedFilters);
   let query = supabase
     .from('sales')
-    .select('id,store_id,cashier_id,subtotal,tax,discount,total,payment_method,receipt_number,status,created_at')
+    .select('id,cashier_id,subtotal,tax,discount,total,payment_method,receipt_number,status,created_at')
     .gte('created_at', startIso)
     .lte('created_at', endIso)
-    .order('created_at', { ascending: false })
-    .limit(2000);
+    .order('created_at', { ascending: false });
 
   if (activeStoreId !== 'all') query = query.eq('store_id', activeStoreId);
   if (normalizedFilters.cashierId) query = query.eq('cashier_id', normalizedFilters.cashierId);
@@ -558,21 +632,38 @@ export async function fetchSalesReport(
     query = query.eq('status', normalizedFilters.status);
   }
 
-  const { data: salesData, error: salesError } = await query;
-  if (salesError) throw salesError;
+  const requestContext = {
+    range: `${normalizedFilters.startDate} → ${normalizedFilters.endDate}`,
+    storeId: activeStoreId,
+  };
+  const salesData = await fetchAllReportPages(
+    'fetch_sales', 'sales', requestContext, (from, to) => query.range(from, to),
+  );
 
   const sales = (salesData ?? []).map(mapSaleRow);
   if (sales.length === 0) return empty;
 
   const saleIds = sales.map((sale) => sale.id);
   const [items, payments, returnedItems, cashierNames] = await Promise.all([
-    fetchSaleItems(saleIds),
-    fetchSalePayments(saleIds),
-    fetchReturnedItems(saleIds),
-    fetchCashierNames(sales.map((sale) => sale.cashier_id).filter(Boolean) as string[]),
+    fetchSaleItems(saleIds, requestContext),
+    fetchSalePayments(saleIds, requestContext),
+    fetchReturnedItems(saleIds, requestContext),
+    fetchCashierNames(sales.map((sale) => sale.cashier_id).filter(Boolean) as string[], requestContext),
   ]);
 
-  return buildSalesReport(normalizedFilters, sales, items, payments, returnedItems, cashierNames);
+  const aggregationStarted = performance.now();
+  const report = buildSalesReport(normalizedFilters, sales, items, payments, returnedItems, cashierNames);
+  if (import.meta.env.DEV) {
+    console.debug('[Reporting Performance]', {
+      operation: 'aggregate_sales_report',
+      durationMs: Math.round((performance.now() - aggregationStarted) * 100) / 100,
+      rows: { sales: sales.length, items: items.length, payments: payments.length, returns: returnedItems.length },
+      range: requestContext.range,
+      storeId: requestContext.storeId,
+      status: 'success',
+    });
+  }
+  return report;
 }
 
 export interface SalesVelocityAggregateRow {
@@ -1298,14 +1389,12 @@ function finalizeGroups(map: Map<string, SalesGroupReportRow[]> | Map<string, Sa
     .sort((a, b) => b.netRevenue - a.netRevenue);
 }
 
-async function fetchSaleItems(saleIds: string[]): Promise<SaleItemRow[]> {
-  const { data, error } = await supabase
+async function fetchSaleItems(saleIds: string[], context: ReportingRequestContext): Promise<SaleItemRow[]> {
+  const data = await fetchAllReportPages('fetch_sale_items', 'sale_items', context, (from, to) => supabase
     .from('sale_items')
-    .select('id,sale_id,product_id,product_name,category_name,selling_option_id,selling_option_label,unit_label,base_unit_label,package_size,package_unit,stock_source,purchase_mode,bulk_option_id,bulk_option_label,bulk_quantity,units_per_package,base_unit_quantity,regular_unit_price,regular_value,bulk_discount_type,bulk_discount_value,bulk_discount_amount,final_selling_price,cost_per_base_unit,cogs,gross_profit,gross_margin,quantity,unit_price,cost_price,line_total')
+    .select('id,sale_id,product_id,product_name,category_name,selling_option_id,selling_option_label,unit_label,base_unit_label,package_size,package_unit,stock_source,purchase_mode,units_per_package,base_unit_quantity,regular_unit_price,regular_value,bulk_discount_amount,final_selling_price,cost_per_base_unit,quantity,unit_price,cost_price,line_total')
     .in('sale_id', saleIds)
-    .limit(5000);
-
-  if (error) throw error;
+    .range(from, to));
   return (data ?? []).map((row: any) => ({
     id: row.id,
     sale_id: row.sale_id,
@@ -1320,21 +1409,13 @@ async function fetchSaleItems(saleIds: string[]): Promise<SaleItemRow[]> {
     package_unit: row.package_unit ?? null,
     stock_source: row.stock_source ?? null,
     purchase_mode: row.purchase_mode ?? null,
-    bulk_option_id: row.bulk_option_id ?? null,
-    bulk_option_label: row.bulk_option_label ?? null,
-    bulk_quantity: row.bulk_quantity == null ? null : toNumber(row.bulk_quantity),
     units_per_package: row.units_per_package == null ? null : toNumber(row.units_per_package),
     base_unit_quantity: row.base_unit_quantity == null ? null : toNumber(row.base_unit_quantity),
     regular_unit_price: row.regular_unit_price == null ? null : toNumber(row.regular_unit_price),
     regular_value: row.regular_value == null ? null : toNumber(row.regular_value),
-    bulk_discount_type: row.bulk_discount_type ?? null,
-    bulk_discount_value: row.bulk_discount_value == null ? null : toNumber(row.bulk_discount_value),
     bulk_discount_amount: row.bulk_discount_amount == null ? null : toNumber(row.bulk_discount_amount),
     final_selling_price: row.final_selling_price == null ? null : toNumber(row.final_selling_price),
     cost_per_base_unit: row.cost_per_base_unit == null ? null : toNumber(row.cost_per_base_unit),
-    cogs: row.cogs == null ? null : toNumber(row.cogs),
-    gross_profit: row.gross_profit == null ? null : toNumber(row.gross_profit),
-    gross_margin: row.gross_margin == null ? null : toNumber(row.gross_margin),
     quantity: toNumber(row.quantity),
     unit_price: toNumber(row.unit_price),
     cost_price: toNumber(row.cost_price),
@@ -1342,14 +1423,12 @@ async function fetchSaleItems(saleIds: string[]): Promise<SaleItemRow[]> {
   }));
 }
 
-async function fetchSalePayments(saleIds: string[]): Promise<SalePaymentRow[]> {
-  const { data, error } = await supabase
+async function fetchSalePayments(saleIds: string[], context: ReportingRequestContext): Promise<SalePaymentRow[]> {
+  const data = await fetchAllReportPages('fetch_sale_payments', 'sale_payments', context, (from, to) => supabase
     .from('sale_payments')
     .select('sale_id,method,status,amount')
     .in('sale_id', saleIds)
-    .limit(5000);
-
-  if (error) throw error;
+    .range(from, to));
   return (data ?? []).map((row: any) => ({
     sale_id: row.sale_id,
     method: row.method || 'cash',
@@ -1358,49 +1437,43 @@ async function fetchSalePayments(saleIds: string[]): Promise<SalePaymentRow[]> {
   }));
 }
 
-async function fetchReturnedItems(saleIds: string[]): Promise<SaleReturnItemRow[]> {
-  const { data: returns, error: returnsError } = await supabase
+async function fetchReturnedItems(saleIds: string[], context: ReportingRequestContext): Promise<SaleReturnItemRow[]> {
+  const returns = await fetchAllReportPages('fetch_sale_returns', 'sale_returns', context, (from, to) => supabase
     .from('sale_returns')
     .select('id')
     .in('sale_id', saleIds)
     .eq('status', 'completed')
-    .limit(2000);
+    .range(from, to));
 
-  if (returnsError) throw returnsError;
-  const returnIds = (returns ?? []).map((row: any) => row.id);
+  const returnIds = returns.map((row: any) => row.id);
   if (returnIds.length === 0) return [];
 
-  const { data, error } = await supabase
+  const data = await fetchAllReportPages('fetch_return_items', 'sale_return_items', context, (from, to) => supabase
     .from('sale_return_items')
     .select('sale_item_id,quantity')
     .in('return_id', returnIds)
-    .limit(5000);
-
-  if (error) throw error;
+    .range(from, to));
   return (data ?? []).map((row: any) => ({
     sale_item_id: row.sale_item_id,
     quantity: toNumber(row.quantity),
   }));
 }
 
-async function fetchCashierNames(cashierIds: string[]): Promise<Map<string, string>> {
+async function fetchCashierNames(cashierIds: string[], context: ReportingRequestContext): Promise<Map<string, string>> {
   const uniqueIds = Array.from(new Set(cashierIds));
   if (uniqueIds.length === 0) return new Map();
 
-  const { data, error } = await supabase
+  const data = await fetchAllReportPages('fetch_cashier_names', 'profiles', context, (from, to) => supabase
     .from('profiles')
     .select('id,name')
     .in('id', uniqueIds)
-    .limit(500);
-
-  if (error) throw error;
-  return new Map((data ?? []).map((row: any) => [row.id, row.name || 'Unknown cashier']));
+    .range(from, to));
+  return new Map(data.map((row: any) => [row.id, row.name || 'Unknown cashier']));
 }
 
 function mapSaleRow(row: any): SaleRow {
   return {
     id: row.id,
-    store_id: row.store_id,
     cashier_id: row.cashier_id ?? null,
     subtotal: toNumber(row.subtotal),
     tax: toNumber(row.tax),

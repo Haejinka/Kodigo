@@ -8,7 +8,8 @@ import { formatCurrency } from '@/lib/utils';
 import { useAlertStore } from '@/stores/alertStore';
 import { useAuthStore } from '@/stores/authStore';
 import type { DashboardStats } from '@/types';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   fetchSalesReport,
   getDateRangeForDays,
@@ -31,49 +32,62 @@ const emptyStats: DashboardStats = {
 export function DashboardPage() {
   const [s, setS] = useState<DashboardStats>(emptyStats);
   const activeStoreId = useAuthStore((st) => st.activeStoreId);
+  const userId = useAuthStore((st) => st.user?.id ?? null);
   const [bestSellers, setBestSellers] = useState<SalesGroupReportRow[]>([]);
   const [trend, setTrend] = useState<DateSalesReportRow[]>([]);
   const [recent, setRecent] = useState<SalesTransactionReportRow[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const fetchStats = useCallback(async () => {
-    try {
-      if (!activeStoreId) return;
-      setLoading(true);
-      const today = toDateInput(new Date());
-      const todayReport = await fetchSalesReport(
-        { startDate: today, endDate: today, paymentMethod: 'all', status: 'all' },
-        activeStoreId,
-      );
-      const trendRange = getDateRangeForDays(7);
-      const trendReport = await fetchSalesReport(
-        { ...trendRange, paymentMethod: 'all', status: 'all' },
-        activeStoreId,
-      );
-
-      setS({
-        todayRevenue: todayReport.summary.netSales,
-        todayTransactions: todayReport.summary.totalTransactions,
-        avgOrderValue: todayReport.summary.averageTransactionValue,
-        todayProfit: todayReport.summary.grossProfit,
-        revenueChange: 0,
-        transactionsChange: 0,
-        avgOrderChange: 0,
-        profitChange: 0,
-      });
-      setBestSellers(trendReport.salesByProduct.slice(0, 5));
-      setTrend(trendReport.salesByDate);
-      setRecent(trendReport.transactions.slice(0, 8));
-    } catch (err) {
-      console.error('Error computing dashboard stats:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeStoreId]);
+  const trendRange = getDateRangeForDays(7);
+  const dashboardQuery = useQuery({
+    queryKey: ['reporting', 'dashboard', userId, activeStoreId, trendRange.startDate, trendRange.endDate],
+    queryFn: () => fetchSalesReport(
+      { ...trendRange, paymentMethod: 'all', status: 'all' },
+      activeStoreId,
+    ),
+    enabled: Boolean(activeStoreId),
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const loading = dashboardQuery.isFetching;
+  const fetchStats = () => dashboardQuery.refetch();
 
   useEffect(() => {
-    void fetchStats();
-  }, [fetchStats]);
+    const trendReport = dashboardQuery.data;
+    if (!trendReport) {
+      setS(emptyStats);
+      setBestSellers([]);
+      setTrend([]);
+      setRecent([]);
+      return;
+    }
+    // Group timestamps in the browser's local business timezone. Report chart
+    // buckets use UTC dates, while the former one-day report used local bounds.
+    const today = trendReport.filters.endDate;
+    const todayTransactions = trendReport.transactions.filter(
+      (transaction) => toDateInput(new Date(transaction.dateTime)) === today,
+    );
+    const todaySales = todayTransactions.reduce((sum, transaction) => sum + transaction.netSales, 0);
+    const todayCost = trendReport.saleLines
+      .filter((line) => toDateInput(new Date(line.dateTime)) === today)
+      .reduce((sum, line) => sum + line.cogs, 0);
+    const todayProfit = todayTransactions.reduce(
+      (sum, transaction) => sum + transaction.subtotal - transaction.discount - transaction.refunds,
+      0,
+    ) - todayCost;
+    setS({
+      todayRevenue: todaySales,
+      todayTransactions: todayTransactions.length,
+      avgOrderValue: todayTransactions.length ? todaySales / todayTransactions.length : 0,
+      todayProfit,
+      revenueChange: 0,
+      transactionsChange: 0,
+      avgOrderChange: 0,
+      profitChange: 0,
+    });
+    setBestSellers(trendReport.salesByProduct.slice(0, 5));
+    setTrend(trendReport.salesByDate);
+    setRecent(trendReport.transactions.slice(0, 8));
+  }, [dashboardQuery.data]);
   const alerts = useAlertStore((state) => state.alerts);
   const today = new Date().toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
