@@ -138,13 +138,13 @@ export function InventoryImportPanel({ storeId, categories, products, onCreateCa
       if (!file.name.toLowerCase().endsWith('.xlsx')) throw new Error('Choose an .xlsx workbook.');
       const sheets = await readXlsxFile(file);
       const productHeaders = ['product name', 'sku', 'category', 'base unit', 'purchase unit', 'base units per purchase unit', 'quantity purchased', 'total purchase price (php)', 'selling price per base unit'];
-      const productSheet = sheets.find((sheet) => normalizedName(sheet.name) === 'products') ?? sheets.find((sheet) => findHeaderRow(sheet.data as unknown as unknown[][], productHeaders) >= 0) ?? sheets[0];
+      const productSheet = sheets.find((sheet) => normalizedName(sheet.sheet) === 'products') ?? sheets.find((sheet) => findHeaderRow(sheet.data as unknown as unknown[][], productHeaders) >= 0) ?? sheets[0];
       const rows = productSheet?.data as unknown as Array<Array<unknown>> | undefined;
       const productHeaderRowIndex = findHeaderRow(rows, productHeaders);
       if (!rows || productHeaderRowIndex < 0 || rows.length <= productHeaderRowIndex + 1) throw new Error('The Products sheet has no product rows or its headers could not be found.');
       const bundleHeadersRequired = ['product sku', 'sell as', 'base units per bundle', 'bundle selling price (php)'];
       const purchaseHeadersRequired = ['product sku', 'receive as', 'base units per purchase option', 'use by default (yes/no)'];
-      const namedBundleSheet = sheets.find((sheet) => normalizedName(sheet.name) === 'selling options');
+      const namedBundleSheet = sheets.find((sheet) => normalizedName(sheet.sheet) === 'selling options');
       const bundleSheet = namedBundleSheet ?? sheets.find((sheet) => findHeaderRow(sheet.data as unknown as unknown[][], bundleHeadersRequired) >= 0);
       const bundleRows = bundleSheet?.data as unknown as Array<Array<unknown>> | undefined;
       const bundleHeaderRowIndex = findHeaderRow(bundleRows, bundleHeadersRequired);
@@ -174,7 +174,7 @@ export function InventoryImportPanel({ storeId, categories, products, onCreateCa
           bundlesBySku.set(key, [...(bundlesBySku.get(key) ?? []), { label, unitsPerBundle: units!, sellingPrice: price! }]);
         });
       }
-      const namedPurchaseSheet = sheets.find((sheet) => normalizedName(sheet.name) === 'purchase options');
+      const namedPurchaseSheet = sheets.find((sheet) => normalizedName(sheet.sheet) === 'purchase options');
       const purchaseSheet = namedPurchaseSheet ?? sheets.find((sheet) => findHeaderRow(sheet.data as unknown as unknown[][], purchaseHeadersRequired) >= 0);
       const purchaseRows = purchaseSheet?.data as unknown as Array<Array<unknown>> | undefined;
       const purchaseHeaderRowIndex = findHeaderRow(purchaseRows, purchaseHeadersRequired);
