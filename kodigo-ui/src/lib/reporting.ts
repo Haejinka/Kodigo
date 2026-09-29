@@ -774,6 +774,177 @@ export async function exportReportsWorkbook(input: {
   await writeXlsxFile(sheets, { fontFamily: 'Inter', fontSize: 11 }).toFile(fileName);
 }
 
+export async function exportSalesReportPdf(report: SalesReportData, fileName?: string) {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 12;
+  const contentWidth = pageWidth - margin * 2;
+  const bottom = pageHeight - margin;
+  let y = margin;
+
+  const currency = (amount: number) => `PHP ${Number(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const number = (amount: number) => Number(amount || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 });
+  const percent = (value: number) => `${number(value * 100)}%`;
+  const addContinuationHeader = () => {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Sales Report | ${report.filters.startDate} to ${report.filters.endDate}`, margin, margin - 4);
+    y = margin + 2;
+  };
+  const drawTable = (
+    title: string,
+    columns: Array<{ label: string; width: number; align?: 'left' | 'right' }>,
+    rows: string[][],
+  ) => {
+    const headerHeight = 8;
+    const drawHeader = () => {
+      doc.setFillColor(37, 99, 235);
+      doc.rect(margin, y, contentWidth, headerHeight, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(255, 255, 255);
+      let x = margin;
+      for (const column of columns) {
+        doc.text(column.label, x + 2, y + 5.2, { align: column.align === 'right' ? 'right' : 'left', maxWidth: column.width - 4 });
+        x += column.width;
+      }
+      y += headerHeight;
+    };
+
+    if (y + 16 > bottom) {
+      doc.addPage();
+      addContinuationHeader();
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(15, 23, 42);
+    doc.text(title, margin, y + 4);
+    y += 7;
+    drawHeader();
+
+    for (const row of rows.length ? rows : [['No matching records.']]) {
+      const cellLines = columns.map((column, index) => doc.splitTextToSize(row[index] || '', column.width - 4) as string[]);
+      const rowHeight = Math.max(7, ...cellLines.map((lines) => lines.length * 3.4 + 2));
+      if (y + rowHeight > bottom) {
+        doc.addPage();
+        addContinuationHeader();
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`${title} (continued)`, margin, y + 4);
+        y += 7;
+        drawHeader();
+      }
+      doc.setDrawColor(226, 232, 240);
+      doc.setFillColor(248, 250, 252);
+      doc.rect(margin, y, contentWidth, rowHeight, 'F');
+      doc.line(margin, y + rowHeight, pageWidth - margin, y + rowHeight);
+      let x = margin;
+      columns.forEach((column, index) => {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(51, 65, 85);
+        const textX = column.align === 'right' ? x + column.width - 2 : x + 2;
+        doc.text(cellLines[index], textX, y + 4.5, {
+          align: column.align === 'right' ? 'right' : 'left',
+          lineHeightFactor: 1.15,
+          maxWidth: column.width - 4,
+        });
+        x += column.width;
+      });
+      y += rowHeight;
+    }
+    y += 5;
+  };
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.setTextColor(15, 23, 42);
+  doc.text('Sales Report', margin, y + 7);
+  y += 12;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Period: ${report.filters.startDate} to ${report.filters.endDate}`, margin, y + 4);
+  doc.text(`Generated: ${formatDateTimeForReport(report.generatedAt)}`, pageWidth - margin, y + 4, { align: 'right' });
+  y += 10;
+
+  const summary = report.summary;
+  const summaryRows = [
+    ['Gross sales', currency(summary.grossSales), 'Discounts', currency(summary.discounts)],
+    ['Refunds', currency(summary.refunds), 'Net sales', currency(summary.netSales)],
+    ['Tax', currency(summary.tax), 'COGS', currency(summary.totalCogs)],
+    ['Gross profit', currency(summary.grossProfit), 'Gross margin', percent(summary.grossMargin)],
+    ['Transactions', number(summary.totalTransactions), 'Items sold', number(summary.netItemsSold)],
+    ['Average transaction', currency(summary.averageTransactionValue), 'Voided sales', currency(summary.voidedSales)],
+  ];
+  drawTable('Summary', [
+    { label: 'Metric', width: 45 }, { label: 'Value', width: 91, align: 'right' },
+    { label: 'Metric', width: 45 }, { label: 'Value', width: contentWidth - 181, align: 'right' },
+  ], summaryRows);
+
+  drawTable('Sales by Date', [
+    { label: 'Date', width: 35 }, { label: 'Gross Sales', width: 39, align: 'right' },
+    { label: 'Discounts', width: 35, align: 'right' }, { label: 'Refunds', width: 34, align: 'right' },
+    { label: 'Net Sales', width: 39, align: 'right' }, { label: 'Transactions', width: 27, align: 'right' },
+    { label: 'Items', width: 22, align: 'right' }, { label: 'Gross Profit', width: contentWidth - 231, align: 'right' },
+  ], report.salesByDate.map((row) => [
+    row.date, currency(row.grossSales), currency(row.discounts), currency(row.refunds), currency(row.netSales),
+    number(row.transactions), number(row.itemsSold), currency(row.grossProfit),
+  ]));
+
+  drawTable('Sales by Product', [
+    { label: 'Product', width: 61 }, { label: 'Sold as', width: 38 },
+    { label: 'Packages', width: 23, align: 'right' }, { label: 'Base Units', width: 27, align: 'right' },
+    { label: 'Net Sales', width: 38, align: 'right' }, { label: 'Cost', width: 34, align: 'right' },
+    { label: 'Profit', width: 32, align: 'right' }, { label: 'Margin', width: contentWidth - 253, align: 'right' },
+  ], report.salesByProduct.map((row) => [
+    row.productName || row.label, describeSellingUnit(row), number(row.netQuantity), number(row.netBaseUnitQuantity),
+    currency(row.netRevenue), currency(row.cost), currency(row.grossProfit), percent(row.grossMargin),
+  ]));
+
+  drawTable('Sales by Category', [
+    { label: 'Category', width: 78 }, { label: 'Net Sales', width: 55, align: 'right' },
+    { label: 'Gross Profit', width: 55, align: 'right' }, { label: 'Transactions', width: 42, align: 'right' },
+    { label: 'Items Sold', width: contentWidth - 230, align: 'right' },
+  ], report.salesByCategory.map((row) => [
+    row.label, currency(row.netRevenue), currency(row.grossProfit), number(row.transactions), number(row.netQuantity),
+  ]));
+
+  drawTable('Sales by Payment Method', [
+    { label: 'Payment Method', width: 78 }, { label: 'Transactions', width: 48, align: 'right' },
+    { label: 'Captured', width: 48, align: 'right' }, { label: 'Refunds', width: 48, align: 'right' },
+    { label: 'Net', width: contentWidth - 222, align: 'right' },
+  ], report.salesByPaymentMethod.map((row) => [
+    row.method.replace('_', ' '), number(row.transactions), currency(row.captured), currency(row.refunds), currency(row.net),
+  ]));
+
+  drawTable('Transactions', [
+    { label: 'Date / Time', width: 39 }, { label: 'Receipt', width: 39 }, { label: 'Cashier', width: 43 },
+    { label: 'Payment', width: 25 }, { label: 'Status', width: 31 }, { label: 'Items', width: 18, align: 'right' },
+    { label: 'Total', width: 29, align: 'right' }, { label: 'Refunds', width: 25, align: 'right' },
+    { label: 'Net Sales', width: contentWidth - 249, align: 'right' },
+  ], report.transactions.map((row) => [
+    formatDateTimeForReport(row.dateTime), row.receiptNumber, row.cashierName, row.paymentMethod.replace('_', ' '),
+    row.status.replace('_', ' '), number(row.itemCount), currency(row.total), currency(row.refunds), currency(row.netSales),
+  ]));
+
+  const pageCount = doc.getNumberOfPages();
+  for (let page = 1; page <= pageCount; page += 1) {
+    doc.setPage(page);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Kodigo Sales Report | ${report.filters.startDate} to ${report.filters.endDate}`, margin, pageHeight - 5);
+    doc.text(`Page ${page} of ${pageCount}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+  }
+
+  doc.save(fileName || `Kodigo-Sales-Report-${report.filters.startDate}-to-${report.filters.endDate}.pdf`);
+}
+
 function buildSalesReport(
   filters: ReportFilters,
   sales: SaleRow[],

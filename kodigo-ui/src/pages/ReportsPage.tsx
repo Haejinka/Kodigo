@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FileSpreadsheet, Printer, RefreshCw } from 'lucide-react';
+import { FileDown, FileSpreadsheet, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
 import { StatCard } from '@/components/shared/StatCard';
@@ -13,6 +13,7 @@ import {
   buildInventoryReport,
   canAccessReports,
   describeSellingUnit,
+  exportSalesReportPdf,
   exportReportsWorkbook,
   fetchPriceHistory,
   fetchRestockHistoryReport,
@@ -54,6 +55,7 @@ export function ReportsPage() {
   const [priceHistory, setPriceHistory] = useState<PriceHistoryRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const canExport = canAccessReports(role);
   const inventoryOnly = role === 'inventory';
 
@@ -130,6 +132,26 @@ export function ReportsPage() {
     setFilters((current) => ({ ...current, [key]: value || undefined }));
   };
 
+  const recordReportNotification = async (
+    fileName: string,
+    status: 'completed' | 'failed',
+    message?: string,
+  ) => {
+    const storeId = activeStoreId && activeStoreId !== 'all' ? activeStoreId : null;
+    const { error } = await supabase.rpc('record_report_export_notification', {
+      p_store_id: storeId,
+      p_status: status,
+      p_file_name: fileName,
+      p_error: message ?? null,
+      p_filters: filters,
+    });
+    if (error) {
+      console.error('Failed to record report export notification:', error);
+      return;
+    }
+    void fetchNotifications();
+  };
+
   const handleExport = async () => {
     if (!canExport) {
       toast('error', 'Only authorized reporting roles can export reports.');
@@ -159,22 +181,6 @@ export function ReportsPage() {
     }
     if (!report) return;
     const fileName = `Kodigo-Reports-${report.filters.startDate}-to-${report.filters.endDate}.xlsx`;
-    const storeId = activeStoreId && activeStoreId !== 'all' ? activeStoreId : null;
-
-    const recordReportNotification = async (status: 'completed' | 'failed', message?: string) => {
-      const { error } = await supabase.rpc('record_report_export_notification', {
-        p_store_id: storeId,
-        p_status: status,
-        p_file_name: fileName,
-        p_error: message ?? null,
-        p_filters: filters,
-      });
-      if (error) {
-        console.error('Failed to record report export notification:', error);
-        return;
-      }
-      void fetchNotifications();
-    };
 
     setExporting(true);
     try {
@@ -186,15 +192,37 @@ export function ReportsPage() {
         priceHistory,
         fileName,
       });
-      await recordReportNotification('completed');
+      await recordReportNotification(fileName, 'completed');
       toast('success', 'Excel report exported.');
     } catch (err) {
       console.error('Failed to export report:', err);
       const message = err instanceof Error ? err.message : 'Failed to export Excel report.';
-      await recordReportNotification('failed', message);
+      await recordReportNotification(fileName, 'failed', message);
       toast('error', message);
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handlePdfExport = async () => {
+    if (!canExport) {
+      toast('error', 'Only authorized reporting roles can export reports.');
+      return;
+    }
+    if (!report || loading) return;
+    const fileName = `Kodigo-Sales-Report-${report.filters.startDate}-to-${report.filters.endDate}.pdf`;
+    setExportingPdf(true);
+    try {
+      await exportSalesReportPdf(report, fileName);
+      await recordReportNotification(fileName, 'completed');
+      toast('success', 'PDF sales report exported.');
+    } catch (err) {
+      console.error('Failed to export PDF report:', err);
+      const message = err instanceof Error ? err.message : 'Failed to export PDF report.';
+      await recordReportNotification(fileName, 'failed', message);
+      toast('error', message);
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -207,9 +235,6 @@ export function ReportsPage() {
         subtitle={loading ? 'Loading report data...' : inventoryOnly ? 'Inventory history and stock reports' : `${filters.startDate} to ${filters.endDate}`}
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" icon={<Printer className="w-4 h-4" />} onClick={() => window.print()}>
-              Print
-            </Button>
             <Button
               variant="secondary"
               icon={<RefreshCw className="w-4 h-4" />}
@@ -218,6 +243,17 @@ export function ReportsPage() {
             >
               Refresh
             </Button>
+            {!inventoryOnly && (
+              <Button
+                variant="secondary"
+                icon={<FileDown className="w-4 h-4" />}
+                onClick={handlePdfExport}
+                loading={exportingPdf}
+                disabled={!report || !canExport || loading}
+              >
+                Export PDF
+              </Button>
+            )}
             <Button
               variant="primary"
               icon={<FileSpreadsheet className="w-4 h-4" />}
