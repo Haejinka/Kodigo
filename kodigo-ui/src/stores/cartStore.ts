@@ -16,6 +16,7 @@ interface CartState {
   subtotal: () => number;
   discountAmount: () => number;
   taxRate: () => number;
+  vatStatus: () => 'vat' | 'non_vat';
   taxAmount: () => number;
   itemCount: () => number;
 }
@@ -25,7 +26,14 @@ const roundCurrency = (value: number) => Math.round((value + Number.EPSILON) * 1
 const getActiveStoreTaxRate = () => {
   const { activeStoreId, stores } = useAuthStore.getState();
   if (!activeStoreId || activeStoreId === 'all') return 0;
-  return stores.find((store) => store.id === activeStoreId)?.taxRate ?? 0;
+  const store = stores.find((candidate) => candidate.id === activeStoreId);
+  return store?.vatStatus === 'vat' ? store.taxRate ?? 0 : 0;
+};
+
+const getActiveStoreVatStatus = (): 'vat' | 'non_vat' => {
+  const { activeStoreId, stores } = useAuthStore.getState();
+  if (!activeStoreId || activeStoreId === 'all') return 'non_vat';
+  return stores.find((store) => store.id === activeStoreId)?.vatStatus === 'vat' ? 'vat' : 'non_vat';
 };
 
 const getLineId = (product: Product, option: ProductSellingOption) => {
@@ -108,11 +116,14 @@ export const useCartStore = create<CartState>((set, get) => ({
     return roundCurrency(Math.min(discountValue, subtotal));
   },
   taxRate: () => getActiveStoreTaxRate(),
+  vatStatus: () => getActiveStoreVatStatus(),
   taxAmount: () => {
-    const taxable = Math.max(0, get().subtotal() - get().discountAmount());
-    return roundCurrency(taxable * get().taxRate() / 100);
+    if (get().vatStatus() !== 'vat') return 0;
+    const taxInclusiveAmount = Math.max(0, get().subtotal() - get().discountAmount());
+    const rate = get().taxRate();
+    return rate > 0 ? roundCurrency(taxInclusiveAmount * rate / (100 + rate)) : 0;
   },
-  total: () => roundCurrency(get().subtotal() - get().discountAmount() + get().taxAmount()),
+  total: () => roundCurrency(get().subtotal() - get().discountAmount()),
   itemCount: () => get().items.reduce((sum, i) => sum + i.quantity * getOptionInventoryMultiplier(i.sellingOption), 0),
 }));
 

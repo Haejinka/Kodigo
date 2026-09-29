@@ -543,6 +543,30 @@ export interface SalesVelocityAggregateRow {
   unitsSold: number;
 }
 
+export interface InventoryConsumptionHistoryRow {
+  productId: string;
+  unitsConsumed: number;
+  trackingStartedAt: string;
+}
+
+/** Load all recorded base-stock depletion events for restock planning. */
+export async function fetchInventoryConsumptionHistory(
+  activeStoreId: string | 'all' | null,
+): Promise<InventoryConsumptionHistoryRow[]> {
+  const { data, error } = await supabase.rpc('get_inventory_consumption_history', {
+    p_store_id: activeStoreId && activeStoreId !== 'all' ? activeStoreId : null,
+  });
+  if (error) throw error;
+
+  return (data ?? [])
+    .map((row: any) => ({
+      productId: row.product_id,
+      unitsConsumed: toNumber(row.units_consumed),
+      trackingStartedAt: row.tracking_started_at,
+    }))
+    .filter((row: InventoryConsumptionHistoryRow) => row.productId && row.trackingStartedAt);
+}
+
 /**
  * Load already-aggregated base-unit sales for the velocity screen. The RPC is
  * intentionally separate from the financial report because inventory users can

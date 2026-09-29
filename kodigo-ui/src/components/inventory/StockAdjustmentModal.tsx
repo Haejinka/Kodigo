@@ -7,6 +7,7 @@ import { getOptionInventoryMultiplier, isBulkSellingOption } from '@/types';
 
 interface StockAdjustmentModalProps {
   open: boolean;
+  presentation?: 'modal' | 'inline';
   productId: string;
   productName: string;
   currentStock: number;
@@ -37,6 +38,7 @@ type AdjustmentMode = 'add' | 'remove' | 'count';
 
 export function StockAdjustmentModal({
   open,
+  presentation = 'modal',
   productId,
   productName,
   currentStock,
@@ -145,22 +147,23 @@ export function StockAdjustmentModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative z-10 bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+    <div className={presentation === 'inline' ? 'border-t border-gray-200 bg-gray-50 px-4 py-5' : 'fixed inset-0 z-50 flex items-center justify-center p-4'}>
+      {presentation === 'modal' && <div className="fixed inset-0 bg-black/50" onClick={onClose} />}
+      <div className={presentation === 'inline' ? 'mx-auto w-full max-w-5xl overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm' : 'relative z-10 bg-white rounded-2xl shadow-xl w-full max-w-md'}>
+        <div className={`flex items-center justify-between border-b border-gray-100 ${presentation === 'inline' ? 'bg-white px-5 py-3' : 'px-6 py-4'}`}>
           <h2 className="font-bold text-gray-900">Adjust Stock</h2>
-          <button type="button" onClick={onClose} aria-label="Close stock adjustment dialog" className="p-1 rounded-lg hover:bg-gray-100">
-            <X className="w-4 h-4 text-gray-500" />
+          <button type="button" onClick={onClose} aria-label={presentation === 'inline' ? 'Close stock adjustment panel' : 'Close stock adjustment dialog'} className="inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+            {presentation === 'inline' && 'Close adjustment'}
+            <X className="w-4 h-4 text-current" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className={presentation === 'inline' ? 'grid grid-cols-1 gap-4 p-5 md:grid-cols-2' : 'space-y-4 p-6'}>
           {restockResult ? (
-            <div className="space-y-4">
+            <div className={`space-y-4 ${presentation === 'inline' ? 'md:col-span-2' : ''}`}>
               <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-                <div><p className="text-sm font-semibold text-amber-900">Supplier cost changed</p><p className="mt-1 text-xs leading-5 text-amber-800">Stock was added. Review the suggested selling price before you close this window.</p></div>
+                <div><p className="text-sm font-semibold text-amber-900">Supplier cost changed</p><p className="mt-1 text-xs leading-5 text-amber-800">Stock was added. Review the suggested selling price before you close this panel.</p></div>
               </div>
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm">
                 <p className="font-semibold text-gray-900">Supplier cost {restockResult.costChangePercent && restockResult.costChangePercent > 0 ? 'increased' : 'changed'} by {Math.abs(restockResult.costChangePercent ?? 0).toFixed(1)}%</p>
@@ -171,7 +174,7 @@ export function StockAdjustmentModal({
             </div>
           ) : <>
           {/* Product info */}
-          <div className="bg-gray-50 rounded-xl px-4 py-3">
+          <div className={`bg-gray-50 rounded-xl px-4 py-3 ${presentation === 'inline' ? 'md:col-span-2' : ''}`}>
             <p className="font-medium text-gray-900 text-sm">{productName}</p>
             <p className="text-xs text-gray-500 mt-0.5">
               Current base stock: <span className="font-bold font-mono">{currentStock}</span>
@@ -179,7 +182,7 @@ export function StockAdjustmentModal({
             </p>
           </div>
 
-          <div>
+          <div className={presentation === 'inline' ? 'md:col-span-2' : ''}>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">What changed?</label>
             <div className="grid grid-cols-3 gap-2 rounded-xl bg-gray-100 p-1">
               {[
@@ -262,7 +265,7 @@ export function StockAdjustmentModal({
             </select>
           </div>
 
-          <div>
+          <div className={presentation === 'inline' ? 'md:col-span-2' : ''}>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Note <span className="text-xs font-normal text-gray-400">(optional)</span></label>
             <textarea
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
@@ -273,11 +276,11 @@ export function StockAdjustmentModal({
             />
           </div>
 
-          <div className="flex gap-3 pt-1">
-            <Button variant="secondary" type="button" onClick={onClose} className="flex-1">
-              Cancel
+          <div className={`flex gap-3 pt-1 ${presentation === 'inline' ? 'md:col-span-2 md:justify-end' : ''}`}>
+            <Button variant="secondary" type="button" onClick={onClose} className={presentation === 'inline' ? 'min-w-36' : 'flex-1'}>
+              {presentation === 'inline' ? 'Close adjustment' : 'Cancel'}
             </Button>
-              <Button variant="primary" type="submit" loading={loading} className="flex-1">
+              <Button variant="primary" type="submit" loading={loading} className={presentation === 'inline' ? 'min-w-44' : 'flex-1'}>
               {mode === 'add' ? 'Receive stock' : 'Apply adjustment'}
             </Button>
           </div>

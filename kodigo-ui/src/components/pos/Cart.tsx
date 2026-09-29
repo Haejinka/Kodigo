@@ -66,15 +66,14 @@ export function Cart({ onCharge }: CartProps) {
     subtotal,
     total,
     taxRate,
+    vatStatus,
     taxAmount,
     discountAmount,
-    discountType,
-    discountValue,
-    setDiscount,
   } = useCartStore();
   const sub = subtotal();
   const discount = discountAmount();
   const taxPct = taxRate();
+  const isVatRegistered = vatStatus() === 'vat';
   const tax = taxAmount();
   const tot = total();
 
@@ -175,47 +174,8 @@ export function Cart({ onCharge }: CartProps) {
           <span className="font-mono">{formatCurrency(sub)}</span>
         </div>
 
-        {items.length > 0 && (
-          <div className="py-2">
-            <div className="flex items-center gap-2">
-              <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setDiscount('amount', discountValue)}
-                  className={cn(
-                    'px-2.5 py-1 text-xs font-semibold',
-                    discountType === 'amount' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
-                  )}
-                >
-                  Amount
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDiscount('percent', discountValue)}
-                  className={cn(
-                    'px-2.5 py-1 text-xs font-semibold border-l border-gray-200',
-                    discountType === 'percent' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
-                  )}
-                >
-                  %
-                </button>
-              </div>
-              <input
-                type="number"
-                min={0}
-                max={discountType === 'percent' ? 100 : undefined}
-                step="0.01"
-                value={discountValue || ''}
-                onChange={(event) => setDiscount(discountType, parseFloat(event.target.value) || 0)}
-                placeholder="Discount"
-                className="min-w-0 flex-1 px-2 py-1 text-xs font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-        )}
-
         <div className="flex justify-between text-sm text-gray-500">
-          <span>Tax ({taxPct}%)</span>
+          <span>{isVatRegistered ? `VAT included (${taxPct}%)` : 'Tax'}</span>
           <span className="font-mono">{formatCurrency(tax)}</span>
         </div>
         <div className="flex justify-between text-sm text-gray-500">

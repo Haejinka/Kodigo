@@ -20,7 +20,7 @@ export function AddProductPage() {
   };
 
   return (
-    <div className="max-w-7xl">
+    <div className="w-full max-w-none">
       <PageHeader
         title="Add Product"
         subtitle="Enter the essentials now, then adjust advanced options later"

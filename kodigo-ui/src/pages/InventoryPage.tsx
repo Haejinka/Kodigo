@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Archive, ArchiveRestore, Plus, Edit, Trash2, Sliders, History } from 'lucide-react';
+import { Archive, ArchiveRestore, Plus, Edit, Trash2, Sliders, History, X, FileSpreadsheet } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
 import { SearchInput } from '@/components/shared/SearchInput';
@@ -11,8 +11,11 @@ import { StockAdjustmentModal } from '@/components/inventory/StockAdjustmentModa
 import { StockAdjustmentLog } from '@/components/inventory/StockAdjustmentLog';
 import { SalesVelocityPanel } from '@/components/inventory/SalesVelocityPanel';
 import { RestockingPage } from '@/pages/RestockingPage';
+import { InventoryImportPanel } from '@/components/inventory/InventoryImportPanel';
+import type { InventoryImportRow } from '@/components/inventory/InventoryImportPanel';
 import { useToast } from '@/components/shared/Toast';
 import { formatCurrency } from '@/lib/utils';
+import { fetchInventoryConsumptionHistory } from '@/lib/reporting';
 import { isDefaultCategoryName, useProductStore } from '@/stores/productStore';
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
@@ -24,7 +27,7 @@ import {
   getStockStatus,
   isBulkSellingOption,
 } from '@/types';
-import type { Product, AdjustmentReason } from '@/types';
+import type { Product, AdjustmentReason, Category } from '@/types';
 import type { Column } from '@/components/shared/DataTable';
 
 type Tab = 'products' | 'restocking' | 'velocity' | 'log';
@@ -229,7 +232,7 @@ function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onCl
 export function InventoryPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { products, deleteProduct, setProductActive, adjustStock, updateSellingPrice, stockAdjustments } = useProductStore();
+  const { products, categories: storeCategories, fetchCategories, addCategory, addProduct, deleteProduct, setProductActive, adjustStock, updateSellingPrice, stockAdjustments } = useProductStore();
   const { activeStoreId, stores, role } = useAuthStore();
   const [tab, setTab] = useState<Tab>('products');
   const [search, setSearch] = useState('');
@@ -237,6 +240,10 @@ export function InventoryPage() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [lifecycleFilter, setLifecycleFilter] = useState<ProductLifecycleFilter>('active');
   const [viewMode, setViewMode] = useState<'separate' | 'combined'>('separate');
+  const [importPanelOpen, setImportPanelOpen] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState<'archive' | 'restore' | 'delete' | null>(null);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [statusTarget, setStatusTarget] = useState<Product | null>(null);
   const [adjustTarget, setAdjustTarget] = useState<Product | null>(null);
@@ -244,8 +251,51 @@ export function InventoryPage() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   // Category modal state
   const [catModalOpen, setCatModalOpen] = useState(false);
+  const [consumptionHistory, setConsumptionHistory] = useState<Map<string, { unitsConsumed: number; trackingStartedAt: string }>>(new Map());
+  const [consumptionHistoryState, setConsumptionHistoryState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const categoryStoreId = activeStoreId && activeStoreId !== 'all' ? activeStoreId : '';
   const canManageCategories = Boolean(categoryStoreId);
+
+  useEffect(() => {
+    if (categoryStoreId) void fetchCategories(categoryStoreId);
+  }, [categoryStoreId, fetchCategories]);
+
+  useEffect(() => {
+    if (tab !== 'products') return;
+    if (!activeStoreId || products.length === 0) {
+      setConsumptionHistory(new Map());
+      setConsumptionHistoryState('ready');
+      return;
+    }
+
+    let cancelled = false;
+    setConsumptionHistoryState('loading');
+    void fetchInventoryConsumptionHistory(activeStoreId)
+      .then((rows) => {
+        if (cancelled) return;
+        setConsumptionHistory(new Map(rows.map((row) => [row.productId, {
+          unitsConsumed: row.unitsConsumed,
+          trackingStartedAt: row.trackingStartedAt,
+        }])));
+        setConsumptionHistoryState('ready');
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error('Failed to load product restock estimates', error);
+        setConsumptionHistory(new Map());
+        setConsumptionHistoryState('error');
+      });
+
+    return () => { cancelled = true; };
+  }, [activeStoreId, products.length, tab]);
+
+  useEffect(() => {
+    if (tab !== 'products') setAdjustTarget(null);
+  }, [tab]);
+
+  useEffect(() => {
+    setSelectedProductIds(new Set());
+  }, [activeStoreId, viewMode]);
 
   const categories = [...new Set(products.map((p) => p.categoryName))].sort();
 
@@ -285,7 +335,49 @@ export function InventoryPage() {
     filtered = Array.from(combinedMap.values());
   }
 
+  const visibleSelectableProducts = filtered.filter((product) => product.storeId !== 'combined');
+  const selectedProducts = products.filter((product) => selectedProductIds.has(product.id));
+  const selectedActiveProducts = selectedProducts.filter((product) => product.isActive !== false);
+  const selectedArchivedProducts = selectedProducts.filter((product) => product.isActive === false);
+  const allVisibleSelected = visibleSelectableProducts.length > 0
+    && visibleSelectableProducts.every((product) => selectedProductIds.has(product.id));
+
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProductIds((current) => {
+      const next = new Set(current);
+      if (next.has(productId)) next.delete(productId);
+      else next.add(productId);
+      return next;
+    });
+  };
+
+  const toggleVisibleSelection = () => {
+    setSelectedProductIds((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) visibleSelectableProducts.forEach((product) => next.delete(product.id));
+      else visibleSelectableProducts.forEach((product) => next.add(product.id));
+      return next;
+    });
+  };
+
   const columns: Column<Product>[] = [
+    ...((role === 'admin' || role === 'inventory') ? [{
+      key: 'select',
+      header: '',
+      width: 'w-10',
+      align: 'center' as const,
+      accessor: (p: Product) => (
+        <input
+          type="checkbox"
+          aria-label={`Select ${p.name}`}
+          checked={p.storeId !== 'combined' && selectedProductIds.has(p.id)}
+          disabled={p.storeId === 'combined'}
+          onChange={() => toggleProductSelection(p.id)}
+          onClick={(event) => event.stopPropagation()}
+          className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-30"
+        />
+      ),
+    }] : []),
     {
       key: 'image',
       header: '',
@@ -341,6 +433,38 @@ export function InventoryPage() {
         </div>
       ),
     },
+    {
+      key: 'estimatedRestockDate',
+      header: 'Estimated Restock Date',
+      accessor: (p) => {
+        if (consumptionHistoryState === 'loading' || consumptionHistoryState === 'idle') {
+          return <span className="text-xs text-gray-400">Calculating…</span>;
+        }
+        if (consumptionHistoryState === 'error') {
+          return <span className="text-xs text-gray-400">Unavailable</span>;
+        }
+        const matchingProducts = p.storeId === 'combined'
+          ? products.filter((candidate) => (candidate.sku || candidate.barcode || candidate.name) === (p.sku || p.barcode || p.name))
+          : [p];
+        const historyRows = matchingProducts
+          .map((candidate) => consumptionHistory.get(candidate.id))
+          .filter((row): row is { unitsConsumed: number; trackingStartedAt: string } => Boolean(row));
+        const unitsConsumed = historyRows.reduce((total, row) => total + row.unitsConsumed, 0);
+        if (unitsConsumed <= 0 || historyRows.length === 0) return <span className="text-xs text-gray-400">No recorded sales/losses</span>;
+
+        const trackingStartedAt = Math.min(...historyRows.map((row) => new Date(row.trackingStartedAt).getTime()));
+        const trackedDays = Math.max(1, (Date.now() - trackingStartedAt) / 86_400_000);
+        const perDay = unitsConsumed / trackedDays;
+        if (perDay <= 0) return <span className="text-xs text-gray-400">No recorded sales/losses</span>;
+        const lowStockThreshold = getDefaultSellingOption(p).lowStockThreshold;
+        const daysUntilRestock = Math.max(0, Math.ceil((p.currentStock - lowStockThreshold) / perDay));
+        const estimatedDate = new Date();
+        estimatedDate.setDate(estimatedDate.getDate() + daysUntilRestock);
+        return daysUntilRestock === 0
+          ? <span className="whitespace-nowrap font-medium text-amber-700">Restock now</span>
+          : <span className="whitespace-nowrap font-mono tabular-nums text-gray-700">{estimatedDate.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</span>;
+      },
+    },
     { key: 'minStock', header: 'Low Stock', accessor: (p) => <span className="font-mono text-gray-500">{getDefaultSellingOption(p).lowStockThreshold}</span>, align: 'center' },
     {
       key: 'sellingPrice',
@@ -371,18 +495,18 @@ export function InventoryPage() {
             <>
               <button
                 type="button"
-                onClick={() => setAdjustTarget(p)}
-                aria-label={`Adjust stock for ${p.name}`}
-                className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
-                title="Adjust stock"
+                onClick={() => setAdjustTarget((current) => current?.id === p.id ? null : p)}
+                aria-label={adjustTarget?.id === p.id ? `Close stock adjustment for ${p.name}` : `Adjust stock for ${p.name}`}
+                className="rounded-md p-1.5 text-teal-600 transition-colors hover:bg-teal-50 hover:text-teal-700"
+                title={adjustTarget?.id === p.id ? 'Close adjustment' : 'Adjust stock'}
               >
-                <Sliders className="w-4 h-4" />
+                {adjustTarget?.id === p.id ? <X className="w-4 h-4" /> : <Sliders className="w-4 h-4" />}
               </button>
               <button
                 type="button"
                 onClick={() => navigate(`/inventory/products/${p.id}`)}
                 aria-label={`Edit ${p.name}`}
-                className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
+                className="rounded-md p-1.5 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
                 title="Edit"
               >
                 <Edit className="w-4 h-4" />
@@ -392,10 +516,10 @@ export function InventoryPage() {
                 onClick={() => setStatusTarget(p)}
                 aria-label={p.isActive === false ? `Restore ${p.name}` : `Archive ${p.name}`}
                 className={cn(
-                  'p-1.5 rounded-lg transition-colors',
+                  'rounded-md p-1.5 transition-colors',
                   p.isActive === false
-                    ? 'text-gray-400 hover:bg-green-50 hover:text-green-600'
-                    : 'text-gray-400 hover:bg-amber-50 hover:text-amber-600',
+                    ? 'text-green-600 hover:bg-green-50 hover:text-green-700'
+                    : 'text-amber-600 hover:bg-amber-50 hover:text-amber-700',
                 )}
                 title={p.isActive === false ? 'Restore to active inventory' : 'Archive product'}
               >
@@ -405,7 +529,7 @@ export function InventoryPage() {
                 type="button"
                 onClick={() => setDeleteTarget(p)}
                 aria-label={`Delete ${p.name}`}
-                className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                className="rounded-md p-1.5 text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
                 title="Delete unused product"
               >
                 <Trash2 className="w-4 h-4" />
@@ -437,6 +561,122 @@ export function InventoryPage() {
     await new Promise((r) => setTimeout(r, 600));
     if (!adjustTarget) throw new Error('Select a product before adjusting stock.');
     return adjustStock(adjustTarget.id, sellingOptionId, delta, reason, note, restock);
+  };
+
+  const handleImportProduct = async (row: InventoryImportRow) => {
+    if (!categoryStoreId) throw new Error('Select one store before importing products.');
+    const baseOptionId = crypto.randomUUID();
+    const created = await addProduct({
+      storeId: categoryStoreId,
+      isActive: true,
+      name: row.name,
+      sku: row.sku,
+      barcode: row.barcode,
+      categoryId: row.categoryId,
+      unit: row.unit,
+      purchaseUnit: row.purchaseUnit,
+      conversionFactor: row.conversionFactor,
+      bulkPurchasePrice: row.purchaseQuantity > 0 ? row.totalPurchasePrice / row.purchaseQuantity : 0,
+      costPrice: row.costPrice,
+      sellingPrice: row.sellingPrice,
+      currentStock: row.currentStock,
+      minStockLevel: row.minStockLevel,
+      safetyStock: row.safetyStock,
+      reorderLevel: row.reorderLevel,
+      leadTimeDays: row.leadTimeDays,
+      supplierIds: [],
+      supplierId: '',
+      bulkPurchaseEnabled: false,
+      autoPricingEnabled: false,
+      marginPercentage: 20,
+      priceRounding: 1,
+      restockingOptions: [{
+        id: crypto.randomUUID(),
+        productId: '',
+        storeId: categoryStoreId,
+        label: row.purchaseUnit,
+        conversionFactor: row.conversionFactor,
+        isDefault: true,
+        isActive: true,
+      }],
+      sellingOptions: [{
+        id: baseOptionId,
+        productId: '',
+        storeId: categoryStoreId,
+        kind: row.unit === 'kg' ? 'kilo' : 'unit',
+        label: row.unit,
+        unitLabel: row.unit,
+        quantityValue: row.unit === 'kg' ? 1 : undefined,
+        quantityUnit: row.unit === 'kg' ? 'kg' : undefined,
+        stockQuantity: row.currentStock,
+        sellingPrice: row.sellingPrice,
+        lowStockThreshold: row.minStockLevel,
+        inventoryMultiplier: 1,
+        sharesBaseStock: true,
+        isBulk: false,
+        discountType: 'percent',
+        discountValue: 0,
+        pricingMethod: 'fixed',
+        manualSellingPrice: row.sellingPrice,
+        isDefault: true,
+        isActive: true,
+      }],
+    });
+    if (!created) throw new Error('Could not create product in the selected store.');
+  };
+
+  const handleCreateImportCategory = async (name: string): Promise<Category> => {
+    if (!categoryStoreId) throw new Error('Select one store before creating categories.');
+    const category = await addCategory(categoryStoreId, name);
+    if (!category) throw new Error(`Could not create category “${name}”.`);
+    return category;
+  };
+
+  const handleBulkAction = async () => {
+    if (!bulkConfirm) return;
+    if (bulkConfirm === 'delete' && role !== 'admin') return;
+    if (bulkConfirm !== 'delete' && role !== 'admin' && role !== 'inventory') return;
+
+    const targets = bulkConfirm === 'archive'
+      ? selectedActiveProducts
+      : bulkConfirm === 'restore'
+        ? selectedArchivedProducts
+        : selectedProducts;
+    if (targets.length === 0) {
+      setBulkConfirm(null);
+      return;
+    }
+
+    setBulkActionLoading(true);
+    const succeeded: string[] = [];
+    const failures: string[] = [];
+    for (const product of targets) {
+      try {
+        if (bulkConfirm === 'delete') await deleteProduct(product.id);
+        else await setProductActive(product.id, bulkConfirm === 'restore');
+        succeeded.push(product.id);
+      } catch (error: any) {
+        failures.push(`${product.name}: ${error?.message || 'operation failed'}`);
+      }
+    }
+
+    if (succeeded.length > 0) {
+      setSelectedProductIds((current) => {
+        const next = new Set(current);
+        succeeded.forEach((id) => next.delete(id));
+        return next;
+      });
+    }
+    const verb = bulkConfirm === 'delete' ? 'deleted' : bulkConfirm === 'archive' ? 'archived' : 'restored';
+    if (failures.length === 0) {
+      toast('success', `${succeeded.length} product${succeeded.length === 1 ? '' : 's'} ${verb}.`);
+      setBulkConfirm(null);
+    } else {
+      const reason = failures[0].split(': ').slice(1).join(': ');
+      toast('error', `${succeeded.length} ${verb}; ${failures.length} failed. ${reason}`);
+      if (succeeded.length > 0) setBulkConfirm(null);
+    }
+    setBulkActionLoading(false);
   };
 
   const toolbar = (
@@ -489,13 +729,22 @@ export function InventoryPage() {
         title="Product Management"
         subtitle={`${filtered.length} of ${products.length} products`}
         actions={
-          <Button
-            variant="primary"
-            icon={<Plus className="w-4 h-4" />}
-            onClick={() => navigate('/inventory/products/new')}
-          >
-            Add Product
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {(role === 'admin' || role === 'inventory') && <Button
+              variant="secondary"
+              icon={<FileSpreadsheet className="w-4 h-4" />}
+              onClick={() => setImportPanelOpen((open) => !open)}
+            >
+              Import .xlsx
+            </Button>}
+            <Button
+              variant="primary"
+              icon={<Plus className="w-4 h-4" />}
+              onClick={() => navigate('/inventory/products/new')}
+            >
+              Add Product
+            </Button>
+          </div>
         }
       />
       <div className="flex justify-end mb-4">
@@ -564,16 +813,73 @@ export function InventoryPage() {
         </button>
       </div>
 
+      {tab === 'products' && importPanelOpen && (role === 'admin' || role === 'inventory') && (
+        <InventoryImportPanel
+          storeId={categoryStoreId || null}
+          categories={storeCategories}
+          products={products}
+          onCreateCategory={handleCreateImportCategory}
+          onImport={handleImportProduct}
+          onClose={() => setImportPanelOpen(false)}
+        />
+      )}
+
       {tab === 'products' && (
+        <>
+        {(role === 'admin' || role === 'inventory') && (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+            <span className="mr-auto text-sm font-medium text-blue-900" aria-live="polite">
+              {selectedProductIds.size} selected
+            </span>
+            <Button variant="secondary" size="sm" onClick={toggleVisibleSelection}>
+              {allVisibleSelected ? 'Deselect filtered' : 'Select filtered'}
+            </Button>
+            {(role === 'admin' || role === 'inventory') && selectedActiveProducts.length > 0 && (
+              <Button variant="secondary" size="sm" onClick={() => setBulkConfirm('archive')}>
+                Archive {selectedActiveProducts.length}
+              </Button>
+            )}
+            {(role === 'admin' || role === 'inventory') && selectedArchivedProducts.length > 0 && (
+              <Button variant="secondary" size="sm" onClick={() => setBulkConfirm('restore')}>
+                Restore {selectedArchivedProducts.length}
+              </Button>
+            )}
+            {role === 'admin' && (
+              <Button variant="danger" size="sm" onClick={() => setBulkConfirm('delete')}>
+                Delete {selectedProducts.length}
+              </Button>
+            )}
+            {selectedProductIds.size > 0 && <Button variant="ghost" size="sm" onClick={() => setSelectedProductIds(new Set())}>Clear</Button>}
+          </div>
+        )}
         <DataTable
           columns={columns}
           data={filtered}
           rowKey={(p) => p.id}
           onRowClick={(p) => navigate(`/inventory/products/${p.id}`)}
           toolbar={toolbar}
+          expandedRowId={adjustTarget?.id ?? null}
+          expandedRow={(product) => (
+            <StockAdjustmentModal
+              open
+              presentation="inline"
+              productId={product.id}
+              productName={product.name}
+              currentStock={product.currentStock}
+              unit={product.unit}
+              purchaseUnit={product.purchaseUnit}
+              conversionFactor={product.conversionFactor}
+              restockingOptions={product.restockingOptions}
+              sellingOptions={product.sellingOptions}
+              onClose={() => setAdjustTarget(null)}
+              onSubmit={handleAdjust}
+              onUpdateSuggestedPrice={(sellingPrice) => updateSellingPrice(product.id, sellingPrice, undefined, true)}
+            />
+          )}
           emptyTitle="No products found"
           emptyDescription="Try adjusting your filters or add a new product."
         />
+        </>
       )}
 
       {tab === 'log' && (
@@ -592,6 +898,21 @@ export function InventoryPage() {
         loading={deleting}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
+      />}
+
+      {(role === 'admin' || role === 'inventory') && <ConfirmDialog
+        open={bulkConfirm === 'archive' || bulkConfirm === 'restore' || (bulkConfirm === 'delete' && role === 'admin')}
+        title={bulkConfirm === 'delete' ? 'Delete selected products' : bulkConfirm === 'restore' ? 'Restore selected products' : 'Archive selected products'}
+        description={bulkConfirm === 'delete'
+          ? `Permanently delete ${selectedProducts.length} selected product${selectedProducts.length === 1 ? '' : 's'}? Products with sales history cannot be deleted and will remain unchanged.`
+          : bulkConfirm === 'restore'
+            ? `Restore ${selectedArchivedProducts.length} selected product${selectedArchivedProducts.length === 1 ? '' : 's'} to active inventory and make them available in POS?`
+            : `Archive ${selectedActiveProducts.length} selected product${selectedActiveProducts.length === 1 ? '' : 's'}? They will be removed from active inventory and POS while preserving sales history.`}
+        confirmLabel={bulkConfirm === 'delete' ? 'Delete selected' : bulkConfirm === 'restore' ? 'Restore selected' : 'Archive selected'}
+        danger={bulkConfirm === 'delete'}
+        loading={bulkActionLoading}
+        onConfirm={handleBulkAction}
+        onCancel={() => setBulkConfirm(null)}
       />}
 
       {(role === 'admin' || role === 'inventory') && <ConfirmDialog
@@ -618,21 +939,6 @@ export function InventoryPage() {
         }}
         onCancel={() => setStatusTarget(null)}
       />}
-
-      <StockAdjustmentModal
-        open={!!adjustTarget}
-        productId={adjustTarget?.id ?? ''}
-        productName={adjustTarget?.name ?? ''}
-        currentStock={adjustTarget?.currentStock ?? 0}
-        unit={adjustTarget?.unit}
-        purchaseUnit={adjustTarget?.purchaseUnit}
-        conversionFactor={adjustTarget?.conversionFactor}
-        restockingOptions={adjustTarget?.restockingOptions}
-        sellingOptions={adjustTarget?.sellingOptions}
-        onClose={() => setAdjustTarget(null)}
-        onSubmit={handleAdjust}
-        onUpdateSuggestedPrice={(sellingPrice) => updateSellingPrice(adjustTarget?.id ?? '', sellingPrice, undefined, true)}
-      />
 
     </div>
   );

@@ -108,7 +108,7 @@ export function receiptSnapshotFromSale(sale: Sale, store: ReceiptSnapshot['stor
       discountValue: sale.discountValue,
       discountCategory: sale.discountCategory,
       vatableSales: store.vatStatus === 'vat' && sale.discountCategory !== 'senior' && sale.discountCategory !== 'pwd'
-        ? Math.max(0, sale.subtotal - sale.discount)
+        ? Math.max(0, sale.subtotal - sale.discount - sale.tax)
         : 0,
       vatAmount: store.vatStatus === 'vat' && sale.discountCategory !== 'senior' && sale.discountCategory !== 'pwd'
         ? sale.tax

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
@@ -25,6 +25,8 @@ interface DataTableProps<T> {
   onRowClick?: (row: T) => void;
   pageSize?: number;
   toolbar?: React.ReactNode;
+  expandedRowId?: string | null;
+  expandedRow?: (row: T) => React.ReactNode;
 }
 
 export function DataTable<T>({
@@ -37,6 +39,8 @@ export function DataTable<T>({
   onRowClick,
   pageSize = 15,
   toolbar,
+  expandedRowId,
+  expandedRow,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -124,35 +128,41 @@ export function DataTable<T>({
               </tr>
             ) : (
               paged.map((row) => (
-                <tr
-                  key={rowKey(row)}
-                  onClick={() => onRowClick?.(row)}
-                  onKeyDown={(event) => {
-                    if (!onRowClick || (event.target instanceof HTMLElement && event.target.closest('button,a,input,select,textarea'))) return;
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      onRowClick(row);
-                    }
-                  }}
-                  tabIndex={onRowClick ? 0 : undefined}
-                  className={cn(
-                    'transition-colors hover:bg-[var(--muted)]/60',
-                    onRowClick && 'cursor-pointer focus-visible:bg-[var(--muted)] focus-visible:outline-none',
+                <Fragment key={rowKey(row)}>
+                  <tr
+                    onClick={() => onRowClick?.(row)}
+                    onKeyDown={(event) => {
+                      if (!onRowClick || (event.target instanceof HTMLElement && event.target.closest('button,a,input,select,textarea'))) return;
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onRowClick(row);
+                      }
+                    }}
+                    tabIndex={onRowClick ? 0 : undefined}
+                    className={cn(
+                      'transition-colors hover:bg-[var(--muted)]/60',
+                      onRowClick && 'cursor-pointer focus-visible:bg-[var(--muted)] focus-visible:outline-none',
+                    )}
+                  >
+                    {columns.map((column) => (
+                      <td
+                        key={column.key}
+                        className={cn(
+                          'px-4 py-3 text-[var(--foreground)]',
+                          column.align === 'right' && 'text-right',
+                          column.align === 'center' && 'text-center',
+                        )}
+                      >
+                        {column.accessor(row)}
+                      </td>
+                    ))}
+                  </tr>
+                  {expandedRow && expandedRowId === rowKey(row) && (
+                    <tr>
+                      <td colSpan={columns.length} className="p-0">{expandedRow(row)}</td>
+                    </tr>
                   )}
-                >
-                  {columns.map((column) => (
-                    <td
-                      key={column.key}
-                      className={cn(
-                        'px-4 py-3 text-[var(--foreground)]',
-                        column.align === 'right' && 'text-right',
-                        column.align === 'center' && 'text-center',
-                      )}
-                    >
-                      {column.accessor(row)}
-                    </td>
-                  ))}
-                </tr>
+                </Fragment>
               ))
             )}
           </tbody>

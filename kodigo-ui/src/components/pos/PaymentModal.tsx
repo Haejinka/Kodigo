@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ComponentType } from 'react';
 import { CheckCircle, X, User, CreditCard, Smartphone, Banknote, Landmark, Eye, Printer } from 'lucide-react';
 import { formatCurrency, formatDateTime, formatErrorMessage } from '@/lib/utils';
@@ -28,6 +28,7 @@ interface PaymentModalProps {
 }
 
 type Step = 'payment' | 'confirmed';
+const roundCurrency = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 
 const paymentMethods: Array<{ value: PaymentMethod; label: string; icon: ComponentType<{ className?: string }> }> = [
   { value: 'cash', label: 'Cash', icon: Banknote },
@@ -39,13 +40,10 @@ const paymentMethods: Array<{ value: PaymentMethod; label: string; icon: Compone
 export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const {
     items,
-    total,
     subtotal,
-    taxAmount,
     taxRate,
-    discountAmount,
-    discountType,
-    discountValue,
+    vatStatus,
+    setDiscount,
     clearCart,
   } = useCartStore();
   const { user, profile, stores } = useAuthStore();
@@ -53,7 +51,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const [cashInput, setCashInput] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [paymentReference, setPaymentReference] = useState('');
-  const [discountCategory, setDiscountCategory] = useState<'regular' | 'senior' | 'pwd' | 'other'>('regular');
+  const [salePriceDraft, setSalePriceDraft] = useState('');
   const [step, setStep] = useState<Step>('payment');
   const [processing, setProcessing] = useState(false);
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
@@ -61,20 +59,32 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const orderSubtotal = subtotal();
-  const orderDiscount = discountAmount();
   const orderTaxRate = taxRate();
-  const isSpecialDiscount = discountCategory === 'senior' || discountCategory === 'pwd';
-  const orderTax = isSpecialDiscount ? 0 : taxAmount();
-  const orderTotal = isSpecialDiscount
-    ? Math.max(0, orderSubtotal - orderDiscount)
-    : total();
+  const isVatRegistered = vatStatus() === 'vat';
+  const parsedSalePrice = salePriceDraft.trim() === '' ? orderSubtotal : Number(salePriceDraft);
+  const finalSalePrice = Number.isFinite(parsedSalePrice)
+    ? Math.min(orderSubtotal, Math.max(0, parsedSalePrice))
+    : orderSubtotal;
+  const salePriceInputValid = salePriceDraft.trim() === '' || (Number.isFinite(Number(salePriceDraft)) && Number(salePriceDraft) >= 0);
+  const orderDiscount = roundCurrency(orderSubtotal - finalSalePrice);
+  const discountPercent = orderSubtotal > 0 ? orderDiscount / orderSubtotal * 100 : 0;
+  const orderTax = isVatRegistered && orderTaxRate > 0
+    ? roundCurrency(finalSalePrice * orderTaxRate / (100 + orderTaxRate))
+    : 0;
+  const orderTotal = roundCurrency(finalSalePrice);
+
+  useEffect(() => {
+    if (!open) return;
+    const cart = useCartStore.getState();
+    setSalePriceDraft(Math.max(0, cart.subtotal() - cart.discountAmount()).toFixed(2));
+  }, [open]);
 
   const cashAmount = parseFloat(cashInput) || 0;
   const isCash = paymentMethod === 'cash';
   const tendered = isCash ? cashAmount : orderTotal;
   const change = isCash ? Math.max(0, cashAmount - orderTotal) : 0;
   const stockIssue = items.find((i) => i.quantity > getAvailableSellingUnits(i.product, i.sellingOption));
-  const canConfirm = items.length > 0 && (isCash ? cashAmount >= orderTotal : true) && !stockIssue;
+  const canConfirm = items.length > 0 && salePriceInputValid && (isCash ? cashAmount >= orderTotal : true) && !stockIssue;
 
   const quickAmounts = [
     Math.ceil(orderTotal / 50) * 50,
@@ -150,15 +160,15 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       tax: orderTax,
       taxRate: orderTaxRate,
       discount: orderDiscount,
-      discountType,
-      discountValue,
+      discountType: 'amount',
+      discountValue: orderDiscount,
       total: orderTotal,
       cashReceived: tendered,
       change,
       paymentMethod,
       paymentReference: paymentReference.trim() || undefined,
       terminalIdentifier: stores.find((store) => store.id === storeId)?.terminalIdentifier,
-      discountCategory,
+      discountCategory: orderDiscount > 0 ? 'other' : 'regular',
       cashierId: user?.id || null,
       cashierName: profile?.name || user?.user_metadata?.name || user?.email || 'Unknown Cashier',
       createdAt: new Date().toISOString(),
@@ -246,7 +256,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     setCashInput('');
     setPaymentMethod('cash');
     setPaymentReference('');
-    setDiscountCategory('regular');
+    setSalePriceDraft('');
     setStep('payment');
     setCompletedSale(null);
     setReceiptSnapshot(null);
@@ -285,11 +295,11 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
               ))}
               <div className="pt-2 border-t border-gray-200 space-y-1">
                 <div className="flex justify-between text-xs text-gray-500">
-                  <span>Discount</span>
+                  <span>Discount{orderDiscount > 0 ? ` (${discountPercent.toFixed(1)}%)` : ''}</span>
                   <span className="font-mono">-{formatCurrency(orderDiscount)}</span>
                 </div>
                 <div className="flex justify-between text-xs text-gray-500">
-                  <span>{isSpecialDiscount ? 'VAT-exempt sale' : `Tax (${orderTaxRate}%)`}</span>
+                  <span>{isVatRegistered ? `VAT included (${orderTaxRate}%)` : 'Tax'}</span>
                   <span className="font-mono">{formatCurrency(orderTax)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-gray-900">
@@ -378,19 +388,45 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
             )}
 
             <div className="rounded-xl border border-gray-200 p-3">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Discount category</p>
-              <div>
-                <select
-                  value={discountCategory}
-                  onChange={(event) => setDiscountCategory(event.target.value as typeof discountCategory)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                >
-                  <option value="regular">Regular</option>
-                  <option value="senior">Senior Citizen</option>
-                  <option value="pwd">PWD</option>
-                  <option value="other">Other discount</option>
-                </select>
+              <label htmlFor="discounted-sale-price" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Customer price{isVatRegistered ? ' (VAT included)' : ''}</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-400">PHP</span>
+                <input
+                  id="discounted-sale-price"
+                  type="text"
+                  inputMode="decimal"
+                  value={salePriceDraft}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setSalePriceDraft(value);
+                    if (value.trim() === '') {
+                      setDiscount('amount', 0);
+                      return;
+                    }
+                    const enteredPrice = Number(value);
+                    if (Number.isFinite(enteredPrice) && enteredPrice >= 0) {
+                      setDiscount('amount', roundCurrency(orderSubtotal - Math.min(orderSubtotal, enteredPrice)));
+                    }
+                  }}
+                  onBlur={() => {
+                    const enteredPrice = Number(salePriceDraft);
+                    const safePrice = salePriceDraft.trim() === '' || !Number.isFinite(enteredPrice)
+                      ? orderSubtotal
+                      : Math.min(orderSubtotal, Math.max(0, enteredPrice));
+                    setSalePriceDraft(safePrice.toFixed(2));
+                    setDiscount('amount', roundCurrency(orderSubtotal - safePrice));
+                  }}
+                  className="w-full rounded-lg border border-gray-200 py-2.5 pl-12 pr-3 text-base font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-describedby="discounted-sale-price-hint"
+                />
               </div>
+              <p id="discounted-sale-price-hint" className="mt-2 text-xs text-gray-500">
+                {!salePriceInputValid
+                  ? 'Enter a valid price of 0 or more.'
+                  : orderDiscount > 0
+                  ? `Discount: ${formatCurrency(orderDiscount)} (${discountPercent.toFixed(1)}%). This sale will be marked as discounted.`
+                  : 'Enter the price the customer will pay for these items; the discount is calculated automatically.'}
+              </p>
             </div>
 
             <Button
