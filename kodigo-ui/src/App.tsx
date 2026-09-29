@@ -4,6 +4,7 @@ import { ToastProvider } from '@/components/shared/Toast';
 import { AppShell } from '@/components/layout/AppShell';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { useDisplayScaleStore } from '@/stores/displayScaleStore';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { syncPendingMutations, syncPendingSales } from '@/lib/offline-sync';
 import { installGlobalErrorLogging } from '@/lib/error-logging';
@@ -318,10 +319,16 @@ function AppRoutes() {
 
 function App() {
   const initializeTheme = useThemeStore((s) => s.initializeTheme);
+  const initializeDisplayScale = useDisplayScaleStore((s) => s.initializeForUser);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
 
   useEffect(() => {
     initializeTheme();
   }, [initializeTheme]);
+
+  useEffect(() => {
+    initializeDisplayScale(userId);
+  }, [initializeDisplayScale, userId]);
 
   return (
     <BrowserRouter>

@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Bell, Check, ChevronDown, ExternalLink, Menu, Moon, Store as StoreIcon, Sun, X } from 'lucide-react';
+import { Bell, Check, ChevronDown, ExternalLink, Menu, Moon, Monitor, Store as StoreIcon, Sun, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn, formatDateTime } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import { useAlertStore } from '@/stores/alertStore';
 import { useCartStore } from '@/stores/cartStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { useDisplayScaleStore, type DisplayScale } from '@/stores/displayScaleStore';
 import type { AppNotification } from '@/types';
 import { MobileSidebarDrawer } from './Sidebar';
 import { useActiveBranding } from '@/lib/branding';
@@ -96,6 +97,8 @@ export function Topbar() {
   const clearCart = useCartStore(s => s.clearCart);
   const mode = useThemeStore((s) => s.mode);
   const toggleMode = useThemeStore((s) => s.toggleMode);
+  const displayScale = useDisplayScaleStore((s) => s.scale);
+  const setDisplayScale = useDisplayScaleStore((s) => s.setScale);
   const [storeOpen, setStoreOpen] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -310,10 +313,38 @@ export function Topbar() {
           {profileOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
-              <div role="menu" className="absolute right-0 top-12 z-20 w-52 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-xl">
+              <div role="menu" className="absolute right-0 top-12 z-20 w-64 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-xl">
                 <div className="border-b border-[var(--border)] px-4 py-3">
                   <p className="truncate text-sm font-semibold text-[var(--foreground)]">{displayName}</p>
                   <p className="text-xs capitalize text-[var(--muted-foreground)]">{String(displayRole).replace('_', ' ')}</p>
+                </div>
+                <div className="border-b border-[var(--border)] px-4 py-3">
+                  <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-[var(--muted-foreground)]">
+                    <Monitor className="h-3.5 w-3.5" /> Screen size
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 rounded-lg bg-[var(--muted)] p-1" role="group" aria-label="Screen size">
+                    {([
+                      { value: 90, label: 'Compact' },
+                      { value: 100, label: 'Default' },
+                      { value: 110, label: 'Large' },
+                    ] as const).map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-pressed={displayScale === option.value}
+                        onClick={() => setDisplayScale(option.value as DisplayScale)}
+                        className={cn(
+                          'rounded-md px-1 py-1.5 text-[10px] font-medium transition-colors',
+                          displayScale === option.value
+                            ? 'bg-[var(--card)] text-[var(--primary)] shadow-sm'
+                            : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]',
+                        )}
+                      >
+                        {option.label}
+                        <span className="mt-0.5 block font-mono">{option.value}%</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <button
                   onClick={() => {

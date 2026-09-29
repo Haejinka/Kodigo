@@ -27,6 +27,7 @@ interface DataTableProps<T> {
   toolbar?: React.ReactNode;
   expandedRowId?: string | null;
   expandedRow?: (row: T) => React.ReactNode;
+  density?: 'comfortable' | 'compact';
 }
 
 export function DataTable<T>({
@@ -41,7 +42,9 @@ export function DataTable<T>({
   toolbar,
   expandedRowId,
   expandedRow,
+  density = 'comfortable',
 }: DataTableProps<T>) {
+  const compact = density === 'compact';
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
@@ -73,10 +76,10 @@ export function DataTable<T>({
 
   return (
     <Card className="overflow-hidden">
-      {toolbar && <div className="border-b border-[var(--border)] bg-[var(--muted)]/40 px-4 py-3">{toolbar}</div>}
+      {toolbar && <div className={cn('border-b border-[var(--border)] bg-[var(--muted)]/40', compact ? 'px-3 py-2' : 'px-4 py-3')}>{toolbar}</div>}
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className={cn('w-full', compact ? 'table-fixed text-xs' : 'text-sm')}>
           <thead>
             <tr className="border-b border-[var(--border)] bg-[var(--muted)]/60">
               {columns.map((column) => (
@@ -85,7 +88,7 @@ export function DataTable<T>({
                   scope="col"
                   aria-sort={column.sortable && sortKey === column.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : column.sortable ? 'none' : undefined}
                   className={cn(
-                    'px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)] whitespace-nowrap',
+                    compact ? 'px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--muted-foreground)] whitespace-nowrap' : 'px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted-foreground)] whitespace-nowrap',
                     column.align === 'right' && 'text-right',
                     column.align === 'center' && 'text-center',
                     column.width,
@@ -114,7 +117,7 @@ export function DataTable<T>({
               Array.from({ length: 5 }).map((_, index) => (
                 <tr key={index}>
                   {columns.map((column) => (
-                    <td key={column.key} className="px-4 py-3">
+                    <td key={column.key} className={compact ? 'px-2 py-1.5' : 'px-4 py-3'}>
                       <Skeleton className="h-4 w-3/4" />
                     </td>
                   ))}
@@ -148,7 +151,7 @@ export function DataTable<T>({
                       <td
                         key={column.key}
                         className={cn(
-                          'px-4 py-3 text-[var(--foreground)]',
+                          compact ? 'px-2 py-1.5 text-xs text-[var(--foreground)]' : 'px-4 py-3 text-sm text-[var(--foreground)]',
                           column.align === 'right' && 'text-right',
                           column.align === 'center' && 'text-center',
                         )}
@@ -170,7 +173,7 @@ export function DataTable<T>({
       </div>
 
       {!loading && sorted.length > pageSize && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] px-4 py-3">
+        <div className={cn('flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)]', compact ? 'px-3 py-2' : 'px-4 py-3')}>
           <p className="text-xs text-[var(--muted-foreground)]">
             {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, sorted.length)} of {sorted.length}
           </p>

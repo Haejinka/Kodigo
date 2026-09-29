@@ -371,7 +371,7 @@ export function InventoryPage() {
     ...((role === 'admin' || role === 'inventory') ? [{
       key: 'select',
       header: '',
-      width: 'w-10',
+      width: 'w-9',
       align: 'center' as const,
       accessor: (p: Product) => (
         <input
@@ -386,55 +386,50 @@ export function InventoryPage() {
       ),
     }] : []),
     {
-      key: 'image',
-      header: '',
-      accessor: (p) => (
-        <div className="w-10 h-10 rounded-lg border border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center shrink-0">
-          {p.imageUrl ? (
-            <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-lg select-none">📦</span>
-          )}
-        </div>
-      ),
-    },
-    {
       key: 'name',
       header: 'Product',
+      width: 'w-[310px]',
       accessor: (p) => (
-        <div>
-          <div className="flex items-center gap-2">
-            <p className="font-medium text-gray-900">{p.name}</p>
-            {p.isActive === false && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">Archived</span>}
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-100 bg-gray-50">
+            {p.imageUrl ? <img src={p.imageUrl} alt="" className="h-full w-full object-cover" /> : <span className="text-sm select-none">📦</span>}
           </div>
-          <p className="text-xs text-gray-400 font-mono">{p.sku}</p>
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <p className="truncate font-medium leading-tight text-gray-900" title={p.name}>{p.name}</p>
+              {p.isActive === false && <span className="shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">Archived</span>}
+            </div>
+            <p className="truncate whitespace-nowrap text-[10px] leading-tight text-gray-400 font-mono" title={p.sku}>{p.sku}</p>
+          </div>
         </div>
       ),
     },
     ...(activeStoreId === 'all' ? [{
       key: 'store',
       header: 'Store',
+      width: 'w-[145px]',
       accessor: (p: Product) => (
-        <span className="text-sm font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+        <span className="block truncate rounded bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700" title={p.storeId === 'combined' ? 'Multiple Stores' : (stores.find(s => s.id === p.storeId)?.name || 'Unknown')}>
           {p.storeId === 'combined' ? 'Multiple Stores' : (stores.find(s => s.id === p.storeId)?.name || 'Unknown')}
         </span>
       ),
     }] : []),
-    { key: 'category', header: 'Category', accessor: (p) => <span className="text-gray-600">{p.categoryName}</span> },
+    { key: 'category', header: 'Category', width: 'w-[145px]', accessor: (p) => <span className="block truncate text-gray-600" title={p.categoryName}>{p.categoryName}</span> },
     {
       key: 'stock',
       header: 'Base Stock',
+      width: 'w-[170px]',
       accessor: (p) => (
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
+        <div className="space-y-0.5 leading-tight">
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
             <span className="font-mono font-semibold text-gray-900">{p.currentStock}</span>
             <span className="text-xs text-gray-500">{p.unit}s</span>
             <StockStatusBadge product={p} className="hidden sm:inline-flex" />
           </div>
           {getProductSellingOptions(p).filter(isBulkSellingOption).map((option) => (
-            <div key={option.id} className="flex items-center gap-2">
-              <span className="text-xs text-gray-500 min-w-20 truncate">{getSellingOptionLabel(option)}</span>
-              <span className="font-mono text-xs font-semibold text-blue-700">{getProductOptionStockLabel(p, option)} available</span>
+            <div key={option.id} className="flex items-center gap-1">
+              <span className="max-w-16 truncate text-[10px] text-gray-500" title={getSellingOptionLabel(option)}>{getSellingOptionLabel(option)}</span>
+              <span className="font-mono text-[10px] font-semibold text-blue-700">{getProductOptionStockLabel(p, option)} avail.</span>
             </div>
           ))}
         </div>
@@ -443,6 +438,7 @@ export function InventoryPage() {
     {
       key: 'estimatedRestockDate',
       header: 'Estimated Restock Date',
+      width: 'w-[195px]',
       accessor: (p) => {
         if (consumptionHistoryState === 'loading' || consumptionHistoryState === 'idle') {
           return <span className="text-xs text-gray-400">Calculating…</span>;
@@ -472,14 +468,15 @@ export function InventoryPage() {
           : <span className="whitespace-nowrap font-mono tabular-nums text-gray-700">{estimatedDate.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</span>;
       },
     },
-    { key: 'minStock', header: 'Low Stock', accessor: (p) => <span className="font-mono text-gray-500">{getDefaultSellingOption(p).lowStockThreshold}</span>, align: 'center' },
+    { key: 'minStock', header: 'Low Stock', width: 'w-[75px]', accessor: (p) => <span className="font-mono text-gray-500">{getDefaultSellingOption(p).lowStockThreshold}</span>, align: 'center' },
     {
       key: 'sellingPrice',
       header: 'Prices',
+      width: 'w-[100px]',
       accessor: (p) => (
-        <div className="space-y-1 text-right">
+        <div className="space-y-0.5 text-right leading-tight">
           {getProductSellingOptions(p).map((option) => (
-            <div key={option.id} className="font-mono font-medium text-gray-900">
+            <div key={option.id} className="truncate font-mono font-medium text-gray-900" title={formatCurrency(option.sellingPrice)}>
               {formatCurrency(option.sellingPrice)}
             </div>
           ))}
@@ -490,14 +487,16 @@ export function InventoryPage() {
     {
       key: 'costPrice',
       header: 'Purchase Price',
+      width: 'w-[125px]',
       accessor: (p) => <span className="font-mono text-gray-500">{formatCurrency(p.costPrice)}</span>,
       align: 'right',
     },
     {
       key: 'actions',
       header: '',
+      width: 'w-[140px]',
       accessor: (p) => (
-        <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1 justify-end whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
           {p.storeId !== 'combined' && (
             <>
               <button
@@ -906,6 +905,7 @@ export function InventoryPage() {
         <DataTable
           columns={columns}
           data={filtered}
+          density="compact"
           rowKey={(p) => p.id}
           onRowClick={(p) => navigate(`/inventory/products/${p.id}`)}
           toolbar={toolbar}
