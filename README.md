@@ -205,8 +205,6 @@ The root `.env` is ignored and currently serves only as a local configuration fi
 For project, instructor, maintainer, or contributor questions, contact:
 
 - [vergaraevon@gmail.com](mailto:vergaraevon@gmail.com)
-- [homerhambre@gmail.com](mailto:homerhambre@gmail.com)
-- [jasa.gatdula.swu@phinmaed.com](mailto:jasa.gatdula.swu@phinmaed.com)
 
 Repository: [github.com/Haejinka/Kodigo](https://github.com/Haejinka/Kodigo)
 
