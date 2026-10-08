@@ -907,7 +907,6 @@ export function InventoryPage() {
           data={filtered}
           density="compact"
           rowKey={(p) => p.id}
-          onRowClick={(p) => navigate(`/inventory/products/${p.id}`)}
           toolbar={toolbar}
           expandedRowId={adjustTarget?.id ?? null}
           expandedRow={(product) => (
