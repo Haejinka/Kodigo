@@ -342,6 +342,18 @@ function App() {
     initializeDisplayScale(userId);
   }, [initializeDisplayScale, userId]);
 
+  useEffect(() => {
+    const blurNumberInputOnWheel = () => {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLInputElement && activeElement.type === 'number') {
+        activeElement.blur();
+      }
+    };
+
+    document.addEventListener('wheel', blurNumberInputOnWheel, { capture: true, passive: true });
+    return () => document.removeEventListener('wheel', blurNumberInputOnWheel, true);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>

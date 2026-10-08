@@ -776,7 +776,7 @@ export function InventoryPage() {
               icon={<FileSpreadsheet className="w-4 h-4" />}
               onClick={() => setImportPanelOpen((open) => !open)}
             >
-              Import .xlsx
+              Bulk add
             </Button>}
             <Button
               variant="primary"
