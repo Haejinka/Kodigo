@@ -228,8 +228,12 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
 
   const handleCreateShoppingList = () => {
     if (selectedItems.length === 0) return;
+    const selectedStoreNames = Array.from(new Set(selectedItems.map((item) => (
+      stores.find((store) => store.id === item.storeId)?.name || 'Unknown'
+    )));
     const lines = [
       'SHOPPING LIST',
+      `${selectedStoreNames.length === 1 ? 'Store' : 'Stores'}: ${selectedStoreNames.join(', ')}`,
       `Created: ${new Date().toLocaleDateString('en-PH')}`,
       `Items: ${selectedItems.length}`,
       '',
@@ -239,7 +243,6 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
           `${index + 1}. ${item.productName}`,
           `   Buy: ${calculation.quantity} ${calculation.option.label}${calculation.quantity === 1 ? '' : 's'} (${calculation.baseUnits} ${item.unit}${calculation.baseUnits === 1 ? '' : 's'})`,
           `   Supplier: ${item.suggestedSupplierName}`,
-          `   Store: ${stores.find((store) => store.id === item.storeId)?.name || 'Unknown'}`,
           `   Priority: ${item.urgency}`,
           `   ${calculation.isEstimated ? 'Estimated cost' : 'Purchase cost'}: ${formatCurrency(calculation.totalCost)}`,
           '',
