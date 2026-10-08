@@ -230,7 +230,7 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
     if (selectedItems.length === 0) return;
     const selectedStoreNames = Array.from(new Set(selectedItems.map((item) => (
       stores.find((store) => store.id === item.storeId)?.name || 'Unknown'
-    )));
+    ))));
     const lines = [
       'SHOPPING LIST',
       `${selectedStoreNames.length === 1 ? 'Store' : 'Stores'}: ${selectedStoreNames.join(', ')}`,
