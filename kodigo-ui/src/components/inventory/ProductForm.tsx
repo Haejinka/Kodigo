@@ -825,6 +825,8 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
               setForm((prev) => ({ ...prev, currentStock: Math.max(0, purchaseQuantity * packageSize) }));
               setStartingStockAutoFill(true);
             }} className="mt-1 text-xs font-semibold text-blue-700 hover:text-blue-900">Auto-fill from purchase</button>}</Field><Field id="product-low-stock" label={`Low stock alert (${baseUnit}s)`}><input id="product-low-stock" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.minStockLevel || ''} onChange={(event) => set('minStockLevel', Number(event.target.value) || 0)} placeholder="e.g. 24" /></Field><Field id="product-safety-stock" label={`Safety stock (${baseUnit}s)`}><input id="product-safety-stock" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.safetyStock || ''} onChange={(event) => set('safetyStock', Number(event.target.value) || 0)} /></Field><Field id="product-reorder-level" label={`Reorder level (${baseUnit}s)`}><input id="product-reorder-level" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.reorderLevel || ''} onChange={(event) => {
+              set('reorderLevel', Number(event.target.value) || 0);
+            }} /></Field><Field id="product-lead-time" label="Lead time (days)"><input id="product-lead-time" type="number" min={1} step={1} className={`${inputCls} font-mono`} value={leadTimeDraft ?? String(form.leadTimeDays)} onChange={(event) => {
               const normalized = event.target.value.replace(/^0+(?=\d)/, '');
               setLeadTimeDraft(normalized);
               set('leadTimeDays', normalized === '' ? 1 : Number(normalized) || 1);
