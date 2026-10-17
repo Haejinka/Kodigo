@@ -31,6 +31,9 @@ export function SupplierDetailPage() {
   const supplier = suppliers.find((s) => s.id === id);
   const supplierProducts = products.filter((p) => p.supplierIds?.includes(id ?? '') || p.supplierId === id);
   const supplierPOs = purchaseOrders.filter((po) => po.supplierId === id);
+  const totalSpent = supplierPOs
+    .filter((po) => po.status === 'received')
+    .reduce((sum, po) => sum + po.total, 0);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -167,6 +170,11 @@ export function SupplierDetailPage() {
                 <p className="text-xs text-gray-500 mt-0.5">On-Time Rate</p>
               </div>
             </div>
+            <div className="mt-4 border-t border-gray-100 pt-3">
+              <p className="text-xs text-gray-500">Total spent</p>
+              <p className="text-2xl font-bold font-mono text-gray-900">{formatCurrency(totalSpent)}</p>
+              <p className="text-xs text-gray-400 mt-0.5">From received purchase orders</p>
+            </div>
             <div className="mt-3">
               <Badge variant={onTimePct >= 90 ? 'success' : onTimePct >= 75 ? 'warning' : 'danger'}>
                 {onTimePct >= 90 ? 'Excellent' : onTimePct >= 75 ? 'Good' : 'Needs Improvement'}
@@ -259,6 +267,27 @@ export function SupplierDetailPage() {
                         {po.status === 'draft' && <Badge variant="default">Draft</Badge>}
                       </div>
                     </div>
+
+                    {po.items.length > 0 && (
+                      <div className="mt-3 overflow-hidden rounded-lg border border-gray-100">
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-3 bg-gray-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                          <span>Product</span>
+                          <span className="text-right">Qty</span>
+                          <span className="text-right">Unit cost</span>
+                          <span className="text-right">Amount</span>
+                        </div>
+                        <div className="divide-y divide-gray-100">
+                          {po.items.map((item, index) => (
+                            <div key={`${po.id}-${item.productId}-${index}`} className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-3 px-3 py-2 text-xs">
+                              <span className="min-w-0 truncate font-medium text-gray-800">{item.productName}</span>
+                              <span className="text-right font-mono text-gray-600">{item.quantity}</span>
+                              <span className="text-right font-mono text-gray-600">{formatCurrency(item.unitCost)}</span>
+                              <span className="text-right font-mono font-semibold text-gray-800">{formatCurrency(item.quantity * item.unitCost)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {po.status === 'received' && po.receivedAt && (
                       <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">

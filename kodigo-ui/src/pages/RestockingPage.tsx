@@ -122,6 +122,7 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
   const [restockAlertDismissed, setRestockAlertDismissed] = useState(false);
   const [restockSearch, setRestockSearch] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState<'all' | RestockItem['urgency']>('all');
+  const [stockFilter, setStockFilter] = useState<'all' | 'out-of-stock'>('all');
   const [now, setNow] = useState(0);
   const [consumptionHistoryLoading, setConsumptionHistoryLoading] = useState(false);
   const [consumptionHistoryFailed, setConsumptionHistoryFailed] = useState(false);
@@ -131,7 +132,9 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
     const matchesSearch = !query
       || item.productName.toLocaleLowerCase().includes(query)
       || item.suggestedSupplierName.toLocaleLowerCase().includes(query);
-    return matchesSearch && (urgencyFilter === 'all' || item.urgency === urgencyFilter);
+    const matchesUrgency = urgencyFilter === 'all' || item.urgency === urgencyFilter;
+    const matchesStock = stockFilter === 'all' || item.currentStock <= 0;
+    return matchesSearch && matchesUrgency && matchesStock;
   });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [restockDrafts, setRestockDrafts] = useState<Record<string, RestockDraft>>({});
@@ -506,6 +509,10 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
 
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
             <SearchInput value={restockSearch} onChange={setRestockSearch} placeholder="Search products or suppliers…" className="w-full sm:max-w-sm" debounceMs={0} />
+            <select aria-label="Filter restocking by stock" value={stockFilter} onChange={(event) => setStockFilter(event.target.value as typeof stockFilter)} className="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
+              <option value="all">All stock levels</option>
+              <option value="out-of-stock">Out of stock</option>
+            </select>
             <select aria-label="Filter restocking by priority" value={urgencyFilter} onChange={(event) => setUrgencyFilter(event.target.value as typeof urgencyFilter)} className="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
               <option value="all">All priorities</option>
               <option value="high">High priority</option>
