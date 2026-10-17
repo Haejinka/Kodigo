@@ -22,6 +22,15 @@ function ScoreRing({ score, label, formula }: { score: number; label: string; fo
   );
 }
 
+function toLocalDateKey(dateValue: string): string {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function SupplierDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -31,9 +40,15 @@ export function SupplierDetailPage() {
   const supplier = suppliers.find((s) => s.id === id);
   const supplierProducts = products.filter((p) => p.supplierIds?.includes(id ?? '') || p.supplierId === id);
   const supplierPOs = purchaseOrders.filter((po) => po.supplierId === id);
-  const totalSpent = supplierPOs
-    .filter((po) => po.status === 'received')
-    .reduce((sum, po) => sum + po.total, 0);
+  const [spendStartDate, setSpendStartDate] = useState('');
+  const [spendEndDate, setSpendEndDate] = useState('');
+  const invalidSpendDateRange = Boolean(spendStartDate && spendEndDate && spendStartDate > spendEndDate);
+  const totalSpent = supplierPOs.reduce((sum, po) => {
+    if (po.status !== 'received') return sum;
+    const spendDate = toLocalDateKey(po.receivedAt || po.createdAt);
+    if (!spendDate || (spendStartDate && spendDate < spendStartDate) || (spendEndDate && spendDate > spendEndDate)) return sum;
+    return sum + po.total;
+  }, 0);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -171,9 +186,44 @@ export function SupplierDetailPage() {
               </div>
             </div>
             <div className="mt-4 border-t border-gray-100 pt-3">
-              <p className="text-xs text-gray-500">Total spent</p>
-              <p className="text-2xl font-bold font-mono text-gray-900">{formatCurrency(totalSpent)}</p>
-              <p className="text-xs text-gray-400 mt-0.5">From received purchase orders</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-gray-500">Total spent</p>
+                {(spendStartDate || spendEndDate) && (
+                  <button
+                    type="button"
+                    onClick={() => { setSpendStartDate(''); setSpendEndDate(''); }}
+                    className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                  >
+                    Clear dates
+                  </button>
+                )}
+              </div>
+              <p className="text-2xl font-bold font-mono text-gray-900">{invalidSpendDateRange ? '—' : formatCurrency(totalSpent)}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <label className="text-xs text-gray-500">
+                  From
+                  <input
+                    type="date"
+                    value={spendStartDate}
+                    max={spendEndDate || undefined}
+                    onChange={(event) => setSpendStartDate(event.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+                <label className="text-xs text-gray-500">
+                  To
+                  <input
+                    type="date"
+                    value={spendEndDate}
+                    min={spendStartDate || undefined}
+                    onChange={(event) => setSpendEndDate(event.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+              </div>
+              <p className={`mt-1.5 text-xs ${invalidSpendDateRange ? 'text-red-600' : 'text-gray-400'}`}>
+                {invalidSpendDateRange ? 'The start date must be on or before the end date.' : 'Received orders only; uses the receipt date when available.'}
+              </p>
             </div>
             <div className="mt-3">
               <Badge variant={onTimePct >= 90 ? 'success' : onTimePct >= 75 ? 'warning' : 'danger'}>
