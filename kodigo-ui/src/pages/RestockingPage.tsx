@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { ShoppingCart, ClipboardList, RefreshCw, AlertTriangle, PackageCheck } from 'lucide-react';
+import { ShoppingCart, ClipboardList, RefreshCw, AlertTriangle, PackageCheck, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
 import { Badge } from '@/components/shared/Badge';
@@ -118,6 +118,7 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
   const { createPurchaseOrder, recalculatePriceScores } = useSupplierStore();
   const { stores, activeStoreId } = useAuthStore();
   const [consumptionHistory, setConsumptionHistory] = useState<Map<string, { unitsConsumed: number; trackingStartedAt: string }>>(new Map());
+  const [restockAlertDismissed, setRestockAlertDismissed] = useState(false);
   const [now, setNow] = useState(0);
   const [consumptionHistoryLoading, setConsumptionHistoryLoading] = useState(false);
   const [consumptionHistoryFailed, setConsumptionHistoryFailed] = useState(false);
@@ -445,9 +446,9 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
       ) : (
         <>
           {/* Alert banner */}
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 flex items-start gap-3">
+          {!restockAlertDismissed && <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 flex items-start gap-3">
             <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-amber-800">
                 {items.filter((i) => i.urgency === 'high').length} item{items.filter((i) => i.urgency === 'high').length !== 1 ? 's' : ''} need immediate restocking
               </p>
@@ -457,7 +458,10 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
                   : 'Uses recorded sales and stock losses since inventory tracking began, plus supplier lead time and stock buffers. Estimated costs use current unit cost and round up to full supplier packages.'}
               </p>
             </div>
-          </div>
+            <button type="button" onClick={() => setRestockAlertDismissed(true)} aria-label="Dismiss restocking notice" className="shrink-0 rounded-md p-1 text-amber-700 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          </div>}
 
           {/* Toolbar */}
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">
