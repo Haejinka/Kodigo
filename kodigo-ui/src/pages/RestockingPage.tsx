@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { ShoppingCart, ClipboardList, RefreshCw, AlertTriangle, PackageCheck, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
+import { SearchInput } from '@/components/shared/SearchInput';
 import { Badge } from '@/components/shared/Badge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -119,10 +120,19 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
   const { stores, activeStoreId } = useAuthStore();
   const [consumptionHistory, setConsumptionHistory] = useState<Map<string, { unitsConsumed: number; trackingStartedAt: string }>>(new Map());
   const [restockAlertDismissed, setRestockAlertDismissed] = useState(false);
+  const [restockSearch, setRestockSearch] = useState('');
+  const [urgencyFilter, setUrgencyFilter] = useState<'all' | RestockItem['urgency']>('all');
   const [now, setNow] = useState(0);
   const [consumptionHistoryLoading, setConsumptionHistoryLoading] = useState(false);
   const [consumptionHistoryFailed, setConsumptionHistoryFailed] = useState(false);
   const items = useRestockItems(consumptionHistory, now);
+  const filteredItems = items.filter((item) => {
+    const query = restockSearch.toLocaleLowerCase();
+    const matchesSearch = !query
+      || item.productName.toLocaleLowerCase().includes(query)
+      || item.suggestedSupplierName.toLocaleLowerCase().includes(query);
+    return matchesSearch && (urgencyFilter === 'all' || item.urgency === urgencyFilter);
+  });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [restockDrafts, setRestockDrafts] = useState<Record<string, RestockDraft>>({});
   const [receiptDrafts, setReceiptDrafts] = useState<Record<string, ReceiptDraft>>({});
@@ -201,7 +211,7 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
     });
   };
 
-  const selectAll = () => { if (!bulkReceiptReviewed && !bulkReceiving) setSelected(new Set(items.map((i) => i.productId))); };
+  const selectAll = () => { if (!bulkReceiptReviewed && !bulkReceiving) setSelected((previous) => new Set([...previous, ...filteredItems.map((i) => i.productId)])); };
   const clearAll = () => { if (!bulkReceiptReviewed && !bulkReceiving) setSelected(new Set()); };
 
   const selectedItems = items.filter((i) => selected.has(i.productId));
@@ -466,7 +476,7 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
           {/* Toolbar */}
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">
             <div className="flex flex-wrap items-center gap-3">
-              <button onClick={selectAll} disabled={bulkReceiptReviewed || bulkReceiving} className="text-xs text-blue-600 hover:underline font-medium disabled:opacity-50">Select All</button>
+              <button onClick={selectAll} disabled={filteredItems.length === 0 || bulkReceiptReviewed || bulkReceiving} className="text-xs text-blue-600 hover:underline font-medium disabled:opacity-50">Select filtered</button>
               <span className="text-gray-300">·</span>
               <button onClick={clearAll} disabled={bulkReceiptReviewed || bulkReceiving} className="text-xs text-gray-400 hover:underline disabled:opacity-50">Clear</button>
               <span className="text-xs text-gray-500">{selectedItems.length} selected · Est. {formatCurrency(totalCost)}</span>
@@ -492,6 +502,16 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
                 Create Purchase Order
               </Button>
             </div>
+          </div>
+
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <SearchInput value={restockSearch} onChange={setRestockSearch} placeholder="Search products or suppliers…" className="w-full sm:max-w-sm" debounceMs={0} />
+            <select aria-label="Filter restocking by priority" value={urgencyFilter} onChange={(event) => setUrgencyFilter(event.target.value as typeof urgencyFilter)} className="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100">
+              <option value="all">All priorities</option>
+              <option value="high">High priority</option>
+              <option value="medium">Medium priority</option>
+              <option value="low">Low priority</option>
+            </select>
           </div>
 
           {bulkReceiptOpen && (
@@ -604,7 +624,9 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {items.map((item) => {
+                {filteredItems.length === 0 ? (
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">No restocking items match these filters.</td></tr>
+                ) : filteredItems.map((item) => {
                   const calculation = getDraftCalculation(item);
                   const draft = restockDrafts[item.productId] ?? {
                     optionKey: calculation.option.id || calculation.option.label,
