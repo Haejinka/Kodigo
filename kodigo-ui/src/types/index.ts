@@ -20,6 +20,8 @@ export interface Store {
   logoPath?: string;
   phone?: string;
   email?: string;
+  receiptPrintingEnabled?: boolean;
+  cashDrawerIntegrationEnabled?: boolean;
 }
 
 export interface StoreUser {

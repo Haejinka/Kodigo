@@ -124,7 +124,7 @@ export function StockAdjustmentModal({
     if (rawNum <= 0 && mode !== 'count') { toast('warning', 'Enter a quantity greater than zero.'); return; }
     if (mode === 'count' && quantity.trim() === '') { toast('warning', 'Enter the counted stock.'); return; }
     if (mode === 'add' && ownership === 'consigned' && !supplierId) { toast('warning', 'Choose the supplier who owns this stock.'); return; }
-    if (mode === 'add' && ownership === 'consigned' && !purchasePrice.trim()) { toast('warning', 'Enter the total amount owed to the supplier for this consignment.'); return; }
+    if (mode === 'add' && ownership === 'consigned' && !purchasePrice.trim()) { toast('warning', 'Enter the agreed supplier cost for this consignment receipt.'); return; }
     if (newStock < 0) { toast('error', 'Resulting stock cannot be negative.'); return; }
     if (deltaNum === 0) { toast('warning', 'Stock is already at that count.'); return; }
     setLoading(true);
@@ -239,7 +239,7 @@ export function StockAdjustmentModal({
           {mode === 'add' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                {ownership === 'consigned' ? 'Total amount owed to supplier' : 'Total amount paid for this delivery'}
+                {ownership === 'consigned' ? 'Agreed supplier cost for this receipt' : 'Total amount paid for this delivery'}
                 {ownership === 'store_owned' && <span className="ml-1 text-xs font-normal text-gray-400">(optional)</span>}
                 {ownership === 'consigned' && <span className="ml-1 text-red-500">*</span>}
               </label>
@@ -252,6 +252,7 @@ export function StockAdjustmentModal({
                 className="w-full px-3 py-2 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0.00"
               />
+              {ownership === 'consigned' && <p className="mt-1 text-xs text-gray-500">This records the full agreed cost for the received batch. The payable is created immediately, whether the units are sold or remain on hand.</p>}
               {rawNum > 0 && purchasePrice.trim() && <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900"><div><p className="text-blue-700">{ownership === 'consigned' ? 'Amount owed per' : 'Cost per'} {selectedPurchaseUnit}</p><p className="mt-0.5 font-mono font-semibold">₱{supplierUnitCost.toFixed(2)}</p></div><div><p className="text-blue-700">{ownership === 'consigned' ? 'Amount owed per' : 'Cost per'} {unit}</p><p className="mt-0.5 font-mono font-semibold">₱{supplierBaseCost.toFixed(2)}</p></div></div>}
             </div>
           )}

@@ -21,6 +21,7 @@ import {
 } from '@/lib/admin-users';
 import { supabase } from '@/lib/supabase';
 import { StoreBrandingEditor } from '@/components/settings/StoreBrandingEditor';
+import { PosHardwareSettings } from '@/components/settings/PosHardwareSettings';
 import { MfaSettings } from '@/components/settings/MfaSettings';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AssistedPasswordConfirmation } from '@/components/ui/assisted-password-confirmation';
@@ -199,7 +200,10 @@ export function GeneralSettingsPage() {
   return (
     <div className="space-y-6">
       {isOwner && activeBrandingStore && (
-        <StoreBrandingEditor store={activeBrandingStore} />
+        <>
+          <StoreBrandingEditor store={activeBrandingStore} />
+          <PosHardwareSettings store={activeBrandingStore} />
+        </>
       )}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">

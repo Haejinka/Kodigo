@@ -23,6 +23,8 @@ type StoreRow = {
   logo_path?: string | null;
   phone?: string | null;
   email?: string | null;
+  receipt_printing_enabled?: boolean | null;
+  cash_drawer_integration_enabled?: boolean | null;
 };
 
 const toStore = (row: StoreRow): Store => ({
@@ -45,6 +47,8 @@ const toStore = (row: StoreRow): Store => ({
   logoPath: row.logo_path ?? undefined,
   phone: row.phone ?? undefined,
   email: row.email ?? undefined,
+  receiptPrintingEnabled: row.receipt_printing_enabled ?? true,
+  cashDrawerIntegrationEnabled: row.cash_drawer_integration_enabled ?? true,
 });
 
 const toStores = (rows: StoreRow[] | null | undefined): Store[] => (rows ?? []).map(toStore);
@@ -83,7 +87,7 @@ const fetchUserStores = async (role: string | null) => {
     // Note: Due to RLS, they only see stores they are mapped to. 
     // We can just fetch from 'stores' and RLS will filter it.
     const { data: stores } = await supabase.from('stores').select(
-      'id, owner_id, name, address, tax_rate, registered_name, business_name, tin, branch_code, vat_status, document_label, terminal_identifier, bir_registration_info, accreditation_info, permit_info, invoice_prefix, logo_path, phone, email'
+      'id, owner_id, name, address, tax_rate, registered_name, business_name, tin, branch_code, vat_status, document_label, terminal_identifier, bir_registration_info, accreditation_info, permit_info, invoice_prefix, logo_path, phone, email, receipt_printing_enabled, cash_drawer_integration_enabled'
     );
     return toStores(stores);
   }
@@ -101,6 +105,7 @@ interface AuthState {
   setActiveStoreId: (storeId: string | 'all') => void;
   addStore: (name: string, address: string, taxRate: number) => Promise<Store | null>;
   updateStore: (id: string, name: string, address: string, taxRate: number) => Promise<boolean>;
+  updatePosHardwareSettings: (id: string, settings: { receiptPrintingEnabled: boolean; cashDrawerIntegrationEnabled: boolean }) => Promise<boolean>;
   deleteStore: (id: string) => Promise<boolean>;
   refreshStores: () => Promise<void>;
   initialize: () => Promise<void>;
@@ -170,7 +175,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .from('stores')
       .update({ name, address, tax_rate: taxRate })
       .eq('id', id)
-      .select('id, owner_id, name, address, tax_rate, registered_name, business_name, tin, branch_code, vat_status, document_label, terminal_identifier, bir_registration_info, accreditation_info, permit_info, invoice_prefix, logo_path, phone, email')
+      .select('id, owner_id, name, address, tax_rate, registered_name, business_name, tin, branch_code, vat_status, document_label, terminal_identifier, bir_registration_info, accreditation_info, permit_info, invoice_prefix, logo_path, phone, email, receipt_printing_enabled, cash_drawer_integration_enabled')
       .maybeSingle();
 
     if (error || !updatedStore) {
@@ -181,6 +186,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Refresh stores
     const role = resolveRole(user, profile);
     const stores = await fetchUserStores(role);
+    set({ stores });
+    return true;
+  },
+  updatePosHardwareSettings: async (id, settings) => {
+    const { user, profile } = get();
+    if (!user || resolveRole(user, profile) !== 'admin') return false;
+
+    const { data: updatedStore, error } = await supabase
+      .from('stores')
+      .update({
+        receipt_printing_enabled: settings.receiptPrintingEnabled,
+        cash_drawer_integration_enabled: settings.cashDrawerIntegrationEnabled,
+      })
+      .eq('id', id)
+      .select('id')
+      .maybeSingle();
+    if (error || !updatedStore) {
+      console.error('Error updating POS hardware settings', error ?? 'No matching store was updated');
+      return false;
+    }
+
+    const stores = await fetchUserStores(resolveRole(user, profile));
     set({ stores });
     return true;
   },

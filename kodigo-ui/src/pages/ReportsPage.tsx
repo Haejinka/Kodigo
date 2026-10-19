@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { FileDown, FileSpreadsheet, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
-import { StatCard } from '@/components/shared/StatCard';
 import { formatCurrency } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import { useProductStore } from '@/stores/productStore';
@@ -20,112 +19,142 @@ import {
   fetchRestockHistoryReport,
   fetchSalesReport,
   fetchStockMovementReport,
-  getDateRangeForDays,
+  formatSalesReportDate,
+  getDefaultReportFilters,
   getSellingUnitFilterKey,
   getSellingUnitFilterLabel,
 } from '@/lib/reporting';
-import type {
-  ReportFilters,
-  SalesGroupReportRow,
-} from '@/lib/reporting';
-import type { PaymentMethod, SaleStatus } from '@/types';
+import type { ReportFilters, SalesLineReportRow } from '@/lib/reporting';
+import { getSalesReportBaseUnitPrice, getSalesReportPaidTotal } from '@/lib/reporting-calculations';
+import type { SaleStatus } from '@/types';
 
-const paymentMethods: Array<PaymentMethod | 'all'> = ['all', 'cash', 'gcash', 'card', 'bank_transfer', 'other'];
-const statuses: Array<SaleStatus | 'all'> = ['all', 'completed', 'partially_refunded', 'refunded', 'voided'];
+const statuses: Array<SaleStatus | 'all'> = ['all', 'completed', 'partially_refunded', 'refunded'];
+const pageSize = 25;
+type ReportTab = 'sales' | 'inventory';
 
-const range = getDateRangeForDays(30);
-const defaultFilters: ReportFilters = {
-  ...range,
-  paymentMethod: 'all',
-  status: 'all',
-};
+interface InventoryHistoryData {
+  movements: Awaited<ReturnType<typeof fetchStockMovementReport>>;
+  restocks: Awaited<ReturnType<typeof fetchRestockHistoryReport>>;
+  prices: Awaited<ReturnType<typeof fetchPriceHistory>>;
+}
+
+function downloadCsv(fileName: string, rows: Array<Array<string | number>>) {
+  const csv = rows
+    .map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function salesCsvRows(lines: SalesLineReportRow[]) {
+  return [
+    ['Date', 'Product', 'Base Unit', 'Quantity', 'Unit Price', 'Amount Paid'],
+    ...lines.map((line) => [
+      formatSalesReportDate(line.dateTime),
+      line.productName,
+      line.baseUnitLabel,
+      line.netBaseUnitQuantity,
+      formatCurrency(getSalesReportBaseUnitPrice(line)),
+      formatCurrency(line.amountPaid),
+    ]),
+    ['', '', '', '', 'Total Amount Paid:', formatCurrency(getSalesReportPaidTotal(lines))],
+  ];
+}
 
 export function ReportsPage() {
   const { toast } = useToast();
   const { activeStoreId, role, user } = useAuthStore();
   const { products } = useProductStore();
-  const fetchNotifications = useAlertStore((s) => s.fetchNotifications);
-  const [filters, setFilters] = useState<ReportFilters>(defaultFilters);
-  const [exporting, setExporting] = useState(false);
+  const fetchNotifications = useAlertStore((state) => state.fetchNotifications);
+  const [tab, setTab] = useState<ReportTab>('sales');
+  const [salesFilters, setSalesFilters] = useState<ReportFilters>(() => getDefaultReportFilters());
+  const [inventoryFilters, setInventoryFilters] = useState<ReportFilters>(() => getDefaultReportFilters());
+  const [page, setPage] = useState(1);
+  const [exportingWorkbook, setExportingWorkbook] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const canExport = canAccessReports(role);
   const inventoryOnly = role === 'inventory';
-  const reportsQuery = useQuery({
-    queryKey: ['reporting', inventoryOnly ? 'inventory' : 'sales', user?.id ?? null, activeStoreId, filters],
-    enabled: Boolean(activeStoreId),
-    queryFn: async () => {
-      if (inventoryOnly) {
-        const [movements, restocks, prices] = await Promise.all([
-          fetchStockMovementReport(filters, activeStoreId),
-          fetchRestockHistoryReport(filters, activeStoreId),
-          fetchPriceHistory(filters, activeStoreId),
-        ]);
-        return { report: null, movements, restocks, prices };
-      }
-      const [salesReport, movements, restocks, prices] = await Promise.all([
-        fetchSalesReport(filters, activeStoreId),
-        fetchStockMovementReport(filters, activeStoreId),
-        fetchRestockHistoryReport(filters, activeStoreId),
-        fetchPriceHistory(filters, activeStoreId),
+  const currentTab: ReportTab = inventoryOnly ? 'inventory' : tab;
+
+  const salesQuery = useQuery({
+    queryKey: ['reporting', 'sales-list', user?.id ?? null, activeStoreId, salesFilters],
+    enabled: Boolean(activeStoreId) && !inventoryOnly && currentTab === 'sales',
+    queryFn: () => fetchSalesReport(salesFilters, activeStoreId),
+  });
+  const inventoryQuery = useQuery({
+    queryKey: ['reporting', 'inventory-history', user?.id ?? null, activeStoreId, inventoryFilters],
+    enabled: Boolean(activeStoreId) && currentTab === 'inventory',
+    queryFn: async (): Promise<InventoryHistoryData> => {
+      const [movements, restocks, prices] = await Promise.all([
+        fetchStockMovementReport(inventoryFilters, activeStoreId),
+        fetchRestockHistoryReport(inventoryFilters, activeStoreId),
+        fetchPriceHistory(inventoryFilters, activeStoreId),
       ]);
-      return { report: salesReport, movements, restocks, prices };
+      return { movements, restocks, prices };
     },
   });
-  const report = reportsQuery.data?.report ?? null;
-  const stockMovements = reportsQuery.data?.movements ?? [];
-  const restockRows = reportsQuery.data?.restocks ?? [];
-  const priceHistory = reportsQuery.data?.prices ?? [];
-  const loading = reportsQuery.isFetching;
+
+  const report = salesQuery.data ?? null;
+  const inventoryData = inventoryQuery.data;
+  const loading = currentTab === 'sales' ? salesQuery.isFetching : inventoryQuery.isFetching;
 
   useEffect(() => {
-    if (reportsQuery.error) {
-      console.error('Failed to load reports:', reportsQuery.error);
-      toast('error', reportsQuery.error instanceof Error ? reportsQuery.error.message : 'Failed to load reports.');
-    }
-  }, [reportsQuery.error, toast]);
+    const error = currentTab === 'sales' ? salesQuery.error : inventoryQuery.error;
+    if (!error) return;
+    console.error('Failed to load reports:', error);
+    toast('error', error instanceof Error ? error.message : 'Failed to load reports.');
+  }, [currentTab, inventoryQuery.error, salesQuery.error, toast]);
+
+  useEffect(() => setPage(1), [salesFilters]);
 
   const inventoryRows = useMemo(() => buildInventoryReport(products), [products]);
-  const filteredInventoryRows = useMemo(() => {
-    return inventoryRows.filter((row) => {
-      if (filters.productId && row.productId !== filters.productId) return false;
-      if (filters.categoryName && row.categoryName !== filters.categoryName) return false;
-      if (filters.sellingUnitKey && getSellingUnitFilterKey(row) !== filters.sellingUnitKey) return false;
-      return true;
-    });
-  }, [filters.categoryName, filters.productId, filters.sellingUnitKey, inventoryRows]);
+  const filteredInventoryRows = useMemo(() => inventoryRows.filter((row) => {
+    if (inventoryFilters.productId && row.productId !== inventoryFilters.productId) return false;
+    if (inventoryFilters.categoryName && row.categoryName !== inventoryFilters.categoryName) return false;
+    if (inventoryFilters.sellingUnitKey && getSellingUnitFilterKey(row) !== inventoryFilters.sellingUnitKey) return false;
+    return true;
+  }), [inventoryFilters.categoryName, inventoryFilters.productId, inventoryFilters.sellingUnitKey, inventoryRows]);
 
-  const categoryOptions = useMemo(() => {
-    const names = new Set<string>();
-    for (const product of products) if (product.categoryName) names.add(product.categoryName);
-    for (const row of report?.salesByCategory ?? []) names.add(row.label);
-    return Array.from(names).sort();
-  }, [products, report]);
-
+  const categoryOptions = useMemo(() => Array.from(new Set(products.map((product) => product.categoryName).filter(Boolean))).sort(), [products]);
   const unitOptions = useMemo(() => {
     const units = new Map<string, string>();
     for (const row of inventoryRows) units.set(getSellingUnitFilterKey(row), getSellingUnitFilterLabel(row));
-    for (const row of report?.salesBySellingUnit ?? []) units.set(getSellingUnitFilterKey(row), getSellingUnitFilterLabel(row));
     return Array.from(units.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-  }, [inventoryRows, report]);
+  }, [inventoryRows]);
 
-  const cashierOptions = useMemo(() => {
-    return (report?.salesByCashier ?? [])
-      .map((row) => [row.cashierId || '', row.cashierName] as const)
-      .filter(([id]) => id)
-      .sort((a, b) => a[1].localeCompare(b[1]));
-  }, [report]);
+  const saleLines = report?.saleLines ?? [];
+  const totalAmountPaid = getSalesReportPaidTotal(saleLines);
+  const pageCount = Math.max(1, Math.ceil(saleLines.length / pageSize));
+  const displayedPage = Math.min(page, pageCount);
+  const visibleLines = saleLines.slice((displayedPage - 1) * pageSize, displayedPage * pageSize);
 
-  const loadReports = () => reportsQuery.refetch();
-
-  const updateFilter = <K extends keyof ReportFilters>(key: K, value: ReportFilters[K]) => {
-    setFilters((current) => ({ ...current, [key]: value || undefined }));
+  const updateSalesFilter = <K extends keyof ReportFilters>(key: K, value: ReportFilters[K]) => {
+    setSalesFilters((current) => {
+      const next = { ...current, [key]: value || undefined };
+      if (next.startDate > next.endDate) {
+        if (key === 'startDate') next.endDate = next.startDate;
+        else next.startDate = next.endDate;
+      }
+      return next;
+    });
   };
 
-  const recordReportNotification = async (
-    fileName: string,
-    status: 'completed' | 'failed',
-    message?: string,
-  ) => {
+  const updateInventoryFilter = <K extends keyof ReportFilters>(key: K, value: ReportFilters[K]) => {
+    setInventoryFilters((current) => {
+      const next = { ...current, [key]: value || undefined };
+      if (next.startDate > next.endDate) {
+        if (key === 'startDate') next.endDate = next.startDate;
+        else next.startDate = next.endDate;
+      }
+      return next;
+    });
+  };
+
+  const recordReportNotification = async (fileName: string, status: 'completed' | 'failed', filters: ReportFilters, message?: string) => {
     const storeId = activeStoreId && activeStoreId !== 'all' ? activeStoreId : null;
     const { error } = await supabase.rpc('record_report_export_notification', {
       p_store_id: storeId,
@@ -141,314 +170,289 @@ export function ReportsPage() {
     void fetchNotifications();
   };
 
-  const handleExport = async () => {
-    if (!canExport) {
-      toast('error', 'Only authorized reporting roles can export reports.');
-      return;
-    }
-    if (inventoryOnly) {
-      const header = ['Product', 'Category', 'Unit', 'Stock', 'Low Stock Threshold', 'Status'];
-      const rows = filteredInventoryRows.map((row) => [
-        row.productName,
-        row.categoryName,
-        describeSellingUnit(row),
-        row.stockQuantity,
-        row.lowStockThreshold,
-        row.stockStatus,
-      ]);
-      const csv = [header, ...rows]
-        .map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
-        .join('\r\n');
-      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `Inventory-Report-${filters.startDate}-to-${filters.endDate}.csv`;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      toast('success', 'Inventory report exported.');
-      return;
-    }
-    if (!report) return;
-    const fileName = `Kodigo-Reports-${report.filters.startDate}-to-${report.filters.endDate}.xlsx`;
-
-    setExporting(true);
-    try {
-      await exportReportsWorkbook({
-        salesReport: report,
-        inventoryRows: filteredInventoryRows,
-        stockMovements,
-        restockRows,
-        priceHistory,
-        fileName,
-      });
-      await recordReportNotification(fileName, 'completed');
-      toast('success', 'Excel report exported.');
-    } catch (err) {
-      console.error('Failed to export report:', err);
-      const message = err instanceof Error ? err.message : 'Failed to export Excel report.';
-      await recordReportNotification(fileName, 'failed', message);
-      toast('error', message);
-    } finally {
-      setExporting(false);
-    }
-  };
-
   const handlePdfExport = async () => {
-    if (!canExport) {
-      toast('error', 'Only authorized reporting roles can export reports.');
-      return;
-    }
-    if (!report || loading) return;
-    const fileName = `Kodigo-Sales-Report-${report.filters.startDate}-to-${report.filters.endDate}.pdf`;
+    if (!canExport || !report || loading) return;
+    const fileName = `Kodigo-Sales-Report-${salesFilters.startDate}-to-${salesFilters.endDate}.pdf`;
     setExportingPdf(true);
     try {
+      // The screen total and PDF are built from this same fully fetched line set.
       await exportSalesReportPdf(report, fileName);
-      await recordReportNotification(fileName, 'completed');
-      toast('success', 'PDF sales report exported.');
-    } catch (err) {
-      console.error('Failed to export PDF report:', err);
-      const message = err instanceof Error ? err.message : 'Failed to export PDF report.';
-      await recordReportNotification(fileName, 'failed', message);
+      await recordReportNotification(fileName, 'completed', salesFilters);
+      toast('success', 'Filtered sales report PDF exported.');
+    } catch (error) {
+      console.error('Failed to export PDF report:', error);
+      const message = error instanceof Error ? error.message : 'Failed to export PDF report.';
+      await recordReportNotification(fileName, 'failed', salesFilters, message);
       toast('error', message);
     } finally {
       setExportingPdf(false);
     }
   };
 
-  const summary = report?.summary;
+  const handleCsvExport = async () => {
+    if (!canExport || !report || loading) return;
+    const fileName = `Kodigo-Sales-Report-${salesFilters.startDate}-to-${salesFilters.endDate}.csv`;
+    try {
+      downloadCsv(fileName, salesCsvRows(saleLines));
+      await recordReportNotification(fileName, 'completed', salesFilters);
+      toast('success', 'Filtered sales report CSV exported.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to export CSV sales report.';
+      await recordReportNotification(fileName, 'failed', salesFilters, message);
+      toast('error', message);
+    }
+  };
+
+  const handleWorkbookExport = async () => {
+    if (!canExport || !activeStoreId) return;
+    if (inventoryOnly) {
+      const rows = [
+        ['Product', 'Category', 'Unit', 'Stock', 'Low Stock Threshold', 'Status'],
+        ...filteredInventoryRows.map((row) => [row.productName, row.categoryName, describeSellingUnit(row), row.stockQuantity, row.lowStockThreshold, row.stockStatus]),
+      ];
+      const fileName = `Inventory-Report-${inventoryFilters.startDate}-to-${inventoryFilters.endDate}.csv`;
+      downloadCsv(fileName, rows);
+      toast('success', 'Inventory report exported.');
+      return;
+    }
+    setExportingWorkbook(true);
+    const fileName = `Kodigo-Reports-${inventoryFilters.startDate}-to-${inventoryFilters.endDate}.xlsx`;
+    try {
+      const [salesReport, history] = await Promise.all([
+        fetchSalesReport(salesFilters, activeStoreId),
+        inventoryData ? Promise.resolve(inventoryData) : Promise.all([
+          fetchStockMovementReport(inventoryFilters, activeStoreId),
+          fetchRestockHistoryReport(inventoryFilters, activeStoreId),
+          fetchPriceHistory(inventoryFilters, activeStoreId),
+        ]).then(([movements, restocks, prices]) => ({ movements, restocks, prices })),
+      ]);
+      await exportReportsWorkbook({
+        salesReport,
+        inventoryRows: filteredInventoryRows,
+        stockMovements: history.movements,
+        restockRows: history.restocks,
+        priceHistory: history.prices,
+        fileName,
+      });
+      await recordReportNotification(fileName, 'completed', inventoryFilters);
+      toast('success', 'Reports workbook exported.');
+    } catch (error) {
+      console.error('Failed to export reports workbook:', error);
+      const message = error instanceof Error ? error.message : 'Failed to export reports workbook.';
+      await recordReportNotification(fileName, 'failed', inventoryFilters, message);
+      toast('error', message);
+    } finally {
+      setExportingWorkbook(false);
+    }
+  };
+
+  const refresh = () => currentTab === 'sales' ? salesQuery.refetch() : inventoryQuery.refetch();
 
   return (
     <div>
       <PageHeader
-        title="Sales Reports"
-        subtitle={loading ? 'Loading report data...' : inventoryOnly ? 'Inventory history and stock reports' : `${filters.startDate} to ${filters.endDate}`}
-        actions={
+        title={currentTab === 'sales' ? 'Sales Report' : 'Inventory & Stock Reports'}
+        subtitle={loading ? 'Loading report data…' : currentTab === 'sales'
+          ? `${salesFilters.startDate} to ${salesFilters.endDate}`
+          : `${inventoryFilters.startDate} to ${inventoryFilters.endDate}`}
+        actions={(
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              icon={<RefreshCw className="w-4 h-4" />}
-              onClick={() => void loadReports()}
-              loading={loading}
-            >
+            <Button variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={() => void refresh()} loading={loading}>
               Refresh
             </Button>
-            {!inventoryOnly && (
+            {currentTab === 'sales' && !inventoryOnly && (
+              <>
+                <Button variant="secondary" icon={<FileSpreadsheet className="h-4 w-4" />} onClick={() => void handleCsvExport()} disabled={!report || !canExport || loading}>
+                  Export CSV
+                </Button>
+                <Button
+                  variant="primary"
+                  icon={<FileDown className="h-4 w-4" />}
+                  onClick={() => void handlePdfExport()}
+                  loading={exportingPdf}
+                  disabled={!report || !canExport || loading}
+                >
+                  Export PDF
+                </Button>
+              </>
+            )}
+            {currentTab === 'inventory' && (
               <Button
-                variant="secondary"
-                icon={<FileDown className="w-4 h-4" />}
-                onClick={handlePdfExport}
-                loading={exportingPdf}
-                disabled={!report || !canExport || loading}
+                variant="primary"
+                icon={<FileSpreadsheet className="h-4 w-4" />}
+                onClick={() => void handleWorkbookExport()}
+                loading={exportingWorkbook}
+                disabled={!canExport || loading}
               >
-                Export PDF
+                {inventoryOnly ? 'Export Inventory CSV' : 'Export Reports Workbook'}
               </Button>
             )}
-            <Button
-              variant="primary"
-              icon={<FileSpreadsheet className="w-4 h-4" />}
-              onClick={handleExport}
-              loading={exporting}
-              disabled={(!report && !inventoryOnly) || !canExport}
-            >
-              Export Excel
-            </Button>
           </div>
-        }
+        )}
       />
 
-      <div className="mb-6 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-card)] p-4 shadow-sm">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
-          <FilterField label="Start">
-            <input
-              type="date"
-              value={filters.startDate}
-              onChange={(event) => updateFilter('startDate', event.target.value)}
-              className="report-input"
-            />
-          </FilterField>
-          <FilterField label="End">
-            <input
-              type="date"
-              value={filters.endDate}
-              onChange={(event) => updateFilter('endDate', event.target.value)}
-              className="report-input"
-            />
-          </FilterField>
-          <FilterField label="Product">
-            <select value={filters.productId || ''} onChange={(event) => updateFilter('productId', event.target.value || undefined)} className="report-input">
-              <option value="">All products</option>
-              {products.map((product) => (
-                <option key={product.id} value={product.id}>{product.name}</option>
-              ))}
-            </select>
-          </FilterField>
-          <FilterField label="Category">
-            <select value={filters.categoryName || ''} onChange={(event) => updateFilter('categoryName', event.target.value || undefined)} className="report-input">
-              <option value="">All categories</option>
-              {categoryOptions.map((category) => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-          </FilterField>
-          {!inventoryOnly && <FilterField label="Payment">
-            <select value={filters.paymentMethod || 'all'} onChange={(event) => updateFilter('paymentMethod', event.target.value as PaymentMethod | 'all')} className="report-input">
-              {paymentMethods.map((method) => (
-                <option key={method} value={method}>{method === 'all' ? 'All methods' : method}</option>
-              ))}
-            </select>
-          </FilterField>}
-          {!inventoryOnly && <FilterField label="Cashier">
-            <select value={filters.cashierId || ''} onChange={(event) => updateFilter('cashierId', event.target.value || undefined)} className="report-input">
-              <option value="">All cashiers</option>
-              {cashierOptions.map(([id, name]) => (
-                <option key={id} value={id}>{name}</option>
-              ))}
-            </select>
-          </FilterField>}
-          <FilterField label="Unit">
-            <select value={filters.sellingUnitKey || ''} onChange={(event) => updateFilter('sellingUnitKey', event.target.value || undefined)} className="report-input">
-              <option value="">All units</option>
-              {unitOptions.map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
-            </select>
-          </FilterField>
-          {!inventoryOnly && <FilterField label="Status">
-            <select value={filters.status || 'all'} onChange={(event) => updateFilter('status', event.target.value as SaleStatus | 'all')} className="report-input">
-              {statuses.map((status) => (
-                <option key={status} value={status}>{status === 'all' ? 'All statuses' : status.replace('_', ' ')}</option>
-              ))}
-            </select>
-          </FilterField>}
+      {!inventoryOnly && (
+        <div className="mb-5 flex gap-2 border-b border-[var(--app-border)]" role="group" aria-label="Report type">
+          <button type="button" aria-pressed={currentTab === 'sales'} onClick={() => setTab('sales')} className={`border-b-2 px-3 py-2 text-sm font-medium ${currentTab === 'sales' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]'}`}>
+            Sales Report
+          </button>
+          <button type="button" aria-pressed={currentTab === 'inventory'} onClick={() => setTab('inventory')} className={`border-b-2 px-3 py-2 text-sm font-medium ${currentTab === 'inventory' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]'}`}>
+            Inventory & Stock Reports
+          </button>
         </div>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        {inventoryOnly ? (
-          <>
-            <StatCard label="Products" value={String(products.length)} icon={FileSpreadsheet} color="blue" />
-            <StatCard label="Stock Units" value={String(filteredInventoryRows.reduce((sum, row) => sum + Number(row.stockQuantity), 0))} icon={FileSpreadsheet} color="green" />
-            <StatCard label="Low / Out of Stock" value={String(filteredInventoryRows.filter((row) => row.stockStatus !== 'in-stock').length)} icon={FileSpreadsheet} color="amber" />
-            <StatCard label="Movements" value={String(stockMovements.length)} icon={FileSpreadsheet} color="purple" />
-          </>
-        ) : (
-          <>
-            <StatCard label="Net Sales" value={formatCurrency(summary?.netSales ?? 0)} icon={FileSpreadsheet} color="blue" />
-            <StatCard label="Transactions" value={String(summary?.totalTransactions ?? 0)} icon={FileSpreadsheet} color="green" />
-            <StatCard label="Base Units Sold" value={String(summary?.netItemsSold ?? 0)} icon={FileSpreadsheet} color="amber" />
-            <StatCard label="Total COGS" value={formatCurrency(summary?.totalCogs ?? 0)} icon={FileSpreadsheet} color="purple" />
-            <StatCard label="Gross Profit" value={formatCurrency(summary?.grossProfit ?? 0)} icon={FileSpreadsheet} color="purple" />
-          </>
-        )}
-      </div>
+      {currentTab === 'sales' ? (
+        <>
+          <div className="mb-5 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-card)] p-4 shadow-sm">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <FilterField label="Start date">
+                <input type="date" value={salesFilters.startDate} max={salesFilters.endDate} onChange={(event) => updateSalesFilter('startDate', event.target.value)} className="report-input" />
+              </FilterField>
+              <FilterField label="End date">
+                <input type="date" value={salesFilters.endDate} min={salesFilters.startDate} onChange={(event) => updateSalesFilter('endDate', event.target.value)} className="report-input" />
+              </FilterField>
+              <FilterField label="Product">
+                <select value={salesFilters.productId || ''} onChange={(event) => updateSalesFilter('productId', event.target.value || undefined)} className="report-input">
+                  <option value="">All products</option>
+                  {products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
+                </select>
+              </FilterField>
+              <FilterField label="Transaction status">
+                <select value={salesFilters.status || 'all'} onChange={(event) => updateSalesFilter('status', event.target.value as SaleStatus | 'all')} className="report-input">
+                  {statuses.map((status) => <option key={status} value={status}>{status === 'all' ? 'All valid sales' : status.replace('_', ' ')}</option>)}
+                </select>
+              </FilterField>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
-        {!inventoryOnly && <ReportSection title="Sales by Date">
-          <SimpleTable
-            headers={['Date', 'Transactions', 'Items', 'Net Sales', 'Profit']}
-            rows={(report?.salesByDate ?? []).map((row) => [
-              row.date,
-              row.transactions,
-              row.itemsSold,
-              formatCurrency(row.netSales),
-              formatCurrency(row.grossProfit),
-            ])}
-          />
-        </ReportSection>}
+          {!activeStoreId ? (
+            <ReportMessage>Choose a store to view its sales report.</ReportMessage>
+          ) : salesQuery.error ? (
+            <ReportMessage error>Could not load matching sales. Refresh to try again.</ReportMessage>
+          ) : loading && !report ? (
+            <ReportMessage>Loading filtered sales…</ReportMessage>
+          ) : saleLines.length === 0 ? (
+            <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-card)] px-5 py-10 text-center">
+              <p className="text-sm font-medium text-[var(--foreground)]">No sales match these filters.</p>
+              <p className="mt-1 text-sm text-[var(--muted-foreground)]">Adjust the dates, product, or transaction status.</p>
+              <Button type="button" variant="secondary" size="sm" className="mt-4" onClick={() => setSalesFilters(getDefaultReportFilters())}>Reset filters</Button>
+            </div>
+          ) : (
+            <section className="overflow-hidden rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-card)] shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--app-border-subtle)] px-4 py-3">
+                <p className="text-sm text-[var(--muted-foreground)]">{saleLines.length.toLocaleString('en-PH')} matching product lines</p>
+                <p className="text-xs text-[var(--muted-foreground)]">Historical prices and base-unit quantities</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[850px] text-left text-sm">
+                  <thead className="bg-[var(--app-surface-elevated)] text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+                    <tr>
+                      <th className="px-4 py-3">Date</th>
+                      <th className="px-4 py-3">Product</th>
+                      <th className="px-4 py-3">Base Unit</th>
+                      <th className="px-4 py-3 text-right">Quantity</th>
+                      <th className="px-4 py-3 text-right">Unit Price</th>
+                      <th className="px-4 py-3 text-right">Amount Paid</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--app-border-subtle)]">
+                    {visibleLines.map((line) => (
+                      <tr key={line.saleItemId} className="hover:bg-[var(--app-surface-elevated)]">
+                        <td className="whitespace-nowrap px-4 py-3 text-[var(--foreground)]">{formatSalesReportDate(line.dateTime)}</td>
+                        <td className="max-w-[24rem] whitespace-normal break-words px-4 py-3 font-medium text-[var(--foreground)]">{line.productName}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-[var(--muted-foreground)]">{line.baseUnitLabel}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums">{Number(line.netBaseUnitQuantity).toLocaleString('en-PH', { maximumFractionDigits: 3 })}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums">{formatCurrency(getSalesReportBaseUnitPrice(line))}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-medium tabular-nums">{formatCurrency(line.amountPaid)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-[var(--app-border)] bg-[var(--app-surface-elevated)] font-semibold text-[var(--foreground)]">
+                      <td colSpan={5} className="px-4 py-3 text-right">Total Amount Paid:</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums">{formatCurrency(totalAmountPaid)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--app-border-subtle)] px-4 py-3">
+                <p className="text-xs text-[var(--muted-foreground)]">Page {displayedPage} of {pageCount} · total covers all matching rows</p>
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" variant="secondary" disabled={displayedPage <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</Button>
+                  <Button type="button" size="sm" variant="secondary" disabled={displayedPage >= pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>Next</Button>
+                </div>
+              </div>
+            </section>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="mb-5 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-card)] p-4 shadow-sm">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <FilterField label="Start date">
+                <input type="date" value={inventoryFilters.startDate} max={inventoryFilters.endDate} onChange={(event) => updateInventoryFilter('startDate', event.target.value)} className="report-input" />
+              </FilterField>
+              <FilterField label="End date">
+                <input type="date" value={inventoryFilters.endDate} min={inventoryFilters.startDate} onChange={(event) => updateInventoryFilter('endDate', event.target.value)} className="report-input" />
+              </FilterField>
+              <FilterField label="Product">
+                <select value={inventoryFilters.productId || ''} onChange={(event) => updateInventoryFilter('productId', event.target.value || undefined)} className="report-input">
+                  <option value="">All products</option>
+                  {products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
+                </select>
+              </FilterField>
+              <FilterField label="Category">
+                <select value={inventoryFilters.categoryName || ''} onChange={(event) => updateInventoryFilter('categoryName', event.target.value || undefined)} className="report-input">
+                  <option value="">All categories</option>
+                  {categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
+                </select>
+              </FilterField>
+              <FilterField label="Unit">
+                <select value={inventoryFilters.sellingUnitKey || ''} onChange={(event) => updateInventoryFilter('sellingUnitKey', event.target.value || undefined)} className="report-input">
+                  <option value="">All units</option>
+                  {unitOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                </select>
+              </FilterField>
+            </div>
+          </div>
 
-        {!inventoryOnly && <ReportSection title="Product Sales">
-          <ProductGroupTable rows={report?.salesByProduct ?? []} />
-        </ReportSection>}
-
-        {!inventoryOnly && <ReportSection title="Sales by Category">
-          <ProductGroupTable rows={report?.salesByCategory ?? []} compact />
-        </ReportSection>}
-
-        {!inventoryOnly && <ReportSection title="Sales by Payment Method">
-          <SimpleTable
-            headers={['Method', 'Transactions', 'Captured', 'Refunds', 'Net']}
-            rows={(report?.salesByPaymentMethod ?? []).map((row) => [
-              row.method,
-              row.transactions,
-              formatCurrency(row.captured),
-              formatCurrency(row.refunds),
-              formatCurrency(row.net),
-            ])}
-          />
-        </ReportSection>}
-
-        {!inventoryOnly && <ReportSection title="Cashier Sales">
-          <SimpleTable
-            headers={['Cashier', 'Transactions', 'Items', 'Net Sales']}
-            rows={(report?.salesByCashier ?? []).map((row) => [
-              row.cashierName,
-              row.transactions,
-              row.itemsSold,
-              formatCurrency(row.netSales),
-            ])}
-          />
-        </ReportSection>}
-
-        {!inventoryOnly && <ReportSection title="Rice Unit Sales">
-          <ProductGroupTable rows={report?.riceUnitSales ?? []} />
-        </ReportSection>}
-
-        <ReportSection title="Inventory Report">
-          <SimpleTable
-            headers={['Product', 'Unit', 'Stock', 'Low Stock', 'Status']}
-            rows={filteredInventoryRows.slice(0, 12).map((row) => [
-              row.productName,
-              describeSellingUnit(row),
-              row.stockQuantity,
-              row.lowStockThreshold,
-              row.stockStatus,
-            ])}
-          />
-        </ReportSection>
-
-        <ReportSection title="Stock Movement Report">
-          <SimpleTable
-            headers={['Date', 'Product', 'Base Unit', 'Type', 'Base Units Changed', 'Base Units After']}
-            rows={stockMovements.slice(0, 12).map((row) => [
-              new Date(row.dateTime).toLocaleString(),
-              row.productName,
-              row.unitLabel,
-              row.movementType,
-              row.quantityDelta,
-              row.stockAfter,
-            ])}
-          />
-        </ReportSection>
-
-        <ReportSection title="Restocking History">
-          <SimpleTable
-            headers={['Date', 'Product', 'Received as', 'Base Units', 'Supplier Cost', 'Cost / Unit', 'New Cost / Base']}
-            rows={restockRows.slice(0, 12).map((row) => [
-              new Date(row.dateTime).toLocaleString(),
-              row.productName,
-              `${row.quantityReceived} ${row.restockingUnit}`,
-              row.baseUnitsAdded,
-              formatCurrency(row.totalSupplierCost),
-              formatCurrency(row.supplierCostPerUnit),
-              formatCurrency(row.newCostPerBaseUnit),
-            ])}
-          />
-        </ReportSection>
-
-        <ReportSection title="Price History">
-          <SimpleTable
-            headers={['Date', 'Product', 'Type', 'Previous', 'New', 'Reason']}
-            rows={priceHistory.slice(0, 12).map((row) => [
-              new Date(row.createdAt).toLocaleString(),
-              row.productName,
-              row.changeType === 'supplier_cost' ? 'Supplier cost' : 'Selling price',
-              formatCurrency(row.previousValue),
-              formatCurrency(row.newValue),
-              row.reason,
-            ])}
-          />
-        </ReportSection>
-      </div>
+          {!activeStoreId ? (
+            <ReportMessage>Choose a store to view its inventory reports.</ReportMessage>
+          ) : inventoryQuery.error ? (
+            <ReportMessage error>Could not load inventory history. Refresh to try again.</ReportMessage>
+          ) : loading && !inventoryData ? (
+            <ReportMessage>Loading inventory history…</ReportMessage>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <ReportSection title="Inventory Report">
+                <SimpleTable
+                  headers={['Product', 'Unit', 'Stock', 'Low Stock', 'Status']}
+                  rows={filteredInventoryRows.map((row) => [row.productName, describeSellingUnit(row), row.stockQuantity, row.lowStockThreshold, row.stockStatus])}
+                />
+              </ReportSection>
+              <ReportSection title="Stock Movement Report">
+                <SimpleTable
+                  headers={['Date', 'Product', 'Base Unit', 'Type', 'Base Units Changed', 'Base Units After']}
+                  rows={(inventoryData?.movements ?? []).map((row) => [new Date(row.dateTime).toLocaleString('en-PH'), row.productName, row.unitLabel, row.movementType, row.quantityDelta, row.stockAfter])}
+                />
+              </ReportSection>
+              <ReportSection title="Restocking History">
+                <SimpleTable
+                  headers={['Date', 'Product', 'Received as', 'Base Units', 'Supplier Cost', 'Cost / Unit', 'New Cost / Base']}
+                  rows={(inventoryData?.restocks ?? []).map((row) => [new Date(row.dateTime).toLocaleString('en-PH'), row.productName, `${row.quantityReceived} ${row.restockingUnit}`, row.baseUnitsAdded, formatCurrency(row.totalSupplierCost), formatCurrency(row.supplierCostPerUnit), formatCurrency(row.newCostPerBaseUnit)])}
+                />
+              </ReportSection>
+              <ReportSection title="Price History">
+                <SimpleTable
+                  headers={['Date', 'Product', 'Type', 'Previous', 'New', 'Reason']}
+                  rows={(inventoryData?.prices ?? []).map((row) => [new Date(row.createdAt).toLocaleString('en-PH'), row.productName, row.changeType === 'supplier_cost' ? 'Supplier cost' : 'Selling price', formatCurrency(row.previousValue), formatCurrency(row.newValue), row.reason])}
+                />
+              </ReportSection>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -456,7 +460,7 @@ export function ReportsPage() {
 function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block min-w-0">
-      <span className="mb-1 block text-xs font-medium text-gray-500">{label}</span>
+      <span className="mb-1 block text-xs font-medium text-[var(--muted-foreground)]">{label}</span>
       {children}
     </label>
   );
@@ -464,60 +468,36 @@ function FilterField({ label, children }: { label: string; children: React.React
 
 function ReportSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-card)] p-5 shadow-sm">
-      <h2 className="text-base font-semibold text-gray-900 mb-4">{title}</h2>
+    <section className="min-w-0 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-card)] p-5 shadow-sm">
+      <h2 className="mb-4 text-base font-semibold text-[var(--foreground)]">{title}</h2>
       {children}
     </section>
   );
 }
 
-function ProductGroupTable({ rows, compact = false }: { rows: SalesGroupReportRow[]; compact?: boolean }) {
-  return (
-    <SimpleTable
-      headers={compact ? ['Group', 'Base Units', 'Net Sales'] : ['Product', 'Unit', 'Base Units', 'Net Sales', 'Profit']}
-      rows={rows.slice(0, 12).map((row) => compact
-        ? [row.label, row.netBaseUnitQuantity, formatCurrency(row.netRevenue)]
-        : [
-          row.productName || row.label,
-          'Base units',
-          row.netBaseUnitQuantity,
-          formatCurrency(row.netRevenue),
-          formatCurrency(row.grossProfit),
-        ]
-      )}
-    />
-  );
-}
-
 function SimpleTable({ headers, rows }: { headers: string[]; rows: Array<Array<string | number>> }) {
-  if (rows.length === 0) {
-    return <p className="py-8 text-center text-sm text-gray-400">No matching records.</p>;
-  }
+  if (rows.length === 0) return <p className="py-8 text-center text-sm text-[var(--muted-foreground)]">No matching records.</p>;
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full min-w-max text-sm">
         <thead>
           <tr className="border-b border-[var(--app-border-subtle)] bg-[var(--app-surface-elevated)]">
-            {headers.map((header) => (
-              <th key={header} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                {header}
-              </th>
-            ))}
+            {headers.map((header) => <th key={header} className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">{header}</th>)}
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--app-border-subtle)]">
           {rows.map((row, index) => (
-            <tr key={index} className="transition-colors hover:bg-[var(--app-surface-elevated)]">
-              {row.map((cell, cellIndex) => (
-                <td key={cellIndex} className="px-3 py-2 text-gray-700 whitespace-nowrap">
-                  {cell}
-                </td>
-              ))}
+            <tr key={index} className="hover:bg-[var(--app-surface-elevated)]">
+              {row.map((cell, cellIndex) => <td key={cellIndex} className="whitespace-nowrap px-3 py-2 text-[var(--foreground)]">{cell}</td>)}
             </tr>
           ))}
         </tbody>
       </table>
     </div>
   );
+}
+
+function ReportMessage({ children, error = false }: { children: React.ReactNode; error?: boolean }) {
+  return <div role={error ? 'alert' : undefined} className={`rounded-xl border px-5 py-10 text-center text-sm ${error ? 'border-red-200 bg-red-50 text-red-800' : 'border-[var(--app-border)] bg-[var(--app-surface-card)] text-[var(--muted-foreground)]'}`}>{children}</div>;
 }

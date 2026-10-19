@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import type { ComponentType } from 'react';
 import { CheckCircle, X, User, CreditCard, Smartphone, Banknote, Landmark, Eye, Printer } from 'lucide-react';
 import { formatCurrency, formatDateTime, formatErrorMessage } from '@/lib/utils';
-import { openCashDrawer } from '@/lib/hardware';
+import { getConfiguredReceiptPrinter, openCashDrawer } from '@/lib/hardware';
+import { getPosHardwareActions } from '@/lib/reporting-calculations';
 import { Button } from '@/components/shared/Button';
+import { useToast } from '@/components/shared/Toast';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useProductStore } from '@/stores/productStore';
@@ -38,6 +40,7 @@ const paymentMethods: Array<{ value: PaymentMethod; label: string; icon: Compone
 ];
 
 export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
+  const { toast } = useToast();
   const {
     items,
     subtotal,
@@ -206,8 +209,18 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
           };
         }),
       }));
-      if (paymentMethod === 'cash') await openCashDrawer();
       const activeStore = stores.find((store) => store.id === storeId);
+      const hardwareActions = getPosHardwareActions(activeStore ?? {}, paymentMethod);
+      if (hardwareActions.openCashDrawer) {
+        const printerName = getConfiguredReceiptPrinter(storeId);
+        if (!printerName) {
+          toast('warning', 'Sale completed, but no drawer printer is selected on this computer. Ask the owner to configure it in Settings → POS hardware.');
+        } else {
+          void openCashDrawer(printerName).then((opened) => {
+            if (!opened) toast('warning', 'Sale completed, but the drawer pulse failed. Check that QZ Tray is running and the selected printer is connected.');
+          });
+        }
+      }
       let nextReceiptSnapshot: ReceiptSnapshot | null = null;
       if (activeStore) {
         try {
@@ -237,10 +250,12 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       }
       if (nextReceiptSnapshot) {
         setReceiptSnapshot(nextReceiptSnapshot);
-        try {
-          printReceipt(nextReceiptSnapshot, 'thermal');
-        } catch (err) {
-          console.warn('Sale recorded, but receipt printing failed:', err);
+        if (hardwareActions.printReceipt) {
+          try {
+            printReceipt(nextReceiptSnapshot, 'thermal');
+          } catch (err) {
+            console.warn('Sale recorded, but receipt printing failed:', err);
+          }
         }
       }
     } catch (err) {
