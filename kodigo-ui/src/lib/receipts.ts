@@ -9,6 +9,18 @@ export type ReceiptOutput = 'preview' | 'print' | 'pdf';
 const money = (value: unknown) =>
   new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value ?? 0));
 
+const quantityWithUnit = (value: unknown, unitLabel: unknown) => {
+  const quantity = Number(value ?? 0);
+  const unit = String(unitLabel || 'unit').trim();
+  if (quantity === 1) return `${value} ${unit}`;
+  const plural = /(?:s|x|z|ch|sh)$/i.test(unit)
+    ? `${unit}es`
+    : /[^aeiou]y$/i.test(unit)
+      ? `${unit.slice(0, -1)}ies`
+      : `${unit}s`;
+  return `${value} ${plural}`;
+};
+
 const dateTime = (value: string) =>
   new Intl.DateTimeFormat('en-PH', {
     dateStyle: 'medium',
@@ -86,6 +98,7 @@ export function receiptSnapshotFromSale(sale: Sale, store: ReceiptSnapshot['stor
       bulk_discount_type: item.bulkDiscountType,
       bulk_discount_value: item.bulkDiscountValue,
       bulk_discount_amount: item.bulkDiscountAmount,
+      item_discount_amount: item.itemDiscountAmount,
       final_selling_price: item.finalSellingPrice,
       cost_per_base_unit: item.costPerBaseUnit,
       cogs: item.cogs,
@@ -137,7 +150,8 @@ export function buildReceiptHtml(snapshot: ReceiptSnapshot, layout: ReceiptLayou
       <td colspan="3">
         <strong>${escapeHtml(item.product_name)}</strong>
         ${item.selling_option_label ? `<div class="muted">${escapeHtml(item.selling_option_label)}</div>` : ''}
-        ${item.base_unit_quantity ? `<div class="muted">${escapeHtml(item.base_unit_quantity)} base units</div>` : ''}
+        ${item.base_unit_quantity ? `<div class="muted">${escapeHtml(quantityWithUnit(item.base_unit_quantity, item.base_unit_label || item.unit_label))}</div>` : ''}
+        ${Number(item.item_discount_amount) > 0 ? `<div class="muted">Item discount: -${money(item.item_discount_amount)}</div>` : ''}
       </td>
     </tr>
     <tr class="thermal-line">
@@ -150,7 +164,8 @@ export function buildReceiptHtml(snapshot: ReceiptSnapshot, layout: ReceiptLayou
       <td>
         <strong>${escapeHtml(item.product_name)}</strong>
         ${item.selling_option_label ? `<div class="muted">${escapeHtml(item.selling_option_label)}</div>` : ''}
-        ${item.base_unit_quantity ? `<div class="muted">${escapeHtml(item.base_unit_quantity)} base units</div>` : ''}
+        ${item.base_unit_quantity ? `<div class="muted">${escapeHtml(quantityWithUnit(item.base_unit_quantity, item.base_unit_label || item.unit_label))}</div>` : ''}
+        ${Number(item.item_discount_amount) > 0 ? `<div class="muted">Item discount: -${money(item.item_discount_amount)}</div>` : ''}
       </td>
       <td class="num">${escapeHtml(item.quantity)}</td>
       <td class="num">${money(item.unit_price)}</td>
@@ -393,7 +408,8 @@ export async function downloadReceiptPdf(snapshot: ReceiptSnapshot, layout: Rece
   for (const item of snapshot.items) {
     const itemName = `${item.product_name}${item.selling_option_label ? ` - ${item.selling_option_label}` : ''}`;
     for (const textLine of doc.splitTextToSize(itemName, contentWidth)) line(textLine, 8, 'left', true);
-    if (item.base_unit_quantity) line(`${item.base_unit_quantity} base units deducted`, 7);
+    if (item.base_unit_quantity) line(`${quantityWithUnit(item.base_unit_quantity, item.base_unit_label || item.unit_label)} deducted`, 7);
+    if (Number(item.item_discount_amount) > 0) line(`Item discount: -${money(item.item_discount_amount)}`, 7);
     twoCol(`${item.quantity} x ${money(item.unit_price)}`, money(item.line_total));
   }
   rule();

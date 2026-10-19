@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn, formatDateTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useAlertStore } from '@/stores/alertStore';
 import type { AppNotification } from '@/types';
 
@@ -28,6 +28,27 @@ const formatType = (type: string) =>
   typeLabels[type] ?? type.split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
 
 type NotificationVariant = 'default' | 'success' | 'warning' | 'danger' | 'info';
+
+const manilaDateKey = (value: string | Date) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date(value));
+  const part = (type: string) => parts.find((entry) => entry.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+};
+
+const dateGroupLabel = (key: string, todayKey: string) => {
+  if (key === todayKey) return 'Today';
+  const [year, month, day] = key.split('-').map(Number);
+  const yesterday = new Date(Date.UTC(year, month - 1, day - 1));
+  const yesterdayKey = `${yesterday.getUTCFullYear()}-${String(yesterday.getUTCMonth() + 1).padStart(2, '0')}-${String(yesterday.getUTCDate()).padStart(2, '0')}`;
+  if (key === yesterdayKey) return 'Yesterday';
+  return new Intl.DateTimeFormat('en-PH', { dateStyle: 'full', timeZone: 'Asia/Manila' }).format(new Date(`${key}T12:00:00+08:00`));
+};
+
+const formatNotificationTime = (value: string) => new Intl.DateTimeFormat('en-PH', {
+  timeStyle: 'short', timeZone: 'Asia/Manila',
+}).format(new Date(value));
 
 const severityConfig: Record<string, {
   label: string;
@@ -81,7 +102,7 @@ function NotificationRow({
           <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--muted-foreground)] text-pretty">{notification.message}</p>
 
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--muted-foreground)]">
-            <time dateTime={notification.createdAt}>{formatDateTime(notification.createdAt)}</time>
+            <time dateTime={notification.createdAt}>{formatNotificationTime(notification.createdAt)}</time>
             {notification.productName && <span>{notification.productName}</span>}
             {notification.sellingOptionLabel && <span>{notification.sellingOptionLabel}</span>}
           </div>
@@ -150,6 +171,18 @@ export function NotificationsPage() {
   const subtitle = unreadCount === 0
     ? 'You’re all caught up'
     : `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'}`;
+  const todayKey = manilaDateKey(new Date());
+  const notificationsByDate = notifications.reduce<Map<string, AppNotification[]>>((groups, notification) => {
+    const key = manilaDateKey(notification.createdAt);
+    const existing = groups.get(key) ?? [];
+    existing.push(notification);
+    groups.set(key, existing);
+    return groups;
+  }, new Map());
+  const notificationGroups = Array.from(notificationsByDate, ([key, items]) => ({
+    key,
+    items: items.sort((left, right) => right.createdAt.localeCompare(left.createdAt)),
+  })).sort((left, right) => right.key.localeCompare(left.key));
 
   return (
     <div>
@@ -194,14 +227,23 @@ export function NotificationsPage() {
           />
         </Card>
       ) : (
-        <div className="space-y-3" role="list" aria-label="Notifications">
-          {notifications.map((notification) => (
-            <NotificationRow
-              key={notification.id}
-              notification={notification}
-              onRead={(id) => void markRead(id)}
-              onDismiss={(id) => void dismiss(id)}
-            />
+        <div className="space-y-6" aria-label="Notifications grouped by date">
+          {notificationGroups.map((group) => (
+            <section key={group.key} aria-labelledby={`notifications-${group.key}`}>
+              <h2 id={`notifications-${group.key}`} className="mb-3 text-sm font-semibold text-[var(--muted-foreground)]">
+                {dateGroupLabel(group.key, todayKey)}
+              </h2>
+              <div className="space-y-3" role="list" aria-label={`${dateGroupLabel(group.key, todayKey)} notifications`}>
+                {group.items.map((notification) => (
+                  <NotificationRow
+                    key={notification.id}
+                    notification={notification}
+                    onRead={(id) => void markRead(id)}
+                    onDismiss={(id) => void dismiss(id)}
+                  />
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       )}

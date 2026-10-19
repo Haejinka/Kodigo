@@ -242,34 +242,29 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
 
   const handleCreateShoppingList = () => {
     if (selectedItems.length === 0) return;
-    const selectedStoreNames = Array.from(new Set(selectedItems.map((item) => (
-      stores.find((store) => store.id === item.storeId)?.name || 'Unknown'
-    ))));
-    const lines = [
-      'SHOPPING LIST',
-      `${selectedStoreNames.length === 1 ? 'Store' : 'Stores'}: ${selectedStoreNames.join(', ')}`,
-      `Created: ${new Date().toLocaleDateString('en-PH')}`,
-      `Items: ${selectedItems.length}`,
-      '',
-      ...selectedItems.flatMap((item, index) => {
+    const csvCell = (value: string | number) => {
+      const text = String(value);
+      return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+    const rows = [
+      ['Item', 'Quantity', 'Unit Price', 'Total'],
+      ...selectedItems.map((item) => {
         const calculation = getDraftCalculation(item);
+        const unitPrice = calculation.quantity > 0 ? calculation.totalCost / calculation.quantity : 0;
         return [
-          `${index + 1}. ${item.productName}`,
-          `   Buy: ${calculation.quantity} ${calculation.option.label}${calculation.quantity === 1 ? '' : 's'} (${calculation.baseUnits} ${item.unit}${calculation.baseUnits === 1 ? '' : 's'})`,
-          `   Supplier: ${item.suggestedSupplierName}`,
-          `   Priority: ${item.urgency}`,
-          `   ${calculation.isEstimated ? 'Estimated cost' : 'Purchase cost'}: ${formatCurrency(calculation.totalCost)}`,
-          '',
+          item.productName,
+          `${calculation.quantity} ${calculation.option.label}`,
+          unitPrice.toFixed(2),
+          calculation.totalCost.toFixed(2),
         ];
       }),
-      '----------------------------------------',
-      `ESTIMATED TOTAL: ${formatCurrency(totalCost)}`,
+      ['TOTAL AMOUNT', '', '', totalCost.toFixed(2)],
     ];
-    const text = lines.join('\r\n');
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+    const csv = `\uFEFF${rows.map((row) => row.map((cell) => csvCell(cell)).join(',')).join('\r\n')}`;
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `Shopping-List-${new Date().toISOString().slice(0, 10)}.txt`;
+    anchor.download = `Shopping-List-${new Date().toISOString().slice(0, 10)}.csv`;
     anchor.click();
     URL.revokeObjectURL(url);
     toast('success', 'Shopping list downloaded.');

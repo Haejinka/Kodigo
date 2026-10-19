@@ -721,8 +721,9 @@ export async function fetchSalesVelocity(
   days: number,
   activeStoreId: string | 'all' | null,
   products: Product[],
+  dateRange?: Pick<ReportFilters, 'startDate' | 'endDate'>,
 ): Promise<SalesVelocityAggregateRow[]> {
-  const range = getDateRangeForDays(days);
+  const range = dateRange ?? getDateRangeForDays(days);
   const { startIso, endIso } = normalizeDateRange({ ...range, paymentMethod: 'all', status: 'completed' });
   const { data, error } = await supabase.rpc('get_sales_velocity', {
     p_store_id: activeStoreId === 'all' ? null : activeStoreId,

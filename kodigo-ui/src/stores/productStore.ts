@@ -329,11 +329,20 @@ const replaceProductSuppliers = async (productId: string, supplierIds: string[])
   // usable until the next online edit.
   if (typeof window !== 'undefined' && !navigator.onLine) return;
 
-  const { error } = await supabase.rpc('replace_product_suppliers', {
-    p_product_id: productId,
-    p_supplier_ids: supplierIds,
-  });
-  if (error) throw error;
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 15_000);
+  try {
+    const { error } = await supabase.rpc('replace_product_suppliers', {
+      p_product_id: productId,
+      p_supplier_ids: supplierIds,
+    }).abortSignal(controller.signal);
+    if (error) throw error;
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('Saving supplier assignments took too long. Please retry; the product changes were not confirmed.');
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 };
 
 export const useProductStore = create<ProductStore>((set, get) => ({

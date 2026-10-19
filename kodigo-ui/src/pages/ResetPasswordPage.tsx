@@ -2,17 +2,16 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/shared/Button';
 import { PasswordInput } from '@/components/shared/PasswordInput';
-import { AssistedPasswordConfirmation } from '@/components/ui/assisted-password-confirmation';
 import { isSecurePassword, PasswordStrength } from '@/components/ui/password-strength';
 import { supabase } from '@/lib/supabase';
 
 export function ResetPasswordPage() {
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -35,21 +34,20 @@ export function ResetPasswordPage() {
       setError('Choose a stronger password that meets all requirements.');
       return;
     }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-
     setSaving(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    if (updateError) {
-      setError(updateError.message);
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) throw updateError;
+      setMessage('Your password was updated successfully. Redirecting you to sign in…');
+      void supabase.auth.signOut({ scope: 'local' }).catch((signOutError) => {
+        console.warn('Password was updated, but the recovery session could not be cleared:', signOutError);
+      });
+      navigate('/login', { replace: true, state: { passwordReset: true } });
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not save your new password. Please try again.');
+    } finally {
       setSaving(false);
-      return;
     }
-
-    await supabase.auth.signOut({ scope: 'local' });
-    navigate('/login', { replace: true, state: { passwordReset: true } });
   };
 
   return (
@@ -76,14 +74,7 @@ export function ResetPasswordPage() {
               />
               <PasswordStrength value={password} className="mt-3" />
             </div>
-            <div>
-              <AssistedPasswordConfirmation
-                password={password}
-                confirmPassword={confirmPassword}
-                onConfirmPasswordChange={setConfirmPassword}
-                label="Confirm new password"
-              />
-            </div>
+            {message && <div role="status" className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">{message}</div>}
             {error && <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">{error}</div>}
             <Button type="submit" variant="primary" loading={saving} className="w-full">
               Save new password

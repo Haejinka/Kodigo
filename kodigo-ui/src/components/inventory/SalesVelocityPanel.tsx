@@ -16,7 +16,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { fetchSalesVelocity } from '@/lib/reporting';
+import { fetchSalesVelocity, getDateRangeForDays } from '@/lib/reporting';
 import {
   buildSalesVelocityRows,
   formatDaysOfStock,
@@ -38,12 +38,6 @@ import { SearchInput } from '@/components/shared/SearchInput';
 import { StatCard } from '@/components/shared/StatCard';
 
 interface Props { products: Product[] }
-
-const PERIODS = [
-  { days: 7, label: 'Last 7 days' },
-  { days: 30, label: 'Last 30 days' },
-  { days: 90, label: 'Last 90 days' },
-] as const;
 
 const classificationVariant: Record<VelocityClassification, 'default' | 'success' | 'warning' | 'info'> = {
   'Fast Moving': 'success',
@@ -84,7 +78,10 @@ function statusBadge(label: VelocityClassification | InventoryStatus, variant: '
 
 export function SalesVelocityPanel({ products }: Props) {
   const activeStoreId = useAuthStore((state) => state.activeStoreId);
-  const [periodDays, setPeriodDays] = useState(30);
+  const initialRange = getDateRangeForDays(30);
+  const [dateFrom, setDateFrom] = useState(initialRange.startDate);
+  const [dateTo, setDateTo] = useState(initialRange.endDate);
+  const [categoryId, setCategoryId] = useState('all');
   const [soldByProduct, setSoldByProduct] = useState<Map<string, number>>(new Map());
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<VelocitySort>('highest-velocity');
@@ -92,8 +89,26 @@ export function SalesVelocityPanel({ products }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
+  const periodDays = useMemo(() => {
+    const start = Date.parse(`${dateFrom}T00:00:00Z`);
+    const end = Date.parse(`${dateTo}T00:00:00Z`);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 1;
+    return Math.floor((end - start) / 86_400_000) + 1;
+  }, [dateFrom, dateTo]);
+
+  const categories = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const product of products) {
+      if (product.categoryId && product.categoryName) byId.set(product.categoryId, product.categoryName);
+    }
+    return Array.from(byId.entries()).sort((left, right) => left[1].localeCompare(right[1]));
+  }, [products]);
+
   useEffect(() => {
-    setPeriodDays(30);
+    const range = getDateRangeForDays(30);
+    setDateFrom(range.startDate);
+    setDateTo(range.endDate);
+    setCategoryId('all');
     setSearch('');
     setSortBy('highest-velocity');
   }, [activeStoreId]);
@@ -109,7 +124,7 @@ export function SalesVelocityPanel({ products }: Props) {
     setLoading(true);
     setError(null);
 
-    void fetchSalesVelocity(periodDays, activeStoreId, products)
+    void fetchSalesVelocity(periodDays, activeStoreId, products, { startDate: dateFrom, endDate: dateTo })
       .then((rows) => {
         if (cancelled) return;
         setSoldByProduct(new Map(rows.map((row) => [row.productId, row.unitsSold])));
@@ -125,42 +140,47 @@ export function SalesVelocityPanel({ products }: Props) {
       });
 
     return () => { cancelled = true; };
-  }, [activeStoreId, periodDays, products, reloadToken]);
+  }, [activeStoreId, dateFrom, dateTo, periodDays, products, reloadToken]);
 
   const rows = useMemo(
     () => buildSalesVelocityRows(products, soldByProduct, periodDays),
     [products, soldByProduct, periodDays],
   );
 
+  const categoryRows = useMemo(
+    () => categoryId === 'all' ? rows : rows.filter((row) => row.product.categoryId === categoryId),
+    [categoryId, rows],
+  );
+
   const filteredRows = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     const matchingRows = normalizedSearch
-      ? rows.filter((row) => row.product.name.toLowerCase().includes(normalizedSearch) || row.product.sku.toLowerCase().includes(normalizedSearch))
-      : rows;
+      ? categoryRows.filter((row) => row.product.name.toLowerCase().includes(normalizedSearch) || row.product.sku.toLowerCase().includes(normalizedSearch))
+      : categoryRows;
     return sortSalesVelocityRows(matchingRows, sortBy);
-  }, [rows, search, sortBy]);
+  }, [categoryRows, search, sortBy]);
 
   const chartRows = useMemo(() => {
-    return sortSalesVelocityRows(rows.filter((row) => row.perDay > 0), 'highest-velocity')
+    return sortSalesVelocityRows(categoryRows.filter((row) => row.perDay > 0), 'highest-velocity')
       .slice(0, 10)
       .map((row) => ({
         ...row,
         name: row.product.name.length > 24 ? `${row.product.name.slice(0, 23)}…` : row.product.name,
       }));
-  }, [rows]);
+  }, [categoryRows]);
 
   const summary = useMemo(() => {
-    const activeRows = rows.filter((row) => row.perDay > 0);
+    const activeRows = categoryRows.filter((row) => row.perDay > 0);
     const averagePerDay = activeRows.length > 0
       ? activeRows.reduce((total, row) => total + row.perDay, 0) / activeRows.length
       : 0;
     return {
-      fastMoving: rows.filter((row) => row.classification === 'Fast Moving').length,
-      slowMoving: rows.filter((row) => row.classification === 'Slow Moving').length,
-      restockSoon: rows.filter((row) => row.inventoryStatus === 'Restock Soon').length,
+      fastMoving: categoryRows.filter((row) => row.classification === 'Fast Moving').length,
+      slowMoving: categoryRows.filter((row) => row.classification === 'Slow Moving').length,
+      restockSoon: categoryRows.filter((row) => row.inventoryStatus === 'Restock Soon').length,
       averagePerDay,
     };
-  }, [rows]);
+  }, [categoryRows]);
 
   const columns = useMemo<Column<SalesVelocityRow>[]>(() => [
     {
@@ -229,17 +249,28 @@ export function SalesVelocityPanel({ products }: Props) {
               </p>
             </div>
           </div>
-          <label className="flex shrink-0 items-center gap-2 text-xs font-medium text-gray-600">
-            <span>Period</span>
-            <select
-              aria-label="Sales velocity period"
-              value={periodDays}
-              onChange={(event) => setPeriodDays(Number(event.target.value))}
-              className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {PERIODS.map((period) => <option key={period.days} value={period.days}>{period.label}</option>)}
-            </select>
-          </label>
+          <div className="grid shrink-0 grid-cols-1 gap-2 sm:grid-cols-3">
+            <label className="flex flex-col gap-1 text-xs font-medium text-gray-600">
+              Category
+              <select
+                aria-label="Filter sales velocity by category"
+                value={categoryId}
+                onChange={(event) => setCategoryId(event.target.value)}
+                className="h-10 min-w-40 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All categories</option>
+                {categories.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-gray-600">
+              Date from
+              <input type="date" value={dateFrom} max={dateTo} onChange={(event) => { if (event.target.value) setDateFrom(event.target.value); }} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-gray-600">
+              Date to
+              <input type="date" value={dateTo} min={dateFrom} onChange={(event) => { if (event.target.value) setDateTo(event.target.value); }} className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </label>
+          </div>
         </div>
       </section>
 
@@ -316,7 +347,7 @@ export function SalesVelocityPanel({ products }: Props) {
           </div>
         </div>
         <DataTable
-          key={`${periodDays}-${sortBy}-${search}`}
+          key={`${dateFrom}-${dateTo}-${categoryId}-${sortBy}-${search}`}
           columns={columns}
           data={filteredRows}
           rowKey={(row) => row.product.id}

@@ -347,6 +347,8 @@ export interface CartItem {
   sellingOption: ProductSellingOption;
   quantity: number;
   lineTotal: number;
+  /** Additional discount for each cart unit, entered at payment time. */
+  discountPerUnit?: number;
 }
 
 // ─── Sales ───────────────────────────────────────────────────────────────────
@@ -374,6 +376,8 @@ export interface SaleItem {
   bulkDiscountType?: BulkDiscountType;
   bulkDiscountValue?: number;
   bulkDiscountAmount?: number;
+  itemDiscountPerUnit?: number;
+  itemDiscountAmount?: number;
   finalSellingPrice?: number;
   costPerBaseUnit?: number;
   cogs?: number;
@@ -493,6 +497,7 @@ export interface ReceiptSnapshot {
     bulk_discount_type?: BulkDiscountType;
     bulk_discount_value?: number;
     bulk_discount_amount?: number;
+    item_discount_amount?: number;
     final_selling_price?: number;
     cost_per_base_unit?: number;
     cogs?: number;

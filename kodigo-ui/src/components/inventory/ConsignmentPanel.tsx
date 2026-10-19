@@ -15,6 +15,10 @@ interface ConsignmentBalance {
   supplier_name: string;
   quantity_received: number | string;
   quantity_on_hand: number | string;
+  quantity_sold: number | string;
+  quantity_received_purchase_units: number | string;
+  purchase_unit_label: string;
+  amount_sold: number | string;
   amount_due: number | string;
 }
 
@@ -59,7 +63,7 @@ export function ConsignmentPanel() {
     setError('');
     let balanceQuery = supabase
       .from('consignment_settlement_balances')
-      .select('store_id,product_id,product_name,base_unit,supplier_id,supplier_name,quantity_received,quantity_on_hand,amount_due')
+      .select('store_id,product_id,product_name,base_unit,supplier_id,supplier_name,quantity_received,quantity_on_hand,quantity_sold,quantity_received_purchase_units,purchase_unit_label,amount_sold,amount_due')
       .order('supplier_name')
       .order('product_name');
     let supplierQuery = supabase
@@ -150,16 +154,26 @@ export function ConsignmentPanel() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-left text-sm">
+            <table className="w-full min-w-[1040px] text-left text-sm">
               <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                <tr><th className="px-5 py-3">Product</th><th className="px-4 py-3">Supplier</th><th className="px-4 py-3 text-right">Received</th><th className="px-4 py-3 text-right">On hand</th><th className="px-5 py-3 text-right">Amount owed</th></tr>
+                <tr>
+                  <th className="px-5 py-3">Product</th>
+                  <th className="px-4 py-3">Supplier</th>
+                  <th className="px-4 py-3 text-right">Received items in packs</th>
+                  <th className="px-4 py-3 text-right">Sold</th>
+                  <th className="px-4 py-3 text-right">Amount sold</th>
+                  <th className="px-4 py-3 text-right">Remaining stock</th>
+                  <th className="px-5 py-3 text-right">Amount owed</th>
+                </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {rows.map((row) => <tr key={`${row.store_id}:${row.product_id}:${row.supplier_id}`}>
+                {rows.map((row) => <tr key={`${row.store_id}:${row.product_id}:${row.supplier_id}:${row.purchase_unit_label}`}>
                   <td className="px-5 py-3"><p className="font-medium text-gray-900">{row.product_name}</p><p className="text-xs text-gray-500">{row.base_unit}</p></td>
                   <td className="px-4 py-3 text-gray-700">{row.supplier_name}</td>
-                  <td className="px-4 py-3 text-right font-mono">{Number(row.quantity_received).toLocaleString('en-PH')}</td>
-                  <td className="px-4 py-3 text-right font-mono">{Number(row.quantity_on_hand).toLocaleString('en-PH')}</td>
+                  <td className="px-4 py-3 text-right font-mono">{Number(row.quantity_received_purchase_units).toLocaleString('en-PH', { maximumFractionDigits: 3 })} {row.purchase_unit_label}{Number(row.quantity_received_purchase_units) === 1 ? '' : 's'}</td>
+                  <td className="px-4 py-3 text-right font-mono">{Number(row.quantity_sold).toLocaleString('en-PH', { maximumFractionDigits: 3 })} {row.base_unit}{Number(row.quantity_sold) === 1 ? '' : 's'}</td>
+                  <td className="px-4 py-3 text-right font-mono">{formatCurrency(Number(row.amount_sold) || 0)}</td>
+                  <td className="px-4 py-3 text-right font-mono">{Number(row.quantity_on_hand).toLocaleString('en-PH', { maximumFractionDigits: 3 })} {row.base_unit}{Number(row.quantity_on_hand) === 1 ? '' : 's'}</td>
                   <td className="px-5 py-3 text-right font-mono font-semibold text-amber-800">{formatCurrency(Number(row.amount_due) || 0)}</td>
                 </tr>)}
               </tbody>

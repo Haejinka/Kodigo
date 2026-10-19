@@ -15,16 +15,17 @@ export function ForgotPasswordPage() {
     setError(null);
     setMessage(null);
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-
-    if (resetError) {
-      setError(resetError.message);
-    } else {
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (resetError) throw resetError;
       setMessage('If an account exists for that email, password reset instructions have been sent.');
+    } catch (resetError) {
+      setError(resetError instanceof Error ? resetError.message : 'Could not send reset instructions. Please try again.');
+    } finally {
+      setSending(false);
     }
-    setSending(false);
   };
 
   return (

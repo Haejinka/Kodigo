@@ -1,16 +1,14 @@
 import { create } from 'zustand';
 import { getAvailableSellingUnits, getDefaultSellingOption, getOptionInventoryMultiplier, getOptionSellingPrice, isLegacySellingOption } from '@/types';
-import type { CartItem, DiscountType, Product, ProductSellingOption } from '@/types';
+import type { CartItem, Product, ProductSellingOption } from '@/types';
 import { useAuthStore } from './authStore';
 
 interface CartState {
   items: CartItem[];
-  discountType: DiscountType;
-  discountValue: number;
   addItem: (product: Product, option?: ProductSellingOption, qty?: number) => void;
   removeItem: (lineId: string) => void;
   updateQty: (lineId: string, qty: number) => void;
-  setDiscount: (type: DiscountType, value: number) => void;
+  setItemDiscount: (lineId: string, discountPerUnit: number) => void;
   clearCart: () => void;
   total: () => number;
   subtotal: () => number;
@@ -43,8 +41,6 @@ const getLineId = (product: Product, option: ProductSellingOption) => {
 
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
-  discountType: 'amount',
-  discountValue: 0,
 
   addItem: (product: Product, option = getDefaultSellingOption(product), qty = 1) => {
     const maxStock = getAvailableSellingUnits(product, option);
@@ -99,22 +95,24 @@ export const useCartStore = create<CartState>((set, get) => ({
     }));
   },
 
-  setDiscount: (type, value) => {
-    const safeValue = Math.max(0, Number.isFinite(value) ? value : 0);
-    set({ discountType: type, discountValue: safeValue });
+  setItemDiscount: (lineId, discountPerUnit) => {
+    const item = get().items.find((candidate) => candidate.id === lineId);
+    if (!item) return;
+    const safeValue = roundCurrency(Math.min(
+      getOptionSellingPrice(item.product, item.sellingOption),
+      Math.max(0, Number.isFinite(discountPerUnit) ? discountPerUnit : 0),
+    ));
+    set((state) => ({
+      items: state.items.map((candidate) => candidate.id === lineId
+        ? { ...candidate, discountPerUnit: safeValue }
+        : candidate),
+    }));
   },
 
-  clearCart: () => set({ items: [], discountType: 'amount', discountValue: 0 }),
+  clearCart: () => set({ items: [] }),
 
   subtotal: () => get().items.reduce((sum, i) => sum + i.lineTotal, 0),
-  discountAmount: () => {
-    const subtotal = get().subtotal();
-    const { discountType, discountValue } = get();
-    if (discountType === 'percent') {
-      return roundCurrency(subtotal * Math.min(discountValue, 100) / 100);
-    }
-    return roundCurrency(Math.min(discountValue, subtotal));
-  },
+  discountAmount: () => roundCurrency(get().items.reduce((sum, item) => sum + item.quantity * (item.discountPerUnit ?? 0), 0)),
   taxRate: () => getActiveStoreTaxRate(),
   vatStatus: () => getActiveStoreVatStatus(),
   taxAmount: () => {

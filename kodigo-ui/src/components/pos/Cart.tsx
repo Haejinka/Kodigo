@@ -117,6 +117,11 @@ export function Cart({ onCharge }: CartProps) {
                   <p className="text-xs text-gray-400 font-mono">
                     {formatCurrency(getOptionSellingPrice(item.product, item.sellingOption))} per {isBulkSellingOption(item.sellingOption) ? getSellingOptionLabel(item.sellingOption) : item.product.unit}
                   </p>
+                  {(item.discountPerUnit ?? 0) > 0 && (
+                    <p className="text-[11px] font-medium text-green-700">
+                      Item discount: -{formatCurrency(item.discountPerUnit ?? 0)} per {getSellingOptionLabel(item.sellingOption)}
+                    </p>
+                  )}
                   <p className="text-[11px] text-blue-600 font-medium">
                     {item.quantity * getOptionInventoryMultiplier(item.sellingOption)} {item.product.unit}s deducted
                   </p>
@@ -152,7 +157,7 @@ export function Cart({ onCharge }: CartProps) {
 
                 <div className="text-right shrink-0 ml-2">
                   <p className="text-sm font-bold font-mono text-gray-900">
-                    {formatCurrency(item.lineTotal)}
+                    {formatCurrency(item.lineTotal - (item.discountPerUnit ?? 0) * item.quantity)}
                   </p>
                   <button
                     onClick={() => removeItem(item.id)}

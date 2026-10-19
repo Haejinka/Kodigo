@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { CheckCircle, X, User, CreditCard, Smartphone, Banknote, Landmark, Eye, Printer } from 'lucide-react';
 import { formatCurrency, formatDateTime, formatErrorMessage } from '@/lib/utils';
@@ -44,9 +44,10 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const {
     items,
     subtotal,
+    discountAmount,
     taxRate,
     vatStatus,
-    setDiscount,
+    setItemDiscount,
     clearCart,
   } = useCartStore();
   const { user, profile, stores } = useAuthStore();
@@ -54,40 +55,30 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const [cashInput, setCashInput] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [paymentReference, setPaymentReference] = useState('');
-  const [salePriceDraft, setSalePriceDraft] = useState('');
   const [step, setStep] = useState<Step>('payment');
   const [processing, setProcessing] = useState(false);
+  const processingRef = useRef(false);
+  const completedSaleIdRef = useRef<string | null>(null);
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const [receiptSnapshot, setReceiptSnapshot] = useState<ReceiptSnapshot | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const orderSubtotal = subtotal();
+  const orderDiscount = discountAmount();
   const orderTaxRate = taxRate();
   const isVatRegistered = vatStatus() === 'vat';
-  const parsedSalePrice = salePriceDraft.trim() === '' ? orderSubtotal : Number(salePriceDraft);
-  const finalSalePrice = Number.isFinite(parsedSalePrice)
-    ? Math.min(orderSubtotal, Math.max(0, parsedSalePrice))
-    : orderSubtotal;
-  const salePriceInputValid = salePriceDraft.trim() === '' || (Number.isFinite(Number(salePriceDraft)) && Number(salePriceDraft) >= 0);
-  const orderDiscount = roundCurrency(orderSubtotal - finalSalePrice);
-  const discountPercent = orderSubtotal > 0 ? orderDiscount / orderSubtotal * 100 : 0;
+  const finalSalePrice = roundCurrency(Math.max(0, orderSubtotal - orderDiscount));
   const orderTax = isVatRegistered && orderTaxRate > 0
     ? roundCurrency(finalSalePrice * orderTaxRate / (100 + orderTaxRate))
     : 0;
   const orderTotal = roundCurrency(finalSalePrice);
-
-  useEffect(() => {
-    if (!open) return;
-    const cart = useCartStore.getState();
-    setSalePriceDraft(Math.max(0, cart.subtotal() - cart.discountAmount()).toFixed(2));
-  }, [open]);
 
   const cashAmount = parseFloat(cashInput) || 0;
   const isCash = paymentMethod === 'cash';
   const tendered = isCash ? cashAmount : orderTotal;
   const change = isCash ? Math.max(0, cashAmount - orderTotal) : 0;
   const stockIssue = items.find((i) => i.quantity > getAvailableSellingUnits(i.product, i.sellingOption));
-  const canConfirm = items.length > 0 && salePriceInputValid && (isCash ? cashAmount >= orderTotal : true) && !stockIssue;
+  const canConfirm = items.length > 0 && (isCash ? cashAmount >= orderTotal : true) && !stockIssue && !processing;
 
   const quickAmounts = [
     Math.ceil(orderTotal / 50) * 50,
@@ -96,20 +87,23 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   ].filter((v, i, arr) => arr.indexOf(v) === i && v >= orderTotal);
 
   const handleConfirm = async () => {
-    if (!canConfirm) return;
+    if (!canConfirm || processingRef.current) return;
+    processingRef.current = true;
     setProcessing(true);
 
     const storeId = useAuthStore.getState().activeStoreId;
     if (!storeId || storeId === 'all') {
-      alert('Please select a specific store to process sales.');
+      toast('error', 'Select a specific store before processing the sale.');
       setProcessing(false);
+      processingRef.current = false;
       return;
     }
 
     const currentStockIssue = items.find((i) => i.quantity > getAvailableSellingUnits(i.product, i.sellingOption));
     if (currentStockIssue) {
-      alert(`${currentStockIssue.product.name} - ${getSellingOptionLabel(currentStockIssue.sellingOption)} only has ${getAvailableSellingUnits(currentStockIssue.product, currentStockIssue.sellingOption)} in stock.`);
+      toast('error', `${currentStockIssue.product.name} - ${getSellingOptionLabel(currentStockIssue.sellingOption)} only has ${getAvailableSellingUnits(currentStockIssue.product, currentStockIssue.sellingOption)} in stock.`);
       setProcessing(false);
+      processingRef.current = false;
       return;
     }
 
@@ -125,7 +119,10 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         const finalSellingPrice = getOptionSellingPrice(i.product, i.sellingOption);
         const costPerBaseUnit = i.product.costPrice;
         const cogs = costPerBaseUnit * baseUnitQuantity;
-        const grossProfit = i.lineTotal - cogs;
+        const itemDiscountPerUnit = Math.min(getOptionSellingPrice(i.product, i.sellingOption), i.discountPerUnit ?? 0);
+        const itemDiscountAmount = roundCurrency(itemDiscountPerUnit * i.quantity);
+        const netLineTotal = roundCurrency(i.lineTotal - itemDiscountAmount);
+        const grossProfit = netLineTotal - cogs;
         return {
         productId: i.product.id,
         productName: i.product.name,
@@ -147,16 +144,18 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         bulkDiscountType: isBulk ? i.sellingOption.discountType : undefined,
         bulkDiscountValue: isBulk ? i.sellingOption.discountValue : undefined,
         bulkDiscountAmount,
-        finalSellingPrice,
+        itemDiscountPerUnit,
+        itemDiscountAmount,
+        finalSellingPrice: roundCurrency(finalSellingPrice - itemDiscountPerUnit),
         baseUnitLabel: i.product.unit,
         costPerBaseUnit,
         cogs,
         grossProfit,
-        grossMargin: i.lineTotal > 0 ? grossProfit / i.lineTotal : 0,
+        grossMargin: netLineTotal > 0 ? grossProfit / netLineTotal : 0,
         quantity: i.quantity,
-        unitPrice: finalSellingPrice,
+        unitPrice: roundCurrency(finalSellingPrice - itemDiscountPerUnit),
         costPrice: getOptionPurchaseCost(i.product, i.sellingOption),
-        lineTotal: i.lineTotal,
+        lineTotal: netLineTotal,
         };
       }),
       subtotal: orderSubtotal,
@@ -182,8 +181,9 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       recordedSale = await processSale(sale);
     } catch (err) {
       console.error('Failed to record POS sale:', err);
-      alert(formatErrorMessage(err, 'Failed to process transaction.'));
+      toast('error', formatErrorMessage(err, 'Payment could not be completed. Please review the error and try again.'));
       setProcessing(false);
+      processingRef.current = false;
       return;
     }
 
@@ -191,8 +191,12 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     // is local UI/peripheral work and must not turn a completed sale into a
     // false failure (or encourage the cashier to charge the customer twice).
     setCompletedSale(recordedSale);
+    completedSaleIdRef.current = recordedSale.id;
+    setStep('confirmed');
+    setProcessing(false);
+    toast('success', 'Payment completed and saved.');
 
-    try {
+    void (async () => { try {
       useProductStore.setState((state) => ({
         products: state.products.map((product) => {
           const soldLines = items.filter((line) => line.product.id === product.id);
@@ -218,16 +222,10 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         } else {
           void openCashDrawer(printerName).then((opened) => {
             if (!opened) toast('warning', 'Sale completed, but the drawer pulse failed. Check that QZ Tray is running and the selected printer is connected.');
-          });
+          }).catch(() => toast('warning', 'Sale completed, but the cash drawer could not be opened. Check the printer and drawer connection.'));
         }
       }
-      let nextReceiptSnapshot: ReceiptSnapshot | null = null;
-      if (activeStore) {
-        try {
-          const receipt = await fetchReceiptBySaleId(recordedSale.id);
-          nextReceiptSnapshot = receipt.payload;
-        } catch {
-          nextReceiptSnapshot = receiptSnapshotFromSale(recordedSale, {
+      let nextReceiptSnapshot: ReceiptSnapshot | null = activeStore ? receiptSnapshotFromSale(recordedSale, {
             id: activeStore.id,
             name: activeStore.name,
             registeredName: activeStore.registeredName || activeStore.name,
@@ -245,9 +243,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
             logoPath: activeStore.logoPath,
             phone: activeStore.phone,
             email: activeStore.email,
-          });
-        }
-      }
+          }) : null;
       if (nextReceiptSnapshot) {
         setReceiptSnapshot(nextReceiptSnapshot);
         if (hardwareActions.printReceipt) {
@@ -258,12 +254,20 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
           }
         }
       }
+      if (activeStore) {
+        try {
+          const receipt = await fetchReceiptBySaleId(recordedSale.id);
+          if (completedSaleIdRef.current === recordedSale.id) {
+            nextReceiptSnapshot = receipt.payload;
+            setReceiptSnapshot(nextReceiptSnapshot);
+          }
+        } catch (err) {
+          console.warn('Sale recorded, but the saved receipt could not be loaded:', err);
+        }
+      }
     } catch (err) {
       console.warn('Sale recorded, but POS post-processing failed:', err);
-    }
-
-    setStep('confirmed');
-    setProcessing(false);
+    } })();
   };
 
   const handleDone = () => {
@@ -271,11 +275,12 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     setCashInput('');
     setPaymentMethod('cash');
     setPaymentReference('');
-    setSalePriceDraft('');
     setStep('payment');
     setCompletedSale(null);
     setReceiptSnapshot(null);
     setPreviewOpen(false);
+    completedSaleIdRef.current = null;
+    processingRef.current = false;
     onSuccess();
     onClose();
   };
@@ -284,14 +289,14 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/60" onClick={step === 'payment' ? onClose : undefined} />
+      <div className="fixed inset-0 bg-black/60" onClick={step === 'payment' && !processing ? onClose : undefined} />
       <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-bold text-gray-900">
             {step === 'payment' ? 'Process Payment' : 'Payment Successful'}
           </h2>
           {step === 'payment' && (
-            <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100">
+            <button onClick={onClose} disabled={processing} className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-40">
               <X className="w-4 h-4 text-gray-500" />
             </button>
           )}
@@ -300,17 +305,42 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         {step === 'payment' ? (
           <div className="p-6 space-y-5">
             <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-              {items.map((item) => (
-                <div key={item.product.id} className="flex justify-between text-sm">
-                  <span className="text-gray-600 truncate flex-1 mr-2">
-                    {item.product.name} - {item.quantity} {getSellingOptionLabel(item.sellingOption)} ({item.quantity * getOptionInventoryMultiplier(item.sellingOption)} {item.product.unit}s)
-                  </span>
-                  <span className="font-mono text-gray-900 font-medium">{formatCurrency(item.lineTotal)}</span>
-                </div>
-              ))}
+              {items.map((item) => {
+                const optionLabel = getSellingOptionLabel(item.sellingOption);
+                const unitDiscount = Math.min(getOptionSellingPrice(item.product, item.sellingOption), item.discountPerUnit ?? 0);
+                const netLineTotal = item.lineTotal - unitDiscount * item.quantity;
+                return (
+                  <div key={item.id} className="space-y-2 border-b border-gray-200 pb-3 last:border-0 last:pb-0">
+                    <div className="flex items-start justify-between gap-3 text-sm">
+                      <span className="min-w-0 flex-1 text-gray-700">
+                        {item.product.name} · {item.quantity} {optionLabel}
+                        <span className="block text-xs text-gray-500">{item.quantity * getOptionInventoryMultiplier(item.sellingOption)} {item.product.unit}{item.quantity * getOptionInventoryMultiplier(item.sellingOption) === 1 ? '' : 's'}</span>
+                      </span>
+                      <span className="whitespace-nowrap text-right font-mono font-medium text-gray-900">{formatCurrency(netLineTotal)}</span>
+                    </div>
+                    <label className="flex items-center justify-between gap-3 text-xs text-gray-500">
+                      <span>Discount per {optionLabel}</span>
+                      <span className="relative w-32 shrink-0">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">PHP</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max={getOptionSellingPrice(item.product, item.sellingOption)}
+                          step="0.01"
+                          value={unitDiscount ? unitDiscount : ''}
+                          onChange={(event) => setItemDiscount(item.id, Number(event.target.value) || 0)}
+                          disabled={processing}
+                          aria-label={`Discount per ${optionLabel} for ${item.product.name}`}
+                          className="w-full rounded-md border border-gray-200 bg-white py-1.5 pl-8 pr-2 text-right font-mono text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </span>
+                    </label>
+                  </div>
+                );
+              })}
               <div className="pt-2 border-t border-gray-200 space-y-1">
                 <div className="flex justify-between text-xs text-gray-500">
-                  <span>Discount{orderDiscount > 0 ? ` (${discountPercent.toFixed(1)}%)` : ''}</span>
+                  <span>Item discounts</span>
                   <span className="font-mono">-{formatCurrency(orderDiscount)}</span>
                 </div>
                 <div className="flex justify-between text-xs text-gray-500">
@@ -333,6 +363,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                     key={method.value}
                     type="button"
                     onClick={() => setPaymentMethod(method.value)}
+                    disabled={processing}
                     className={[
                       'h-16 rounded-xl border text-xs font-semibold flex flex-col items-center justify-center gap-1 transition',
                       active ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50',
@@ -358,7 +389,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                       if (e.key === 'Enter' && canConfirm) {
                         e.preventDefault();
                         handleConfirm();
-                      } else if (e.key === 'Escape') {
+                      } else if (e.key === 'Escape' && !processing) {
                         e.preventDefault();
                         onClose();
                       }
@@ -367,6 +398,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                     className="w-full pl-12 pr-4 py-3 text-xl font-mono font-bold border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-gray-900"
                     autoFocus
                     min={0}
+                    disabled={processing}
                   />
                 </div>
 
@@ -375,6 +407,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                     <button
                       key={amt}
                       onClick={() => setCashInput(String(amt))}
+                      disabled={processing}
                       className="flex-1 py-2 text-sm font-semibold font-mono bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                     >
                       {formatCurrency(amt)}
@@ -388,6 +421,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                 <input
                   value={paymentReference}
                   onChange={(e) => setPaymentReference(e.target.value)}
+                  disabled={processing}
                   placeholder="Optional"
                   className="w-full px-3 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-gray-900"
                   autoFocus
@@ -401,48 +435,6 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                 <span className="text-xl font-bold font-mono text-green-700">{formatCurrency(change)}</span>
               </div>
             )}
-
-            <div className="rounded-xl border border-gray-200 p-3">
-              <label htmlFor="discounted-sale-price" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Customer price{isVatRegistered ? ' (VAT included)' : ''}</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-400">PHP</span>
-                <input
-                  id="discounted-sale-price"
-                  type="text"
-                  inputMode="decimal"
-                  value={salePriceDraft}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setSalePriceDraft(value);
-                    if (value.trim() === '') {
-                      setDiscount('amount', 0);
-                      return;
-                    }
-                    const enteredPrice = Number(value);
-                    if (Number.isFinite(enteredPrice) && enteredPrice >= 0) {
-                      setDiscount('amount', roundCurrency(orderSubtotal - Math.min(orderSubtotal, enteredPrice)));
-                    }
-                  }}
-                  onBlur={() => {
-                    const enteredPrice = Number(salePriceDraft);
-                    const safePrice = salePriceDraft.trim() === '' || !Number.isFinite(enteredPrice)
-                      ? orderSubtotal
-                      : Math.min(orderSubtotal, Math.max(0, enteredPrice));
-                    setSalePriceDraft(safePrice.toFixed(2));
-                    setDiscount('amount', roundCurrency(orderSubtotal - safePrice));
-                  }}
-                  className="w-full rounded-lg border border-gray-200 py-2.5 pl-12 pr-3 text-base font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  aria-describedby="discounted-sale-price-hint"
-                />
-              </div>
-              <p id="discounted-sale-price-hint" className="mt-2 text-xs text-gray-500">
-                {!salePriceInputValid
-                  ? 'Enter a valid price of 0 or more.'
-                  : orderDiscount > 0
-                  ? `Discount: ${formatCurrency(orderDiscount)} (${discountPercent.toFixed(1)}%). This sale will be marked as discounted.`
-                  : 'Enter the price the customer will pay for these items; the discount is calculated automatically.'}
-              </p>
-            </div>
 
             <Button
               onClick={handleConfirm}

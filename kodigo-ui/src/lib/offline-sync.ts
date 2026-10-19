@@ -155,28 +155,38 @@ async function pushSaleToSupabase(sale: Sale): Promise<Sale> {
     discountCategory,
   } = sale;
 
-  const { data, error } = await supabase.rpc('process_pos_sale_v3', {
-    p_id: id,
-    p_store_id: storeId,
-    p_cashier_id: cashierId,
-    p_subtotal: subtotal,
-    p_tax: tax,
-    p_discount: discount,
-    p_total: total,
-    p_cash_received: cashReceived,
-    p_change: change,
-    p_items: items,
-    p_payment_method: paymentMethod,
-    p_payment_reference: paymentReference ?? null,
-    p_discount_type: discountType,
-    p_discount_value: discountValue,
-    p_tax_rate: taxRate,
-    p_customer_name: customerName ?? null,
-    p_customer_tin: customerTin ?? null,
-    p_customer_address: customerAddress ?? null,
-    p_terminal_identifier: terminalIdentifier ?? null,
-    p_discount_category: discountCategory ?? 'regular',
-  });
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 30_000);
+  let data: any;
+  let error: any;
+  try {
+    const result = await supabase.rpc('process_pos_sale_v4', {
+      p_id: id,
+      p_store_id: storeId,
+      p_cashier_id: cashierId,
+      p_subtotal: subtotal,
+      p_tax: tax,
+      p_discount: discount,
+      p_total: total,
+      p_cash_received: cashReceived,
+      p_change: change,
+      p_items: items,
+      p_payment_method: paymentMethod,
+      p_payment_reference: paymentReference ?? null,
+      p_discount_type: discountType,
+      p_discount_value: discountValue,
+      p_tax_rate: taxRate,
+      p_customer_name: customerName ?? null,
+      p_customer_tin: customerTin ?? null,
+      p_customer_address: customerAddress ?? null,
+      p_terminal_identifier: terminalIdentifier ?? null,
+      p_discount_category: discountCategory ?? 'regular',
+    }).abortSignal(controller.signal);
+    data = result.data;
+    error = result.error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 
   if (error) throw error;
   return mapSaleResponse(sale, data);
