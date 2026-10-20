@@ -302,29 +302,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       // Listen for auth changes
-      supabase.auth.onAuthStateChange(async (event, session) => {
+      supabase.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
           if (session?.user) {
-            const { data: profile, error } = await supabase
-              .from('profiles')
-              .select('id, name, role, avatar_url')
-              .eq('id', session.user.id)
-              .single();
-              
-            if (error) console.error("onAuthStateChange profile fetch error:", error);
+            const authUser = session.user;
+            window.setTimeout(() => {
+              void (async () => {
+                const { data: profile, error } = await supabase
+                  .from('profiles')
+                  .select('id, name, role, avatar_url')
+                  .eq('id', authUser.id)
+                  .single();
 
-            const computedRole = resolveRole(session.user, profile);
-            const stores = await fetchUserStores(computedRole);
+                if (error) console.error("onAuthStateChange profile fetch error:", error);
 
-            set({
-              user: session.user,
-              profile,
-              role: computedRole,
-              stores,
-              activeStoreId: stores?.length ? stores[0].id : null,
-              isAuthenticated: true
-            });
-            if (stores?.[0]?.id) localStorage.setItem('kodigo_last_store_id', stores[0].id);
+                const computedRole = resolveRole(authUser, profile);
+                const stores = await fetchUserStores(computedRole);
+
+                set({
+                  user: authUser,
+                  profile,
+                  role: computedRole,
+                  stores,
+                  activeStoreId: stores?.length ? stores[0].id : null,
+                  isAuthenticated: true
+                });
+                if (stores?.[0]?.id) localStorage.setItem('kodigo_last_store_id', stores[0].id);
+              })().catch((error) => {
+                console.error('onAuthStateChange profile sync failed:', error);
+              });
+            }, 0);
           }
         } else if (event === 'SIGNED_OUT') {
           set(resetAuthState);

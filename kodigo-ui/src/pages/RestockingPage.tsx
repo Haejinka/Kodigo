@@ -242,32 +242,47 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
 
   const handleCreateShoppingList = () => {
     if (selectedItems.length === 0) return;
-    const csvCell = (value: string | number) => {
-      const text = String(value);
-      return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-    };
-    const rows = [
-      ['Item', 'Quantity', 'Unit Price', 'Total'],
-      ...selectedItems.map((item) => {
-        const calculation = getDraftCalculation(item);
-        const unitPrice = calculation.quantity > 0 ? calculation.totalCost / calculation.quantity : 0;
-        return [
-          item.productName,
-          `${calculation.quantity} ${calculation.option.label}`,
-          unitPrice.toFixed(2),
-          calculation.totalCost.toFixed(2),
-        ];
-      }),
-      ['TOTAL AMOUNT', '', '', totalCost.toFixed(2)],
-    ];
-    const csv = `\uFEFF${rows.map((row) => row.map((cell) => csvCell(cell)).join(',')).join('\r\n')}`;
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const itemRows: [string, string, string, string][] = selectedItems.map((item) => {
+      const calculation = getDraftCalculation(item);
+      const unitPrice = calculation.quantity > 0 ? calculation.totalCost / calculation.quantity : 0;
+      return [
+        item.productName,
+        `${calculation.quantity} ${calculation.option.label}`,
+        formatCurrency(unitPrice),
+        formatCurrency(calculation.totalCost),
+      ];
+    });
+    const columns = ['Item', 'Quantity', 'Unit Price', 'Total'] as const;
+    const totalRow: [string, string, string, string] = ['TOTAL AMOUNT', '', '', formatCurrency(totalCost)];
+    const columnWidths = columns.map((column, index) => Math.max(
+      column.length,
+      ...itemRows.map((row) => row[index].length),
+      totalRow[index].length,
+    ));
+    const renderRow = (row: readonly string[]) => `| ${row.map((cell, index) => cell.padEnd(columnWidths[index] ?? cell.length)).join(' | ')} |`;
+    const separator = `+-${columnWidths.map((width) => '-'.repeat(width)).join('-+-')}-+`;
+    const now = new Date();
+    const displayDate = new Intl.DateTimeFormat('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }).format(now);
+    const fileDate = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
+    const shoppingList = [
+      `Shopping List — ${displayDate}`,
+      '',
+      separator,
+      renderRow(columns),
+      separator,
+      ...itemRows.map(renderRow),
+      separator,
+      renderRow(totalRow),
+      separator,
+      '',
+    ].join('\n');
+    const url = URL.createObjectURL(new Blob([`\uFEFF${shoppingList}`], { type: 'text/plain;charset=utf-8' }));
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `Shopping-List-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.download = `Shopping-List-${fileDate}.txt`;
     anchor.click();
     URL.revokeObjectURL(url);
-    toast('success', 'Shopping list downloaded.');
+    toast('success', 'Shopping list downloaded as a text file.');
   };
 
   const applyReceipt = async (item: RestockItem, quantityReceived: number, actualCost?: number) => {
