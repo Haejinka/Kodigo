@@ -991,13 +991,11 @@ export function SecuritySettingsPage() {
   const [saving, setSaving] = useState(false);
   const [current, setCurrent] = useState('');
   const [newPass, setNewPass] = useState('');
-  const [confirm, setConfirm] = useState('');
 
   const handleChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.email) { toast('error', 'Your account email could not be verified.'); return; }
     if (!current) { toast('error', 'Current password is required.'); return; }
-    if (newPass !== confirm) { toast('error', 'Passwords do not match.'); return; }
     if (!isSecurePassword(newPass)) { toast('error', 'Choose a stronger password that meets all requirements.'); return; }
     if (current === newPass) { toast('error', 'Choose a password different from your current password.'); return; }
     setSaving(true);
@@ -1014,7 +1012,6 @@ export function SecuritySettingsPage() {
       toast('success', 'Password changed successfully.');
       setCurrent('');
       setNewPass('');
-      setConfirm('');
     } catch (err) {
       toast('error', err instanceof Error ? err.message : 'Failed to change password.');
     } finally {
@@ -1042,15 +1039,6 @@ export function SecuritySettingsPage() {
               <label htmlFor="new-password" className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">New password</label>
               <PasswordInput id="new-password" value={newPass} onChange={(e) => setNewPass(e.target.value)} visibilityLabel="new password" autoComplete="new-password" required />
               <PasswordStrength value={newPass} className="mt-3" />
-            </div>
-            <div>
-              <AssistedPasswordConfirmation
-                id="confirm-password"
-                password={newPass}
-                confirmPassword={confirm}
-                onConfirmPasswordChange={setConfirm}
-                label="Confirm new password"
-              />
             </div>
             <Button type="submit" variant="primary" loading={saving} className="w-full">
               Update password
