@@ -43,6 +43,7 @@ function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onCl
   const [editingName, setEditingName] = useState('');
   const [loading, setLoading] = useState(false);
   const role = useAuthStore((state) => state.role);
+  const isStoreAdmin = role === 'admin';
   const inputRef = useRef<HTMLInputElement>(null);
   const usedCategoryIds = useMemo(() => {
     return new Set(products.filter((product) => product.storeId === storeId).map((product) => product.categoryId));
@@ -156,7 +157,7 @@ function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onCl
         </div>
 
         <div className="flex flex-wrap gap-2 mb-4">
-          {role === 'admin' && <button
+          {isStoreAdmin && <button
             type="button"
             className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             onClick={handleRestoreDefaults}
@@ -164,7 +165,7 @@ function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onCl
           >
             Restore defaults
           </button>}
-          {role === 'admin' && <button
+          {isStoreAdmin && <button
             type="button"
             className="px-3 py-1.5 rounded-lg border border-red-200 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
             onClick={handleRemoveUnusedDefaults}
@@ -203,7 +204,7 @@ function ManageCategoriesModal({ open, onClose, storeId }: { open: boolean; onCl
                     {isDefault && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">Default</span>}
                     {isUsed && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">In use</span>}
                     <button className="text-xs font-semibold text-blue-600" onClick={() => { setEditingId(cat.id); setEditingName(cat.name); }}>Rename</button>
-                    {role === 'admin' && <button className="text-xs font-semibold text-red-600 disabled:text-gray-300" onClick={() => handleDelete(cat.id, isUsed)} disabled={loading || isUsed}>Delete</button>}
+                    {isStoreAdmin && <button className="text-xs font-semibold text-red-600 disabled:text-gray-300" onClick={() => handleDelete(cat.id, isUsed)} disabled={loading || isUsed}>Delete</button>}
                   </>
                 )}
               </div>
@@ -236,6 +237,8 @@ export function InventoryPage() {
   const { toast } = useToast();
   const { products, categories: storeCategories, fetchCategories, addCategory, addProduct, deleteProduct, setProductActive, adjustStock, updateSellingPrice, stockAdjustments } = useProductStore();
   const { activeStoreId, stores, role } = useAuthStore();
+  const isStoreAdmin = role === 'admin';
+  const canManageInventory = isStoreAdmin || role === 'inventory';
   const { suppliers, fetchSuppliers } = useSupplierStore();
   const [tab, setTab] = useState<Tab>('products');
   const [search, setSearch] = useState('');
@@ -264,7 +267,7 @@ export function InventoryPage() {
   }, [categoryStoreId, fetchCategories]);
 
   useEffect(() => {
-    if (role === 'admin' || role === 'inventory') void fetchSuppliers();
+    if (canManageInventory) void fetchSuppliers();
   }, [fetchSuppliers, activeStoreId, role]);
 
   useEffect(() => {
@@ -368,7 +371,7 @@ export function InventoryPage() {
   };
 
   const columns: Column<Product>[] = [
-    ...((role === 'admin' || role === 'inventory') ? [{
+    ...(canManageInventory ? [{
       key: 'select',
       header: '',
       width: 'w-9',
@@ -517,7 +520,7 @@ export function InventoryPage() {
               >
                 <Edit className="w-4 h-4" />
               </button>
-              {(role === 'admin' || role === 'inventory') && <button
+              {canManageInventory && <button
                 type="button"
                 onClick={() => setStatusTarget(p)}
                 aria-label={p.isActive === false ? `Restore ${p.name}` : `Archive ${p.name}`}
@@ -531,7 +534,7 @@ export function InventoryPage() {
               >
                 {p.isActive === false ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
               </button>}
-              {role === 'admin' && <button
+              {isStoreAdmin && <button
                 type="button"
                 onClick={() => setDeleteTarget(p)}
                 aria-label={`Delete ${p.name}`}
@@ -675,8 +678,8 @@ export function InventoryPage() {
 
   const handleBulkAction = async () => {
     if (!bulkConfirm) return;
-    if (bulkConfirm === 'delete' && role !== 'admin') return;
-    if (bulkConfirm !== 'delete' && role !== 'admin' && role !== 'inventory') return;
+    if (bulkConfirm === 'delete' && !isStoreAdmin) return;
+    if (bulkConfirm !== 'delete' && !canManageInventory) return;
 
     const targets = bulkConfirm === 'archive'
       ? selectedActiveProducts
@@ -771,7 +774,7 @@ export function InventoryPage() {
         subtitle={`${filtered.length} of ${products.length} products`}
         actions={
           <div className="flex flex-wrap gap-2">
-            {(role === 'admin' || role === 'inventory') && <Button
+            {canManageInventory && <Button
               variant="secondary"
               icon={<FileSpreadsheet className="w-4 h-4" />}
               onClick={() => setImportPanelOpen((open) => !open)}
@@ -797,7 +800,7 @@ export function InventoryPage() {
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-gray-200 mb-5">
-        {(role === 'admin' || role === 'inventory') && <button
+        {canManageInventory && <button
           onClick={() => setTab('restocking')}
           className={cn(
             'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
@@ -806,7 +809,7 @@ export function InventoryPage() {
         >
           Restocking
         </button>}
-        {(role === 'admin' || role === 'inventory') && <button
+        {canManageInventory && <button
           onClick={() => setTab('consignment')}
           className={cn(
             'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
@@ -863,7 +866,7 @@ export function InventoryPage() {
         </button>
       </div>
 
-      {tab === 'products' && importPanelOpen && (role === 'admin' || role === 'inventory') && (
+      {tab === 'products' && importPanelOpen && canManageInventory && (
         <InventoryImportPanel
           storeId={categoryStoreId || null}
           categories={storeCategories}
@@ -876,7 +879,7 @@ export function InventoryPage() {
 
       {tab === 'products' && (
         <>
-        {(role === 'admin' || role === 'inventory') && (
+        {canManageInventory && (
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
             <span className="mr-auto text-sm font-medium text-blue-900" aria-live="polite">
               {selectedProductIds.size} selected
@@ -884,17 +887,17 @@ export function InventoryPage() {
             <Button variant="secondary" size="sm" onClick={toggleVisibleSelection}>
               {allVisibleSelected ? 'Deselect filtered' : 'Select filtered'}
             </Button>
-            {(role === 'admin' || role === 'inventory') && selectedActiveProducts.length > 0 && (
+            {canManageInventory && selectedActiveProducts.length > 0 && (
               <Button variant="secondary" size="sm" onClick={() => setBulkConfirm('archive')}>
                 Archive {selectedActiveProducts.length}
               </Button>
             )}
-            {(role === 'admin' || role === 'inventory') && selectedArchivedProducts.length > 0 && (
+            {canManageInventory && selectedArchivedProducts.length > 0 && (
               <Button variant="secondary" size="sm" onClick={() => setBulkConfirm('restore')}>
                 Restore {selectedArchivedProducts.length}
               </Button>
             )}
-            {role === 'admin' && (
+            {isStoreAdmin && (
               <Button variant="danger" size="sm" onClick={() => setBulkConfirm('delete')}>
                 Delete {selectedProducts.length}
               </Button>
@@ -938,10 +941,10 @@ export function InventoryPage() {
       )}
 
       {tab === 'velocity' && <SalesVelocityPanel products={products} />}
-      {tab === 'restocking' && (role === 'admin' || role === 'inventory') && <RestockingPage embedded />}
-      {tab === 'consignment' && (role === 'admin' || role === 'inventory') && <ConsignmentPanel />}
+      {tab === 'restocking' && canManageInventory && <RestockingPage embedded />}
+      {tab === 'consignment' && canManageInventory && <ConsignmentPanel />}
 
-      {role === 'admin' && <ConfirmDialog
+      {isStoreAdmin && <ConfirmDialog
         open={!!deleteTarget}
         title="Delete Product"
         description={`Delete "${deleteTarget?.name}" permanently? Only products with no sales history can be deleted. Sold products must be archived instead.`}
@@ -952,8 +955,8 @@ export function InventoryPage() {
         onCancel={() => setDeleteTarget(null)}
       />}
 
-      {(role === 'admin' || role === 'inventory') && <ConfirmDialog
-        open={bulkConfirm === 'archive' || bulkConfirm === 'restore' || (bulkConfirm === 'delete' && role === 'admin')}
+      {canManageInventory && <ConfirmDialog
+        open={bulkConfirm === 'archive' || bulkConfirm === 'restore' || (bulkConfirm === 'delete' && isStoreAdmin)}
         title={bulkConfirm === 'delete' ? 'Delete selected products' : bulkConfirm === 'restore' ? 'Restore selected products' : 'Archive selected products'}
         description={bulkConfirm === 'delete'
           ? `Permanently delete ${selectedProducts.length} selected product${selectedProducts.length === 1 ? '' : 's'}? Products with sales history cannot be deleted and will remain unchanged.`
@@ -967,7 +970,7 @@ export function InventoryPage() {
         onCancel={() => setBulkConfirm(null)}
       />}
 
-      {(role === 'admin' || role === 'inventory') && <ConfirmDialog
+      {canManageInventory && <ConfirmDialog
         open={!!statusTarget}
         title={statusTarget?.isActive === false ? 'Restore Product' : 'Archive Product'}
         description={statusTarget?.isActive === false

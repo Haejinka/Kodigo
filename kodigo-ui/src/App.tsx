@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { ToastProvider } from '@/components/shared/Toast';
 import { AppShell } from '@/components/layout/AppShell';
@@ -96,7 +96,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <MfaGate>{children}</MfaGate>;
 }
 
-// Require true admin (managerial)
+// Store administration belongs to store admins. Super Admins have a separate portal.
 function RequireAdmin({ children }: { children: React.ReactNode }) {
   const role = useAuthStore((s) => s.role);
   if (role !== 'admin') {
@@ -108,8 +108,8 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
 
 function RequireBackOffice({ children }: { children: React.ReactNode }) {
   const role = useAuthStore((s) => s.role);
-  if (role === 'admin' || role === 'inventory') return <>{children}</>;
   if (role === 'super_admin') return <Navigate to="/super-admin" replace />;
+  if (role === 'admin' || role === 'inventory') return <>{children}</>;
   return <Navigate to="/pos" replace />;
 }
 
@@ -125,8 +125,33 @@ function RequireSuperAdmin({ children }: { children: React.ReactNode }) {
 
 function AccountSecurityRoute() {
   const role = useAuthStore((s) => s.role);
+  const navigate = useNavigate();
 
   if (role === 'admin') return <Navigate to="/settings/security" replace />;
+
+  if (role === 'super_admin') {
+    return (
+      <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+        <header className="border-b border-[var(--border)] bg-[var(--card)]">
+          <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+            <div className="flex items-center gap-3">
+              <img src="/kodigo-icon.png" alt="" className="h-8 w-8 rounded-md object-contain" />
+              <div>
+                <p className="font-semibold">KodiGo</p>
+                <p className="text-xs text-[var(--muted-foreground)]">Super Admin account</p>
+              </div>
+            </div>
+            <Button variant="outline" onClick={() => navigate('/super-admin')}>
+              Back to invite portal
+            </Button>
+          </div>
+        </header>
+        <main id="main-content" className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+          <AccountSecurityPage />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <AppShell>
@@ -135,12 +160,11 @@ function AccountSecurityRoute() {
   );
 }
 
-// Admins should use POS on desktop only; redirect them away on mobile
+// Store admins use POS on desktop only. Super Admins never enter the store POS.
 function RequirePOSAccess({ children }: { children: React.ReactNode }) {
   const role = useAuthStore((s) => s.role);
   const isMobile = useIsMobile();
 
-  // If super_admin, do not force them into POS
   if (role === 'super_admin') return <Navigate to="/super-admin" replace />;
   if (role === 'inventory') return <Navigate to="/inventory" replace />;
 
@@ -167,7 +191,7 @@ function AppRoutes() {
 
   const revalidateData = async () => {
     // Allow supplier and purchase order fetches even when no specific store is selected.
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || role === 'super_admin') return;
     try {
       const { required } = await getMfaRequirement();
       if (required) return;
@@ -210,7 +234,7 @@ function AppRoutes() {
   }, [activeStoreId, isAuthenticated, role, fetchProducts, fetchSuppliers, fetchPurchaseOrders, fetchAlerts]);
 
   useEffect(() => {
-    if (!isAuthenticated || role === 'inventory') return undefined;
+    if (!isAuthenticated || role === 'inventory' || role === 'super_admin') return undefined;
     const intervalId = window.setInterval(() => {
       void getMfaRequirement()
         .then(({ required }) => {
@@ -280,12 +304,10 @@ function AppRoutes() {
         element={
           <RequireAuth>
             <RequireSuperAdmin>
-              <AppShell>
-                <Routes>
-                  <Route path="/" element={<SuperAdminPage />} />
-                  <Route path="*" element={<Navigate to="/super-admin" replace />} />
-                </Routes>
-              </AppShell>
+              <Routes>
+                <Route path="/" element={<SuperAdminPage />} />
+                <Route path="*" element={<Navigate to="/super-admin" replace />} />
+              </Routes>
             </RequireSuperAdmin>
           </RequireAuth>
         }

@@ -33,7 +33,7 @@ const navItems: NavItem[] = [
   { label: 'Sales Reports', path: '/reports', icon: FileSpreadsheet, roles: ['admin', 'inventory'] },
   { label: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
   // Admins access security from Settings; keep this shortcut for roles without the admin settings area.
-  { label: 'Account Security', path: '/account/security', icon: Settings, roles: ['cashier', 'inventory', 'super_admin'] },
+  { label: 'Account Security', path: '/account/security', icon: Settings, roles: ['cashier', 'inventory'] },
 ];
 
 interface SidebarProps {

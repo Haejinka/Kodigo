@@ -166,6 +166,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { activeStoreId, role } = useAuthStore();
+  const isStoreAdmin = role === 'admin';
   const products = useProductStore((state) => state.products);
   const fetchCategories = useProductStore((state) => state.fetchCategories);
   const addCategory = useProductStore((state) => state.addCategory);
@@ -295,7 +296,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     setCategoryLoading(true);
     void Promise.all([
       fetchCategoriesForStore(targetStoreId),
-      role === 'admin' ? fetchSuppliersForStore(targetStoreId) : Promise.resolve([]),
+      isStoreAdmin ? fetchSuppliersForStore(targetStoreId) : Promise.resolve([]),
     ]).then(([categories, suppliers]) => {
       if (cancelled) return;
       setStoreCategories(categories);
@@ -303,11 +304,11 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       setForm((prev) => ({
         ...prev,
         categoryId: categories.some((category) => category.id === prev.categoryId) ? prev.categoryId : '',
-        supplierIds: role === 'admin'
+        supplierIds: isStoreAdmin
           ? (prev.supplierIds?.length ? prev.supplierIds : prev.supplierId ? [prev.supplierId] : [])
             .filter((supplierId) => suppliers.some((supplier) => supplier.id === supplierId))
           : (prev.supplierIds?.length ? prev.supplierIds : prev.supplierId ? [prev.supplierId] : []),
-        supplierId: role === 'admin'
+        supplierId: isStoreAdmin
           ? ((prev.supplierIds?.length ? prev.supplierIds : prev.supplierId ? [prev.supplierId] : [])
             .find((supplierId) => suppliers.some((supplier) => supplier.id === supplierId)) || '')
           : prev.supplierId || prev.supplierIds?.[0] || '',
@@ -320,7 +321,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       if (!cancelled) setCategoryLoading(false);
     });
     return () => { cancelled = true; };
-  }, [activeStoreId, form.storeId, role]);
+  }, [activeStoreId, form.storeId, isStoreAdmin]);
 
   useEffect(() => {
     const targetStoreId = form.storeId || (activeStoreId === 'all' ? 'all' : activeStoreId);
@@ -688,7 +689,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
                 <button type="button" onClick={() => void handleRestoreDefaultCategories()} disabled={!form.storeId || categoryLoading} className="mt-1 text-xs font-medium text-blue-700 hover:text-blue-800 disabled:text-gray-400">Restore default categories</button>
                 {errors.categoryId && <p className="text-xs text-red-500">{errors.categoryId}</p>}
               </Field>
-              {role === 'admin' && (
+              {isStoreAdmin && (
                 <Field label="Suppliers" hint="Optional. Select one or more suppliers; the first selected is used for restocking by default.">
                   <div className="flex items-start gap-2">
                     <div role="group" aria-label="Suppliers" className="min-h-10 min-w-0 flex-1 rounded-lg border border-[var(--input)] bg-[var(--background)] p-2 shadow-sm">

@@ -88,8 +88,8 @@ serve(async (req) => {
       .eq("id", user.id)
       .single();
 
-    if (profileError || callerProfile?.role !== "admin") {
-      return json({ error: "Only store admins can manage users." }, 403);
+    if (profileError || !["admin", "super_admin"].includes(callerProfile?.role ?? "")) {
+      return json({ error: "Only store admins or Super Admins can manage users." }, 403);
     }
 
     const { data: callerStores, error: callerStoresError } = await adminClient
@@ -103,6 +103,17 @@ serve(async (req) => {
     const assertStoreAccess = (storeId: string) => {
       if (!allowedStoreIds.has(storeId)) {
         throw new Error("You are not assigned to this store.");
+      }
+    };
+
+    const assertTargetUserIsFullyScoped = async (targetUserId: string) => {
+      const { data: mappings, error: mappingsError } = await adminClient
+        .from("store_users")
+        .select("store_id")
+        .eq("profile_id", targetUserId);
+      if (mappingsError) throw mappingsError;
+      if (!mappings?.length || mappings.some((mapping) => !allowedStoreIds.has(mapping.store_id))) {
+        throw new Error("This user has store assignments outside your access.");
       }
     };
 
@@ -278,6 +289,17 @@ serve(async (req) => {
       if (existingMappingError) throw existingMappingError;
       if (!existingMapping) throw new Error("User is not assigned to one of your stores.");
 
+      const { data: targetProfile, error: targetProfileError } = await adminClient
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .maybeSingle();
+      if (targetProfileError) throw targetProfileError;
+      if (!targetProfile || !["admin", "cashier", "inventory"].includes(targetProfile.role)) {
+        throw new Error("Super Admin accounts cannot be changed through store user management.");
+      }
+      await assertTargetUserIsFullyScoped(userId);
+
       const { error: updateAuthError } = await adminClient.auth.admin.updateUserById(userId, {
         email,
         user_metadata: { name },
@@ -336,6 +358,17 @@ serve(async (req) => {
         .maybeSingle();
       if (targetMappingError) throw targetMappingError;
       if (!targetMapping) throw new Error("User is not assigned to one of your stores.");
+
+      const { data: targetProfile, error: targetProfileError } = await adminClient
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .maybeSingle();
+      if (targetProfileError) throw targetProfileError;
+      if (!targetProfile || !["admin", "cashier", "inventory"].includes(targetProfile.role)) {
+        throw new Error("Super Admin accounts cannot be removed through store user management.");
+      }
+      await assertTargetUserIsFullyScoped(userId);
 
       await adminClient.from("audit_logs").insert({
         store_id: targetMapping.store_id,

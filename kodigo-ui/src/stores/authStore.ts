@@ -80,17 +80,12 @@ const resolveRole = (user: any, profile: any): UserRole | null => {
 };
 
 // Helper to fetch stores for user
-const fetchUserStores = async (role: string | null) => {
-  if (role === 'super_admin') {
-    return [];
-  } else {
-    // Note: Due to RLS, they only see stores they are mapped to. 
-    // We can just fetch from 'stores' and RLS will filter it.
-    const { data: stores } = await supabase.from('stores').select(
-      'id, owner_id, name, address, tax_rate, registered_name, business_name, tin, branch_code, vat_status, document_label, terminal_identifier, bir_registration_info, accreditation_info, permit_info, invoice_prefix, logo_path, phone, email, receipt_printing_enabled, cash_drawer_integration_enabled'
-    );
-    return toStores(stores);
-  }
+const fetchUserStores = async () => {
+  // The invite-only Super Admin portal never loads store records.
+  const { data: stores } = await supabase.from('stores').select(
+    'id, owner_id, name, address, tax_rate, registered_name, business_name, tin, branch_code, vat_status, document_label, terminal_identifier, bir_registration_info, accreditation_info, permit_info, invoice_prefix, logo_path, phone, email, receipt_printing_enabled, cash_drawer_integration_enabled'
+  );
+  return toStores(stores);
 };
 
 interface AuthState {
@@ -145,7 +140,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   addStore: async (name: string, address: string, taxRate: number) => {
     const { user, profile } = get();
-    if (!user) return null;
+    if (!user || resolveRole(user, profile) !== 'admin') return null;
 
     // Call the RPC function to create the store and map the user in a single atomic transaction
     const { data: store, error: rpcError } = await supabase.rpc('create_store_with_owner', {
@@ -160,16 +155,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     
     // Refresh stores
-    const role = resolveRole(user, profile);
-    const stores = await fetchUserStores(role);
+    const stores = await fetchUserStores();
     const createdStore = Array.isArray(store) ? store[0] : store;
-    set({ stores });
+    if (createdStore?.id) localStorage.setItem('kodigo_active_store_id', createdStore.id);
+    set({ stores, activeStoreId: createdStore?.id ?? get().activeStoreId });
     return createdStore ? toStore(createdStore as StoreRow) : null;
   },
 
   updateStore: async (id: string, name: string, address: string, taxRate: number) => {
     const { user, profile } = get();
-    if (!user) return false;
+    if (!user || resolveRole(user, profile) !== 'admin') return false;
 
     const { data: updatedStore, error } = await supabase
       .from('stores')
@@ -184,14 +179,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     // Refresh stores
-    const role = resolveRole(user, profile);
-    const stores = await fetchUserStores(role);
+    const stores = await fetchUserStores();
     set({ stores });
     return true;
   },
   updatePosHardwareSettings: async (id, settings) => {
     const { user, profile } = get();
-    if (!user || resolveRole(user, profile) !== 'admin') return false;
+    const role = resolveRole(user, profile);
+    if (!user || role !== 'admin') return false;
 
     const { data: updatedStore, error } = await supabase
       .from('stores')
@@ -207,13 +202,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return false;
     }
 
-    const stores = await fetchUserStores(resolveRole(user, profile));
+    const stores = await fetchUserStores();
     set({ stores });
     return true;
   },
   deleteStore: async (id: string) => {
     const { user, profile } = get();
-    if (!user) return false;
+    if (!user || resolveRole(user, profile) !== 'admin') return false;
 
     const { error } = await supabase
       .from('stores')
@@ -226,13 +221,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     // Refresh stores
-    const role = resolveRole(user, profile);
-    const stores = await fetchUserStores(role);
+    const stores = await fetchUserStores();
     
     // If the active store was deleted, switch to the first remaining store or 'all'
     const { activeStoreId } = get();
     let newActiveStoreId = activeStoreId;
-    if (activeStoreId === id) {
+    if (activeStoreId === id || (activeStoreId === 'all' && stores.length <= 1)) {
       newActiveStoreId = stores.length > 0 ? stores[0].id : null;
       if (newActiveStoreId) {
         localStorage.setItem('kodigo_active_store_id', newActiveStoreId);
@@ -247,9 +241,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   refreshStores: async () => {
     const { user, profile, activeStoreId } = get();
     if (!user) return;
-    const role = resolveRole(user, profile);
-    const stores = await fetchUserStores(role);
-    const nextActiveStoreId = activeStoreId === 'all' || stores.some((store) => store.id === activeStoreId)
+    if (resolveRole(user, profile) === 'super_admin') {
+      set({ stores: [], activeStoreId: null });
+      return;
+    }
+    const stores = await fetchUserStores();
+    const nextActiveStoreId = (activeStoreId === 'all' && stores.length > 1) || stores.some((store) => store.id === activeStoreId)
       ? activeStoreId
       : stores[0]?.id ?? null;
     set({ stores, activeStoreId: nextActiveStoreId });
@@ -273,11 +270,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         const computedRole = resolveRole(session.user, profile);
-        const stores = await fetchUserStores(computedRole);
+        const stores = computedRole === 'super_admin' ? [] : await fetchUserStores();
 
         const savedStoreId = localStorage.getItem('kodigo_active_store_id');
         let initialStoreId = null;
-        if (savedStoreId === 'all' && (computedRole === 'admin' || computedRole === 'super_admin' || stores.length > 1)) {
+        if (savedStoreId === 'all' && stores.length > 1) {
           initialStoreId = 'all';
         } else if (savedStoreId && stores.some(s => s.id === savedStoreId)) {
           initialStoreId = savedStoreId;
@@ -317,7 +314,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 if (error) console.error("onAuthStateChange profile fetch error:", error);
 
                 const computedRole = resolveRole(authUser, profile);
-                const stores = await fetchUserStores(computedRole);
+                const stores = computedRole === 'super_admin' ? [] : await fetchUserStores();
 
                 set({
                   user: authUser,
@@ -368,7 +365,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const computedRole = resolveRole(data.session.user, profile);
         console.log("Fetched profile role:", computedRole);
 
-        const stores = await fetchUserStores(computedRole);
+        const stores = computedRole === 'super_admin' ? [] : await fetchUserStores();
 
         set({
           user: data.session.user,
