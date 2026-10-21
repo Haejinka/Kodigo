@@ -1,0 +1,170 @@
+{
+  "slide_count": 17,
+  "notes_count": 17,
+  "presenter_allocation": {
+    "1": "1-8",
+    "2": "9-14",
+    "3": "15-17"
+  },
+  "duration_seconds": 840,
+  "source_unchanged": true,
+  "candidate_equals_final": true,
+  "sensitive_value_hits": [],
+  "baseline_arithmetic_matches": true,
+  "slides": [
+    {
+      "slide": 1,
+      "presenter": 1,
+      "notes_words_with_sources": 97,
+      "native_shapes": 6,
+      "native_connectors": 0,
+      "native_tables": 0,
+      "header_logo_nonwhite_pixels": null
+    },
+    {
+      "slide": 2,
+      "presenter": 1,
+      "notes_words_with_sources": 77,
+      "native_shapes": 10,
+      "native_connectors": 0,
+      "native_tables": 0,
+      "header_logo_nonwhite_pixels": 16804
+    },
+    {
+      "slide": 3,
+      "presenter": 1,
+      "notes_words_with_sources": 141,
+      "native_shapes": 8,
+      "native_connectors": 2,
+      "native_tables": 0,
+      "header_logo_nonwhite_pixels": 16804
+    },
+    {
+      "slide": 4,
+      "presenter": 1,
+      "notes_words_with_sources": 113,
+      "native_shapes": 11,
+      "native_connectors": 0,
+      "native_tables": 0,
+      "header_logo_nonwhite_pixels": 16804
+    },
+    {
+      "slide": 5,
+      "presenter": 1,
+      "notes_words_with_sources": 123,
+      "native_shapes": 10,
+      "native_connectors": 0,
+      "native_tables": 0,
+      "header_logo_nonwhite_pixels": 16804
+    },
+    {
+      "slide": 6,
+      "presenter": 1,
+      "notes_words_with_sources": 142,
+      "native_shapes": 14,
+      "native_connectors": 0,
+      "native_tables": 0,
+      "header_logo_nonwhite_pixels": 16804
+    },
+    {
+      "slide": 7,
+      "presenter": 1,
+      "notes_words_with_sources": 148,
+      "native_shapes": 13,
+      "native_connectors": 0,
+      "native_tables": 0,
+      "header_logo_nonwhite_pixels": 16804
+    },
+    {
+      "slide": 8,
+      "presenter": 1,
+      "notes_words_with_sources": 162,
+      "native_shapes": 5,
+      "native_connectors": 0,
+      "native_tables": 1,
+      "header_logo_nonwhite_pixels": 16804
+    },
+    {
+      "slide": 9,
+      "presenter": 2,
+      "notes_words_with_sources": 124,
+      "native_shapes": 13,
+      "native_connectors": 0,
+      "native_tables": 0,
+      "header_logo_nonwhite_pixels": 16804
+    },
+    {
+      "slide": 10,
+      "presenter": 2,
+      "notes_words_with_sources": 121,
+      "native_shapes": 9,
+      "native_connectors": 5,
+      "native_tables": 0,
+      "header_logo_nonwhite_pixels": 16804
+    },
+    {
+      "slide": 11,
+      "presenter": 2,
+      "notes_words_with_sources": 131,
+      "native_shapes": 3,
+      "native_connectors": 0,
+      "native_tables": 1,
+      "header_logo_nonwhite_pixels": 16804
+    },
+    {
+      "slide": 12,
+      "presenter": 2,
+      "notes_words_with_sources": 148,
+      "native_shapes": 10,
+      "native_connectors": 9,
+      "native_tables": 0,
+      "header_logo_nonwhite_pixels": 16804
+    },
+    {
+      "slide": 13,
+      "presenter": 2,
+      "notes_words_with_sources": 126,
+      "native_shapes": 13,
+      "native_connectors": 9,
+      "native_tables": 0,
+      "header_logo_nonwhite_pixels": 16804
+    },
+    {
+      "slide": 14,
+      "presenter": 2,
+      "notes_words_with_sources": 163,
+      "native_shapes": 15,
+      "native_connectors": 6,
+      "native_tables": 0,
+      "header_logo_nonwhite_pixels": 16804
+    },
+    {
+      "slide": 15,
+      "presenter": 3,
+      "notes_words_with_sources": 138,
+      "native_shapes": 17,
+      "native_connectors": 0,
+      "native_tables": 0,
+      "header_logo_nonwhite_pixels": 16804
+    },
+    {
+      "slide": 16,
+      "presenter": 3,
+      "notes_words_with_sources": 176,
+      "native_shapes": 9,
+      "native_connectors": 0,
+      "native_tables": 0,
+      "header_logo_nonwhite_pixels": 16804
+    },
+    {
+      "slide": 17,
+      "presenter": 3,
+      "notes_words_with_sources": 165,
+      "native_shapes": 18,
+      "native_connectors": 0,
+      "native_tables": 0,
+      "header_logo_nonwhite_pixels": 16804
+    }
+  ],
+  "final_sha256": "cf87c90f60b5a00ce9fa42b0fab88015eb56b0f4776b329c18a666fefe4dc5a8"
+}

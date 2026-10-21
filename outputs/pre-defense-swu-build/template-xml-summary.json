@@ -1,0 +1,319 @@
+[
+  {
+    "slide": "ppt/slides/slide1.xml",
+    "text": [
+      "",
+      "Evaluating the Impact of a Cloud-Based Inventory and Financial Management System on Decision Making Efficiency for Small and Medium Enterprises",
+      "",
+      "",
+      "Xymmer James D. Nadera",
+      "SouthWestern University PHINMA",
+      "Justin Comendador",
+      "SouthWestern University PHINMA",
+      "Evon Vergara",
+      "SouthWestern University PHINMA",
+      ""
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide2.xml",
+    "text": [
+      "Agenda:",
+      "Background of the study",
+      "Case-based scenario",
+      "Statement of the problem",
+      "Research Goals",
+      "Review of Related Literature",
+      "Research Methodology",
+      "Results and Findings of RQ1",
+      "Proposed IT solution",
+      "Conceptual framework",
+      "Use case Diagram",
+      "Development Platform",
+      "System Walkthrough",
+      "Use-Case Diagram",
+      ""
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide3.xml",
+    "text": [
+      "Background of the Study",
+      "Isolated POS systems",
+      "Lack of real-time database integration",
+      "23% of surveyed SMEs did not use ICT tools for business",
+      "51% used only basic digital tools,",
+      "internet use in the Philippines reached about 84%",
+      "Delayed, error-prone reconciliation",
+      "",
+      "Paint ",
+      "points",
+      "Inaccurate inventory tracking",
+      "Slow decision-making",
+      "High operational cost",
+      "Data inconsistency"
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide4.xml",
+    "text": [
+      "Case-based Scenario"
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide5.xml",
+    "text": [
+      "Statement",
+      " of the Problem",
+      "What are the key challenges and operational bottlenecks faced by SMEs on manual inventory tracking and error-prone financial reconciliation processes, and how do these challenges impact their overall efficiency in terms of :",
+      "Inaccurate Inventory tracking",
+      "Slow-decision making",
+      "High operational cost",
+      "Data inconsistency  ",
+      "2.\t",
+      "What is the most effective system                  framework and information security measures for  developing a cloud-based inventory and financial management system?",
+      "",
+      "3.    What is the level of acceptability of the proposed system in terms of :",
+      "Cost-effectiveness",
+      "System Reliability",
+      "Operational Efficiency",
+      "Security"
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide6.xml",
+    "text": [
+      "Research Goal",
+      "",
+      "Identify the key challenges and operational bottlenecks experienced by SMEs on  manual inventory tracking and error-prone financial reconciliation processes, and analyze how these challenges impact their overall efficiency in terms of : ",
+      "Inaccurate Inventory tracking",
+      "Slow-decision making",
+      "High operational cost",
+      "Data inconsistency  ",
+      "",
+      "2.   Determine the most effective system framework and information security measures to be developed on a Cloud-based Inventory and financial management system.",
+      "",
+      "3.   Assess the level of acceptability  and readiness of the proposed system in terms of : ",
+      "Cost-effectiveness",
+      "System Reliability",
+      "Operational Efficiency",
+      "Security",
+      ""
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide7.xml",
+    "text": [
+      "Review of related literatures",
+      "",
+      "Shabani et al. (2021)",
+      " explained that inventory record inaccuracy occurs when the quantity recorded in the inventory system does not match the quantity physically available. In practical SME operations, this mismatch can result from delayed stock encoding, manual stock counts, and branch-level recording inconsistencies, which contribute to stock discrepancies, stockout risks, and unreliable inventory information for day-to-day decisions.",
+      "Relative advantage, compatibility, complexity, organizational readiness, and top management support significantly influence SMEs’ intentions to adopt cloud accounting systems ",
+      "(Rashid et al., 2024)",
+      "Luo (2024)",
+      " explained that, within a cloud computing environment, the construction mode of SME accounting informatization should be evaluated using factors such as cost, safety, stability, flexibility, expansibility, technical ability, and human resources. "
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide8.xml",
+    "text": [
+      "Research Design",
+      "",
+      "Descriptive Evaluative Developmental"
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide9.xml",
+    "text": [
+      "Research Methodology ",
+      "",
+      "RQ 1 - MIXED (QUANTITATIVE & QUALITATIVE)",
+      "RQ 2 -  QUANTITATIVE",
+      "RQ 3 -  QUANTITATIVE"
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide10.xml",
+    "text": [
+      "Research Methodology ",
+      "",
+      "Participant Category",
+      "Number of Participants",
+      "Client Business Owner/Manager",
+      "1",
+      "Client Operations Staff",
+      "5",
+      "Owners/Managers from Similar SMEs",
+      "4",
+      "Operations Staff from Similar SMEs",
+      "8",
+      "Technical Validators/IT Experts",
+      "3",
+      "Total Participants",
+      "21"
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide11.xml",
+    "text": [
+      "Research Methodology ",
+      "",
+      "Data Collection Method"
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide12.xml",
+    "text": [
+      "Research Methodology ",
+      "",
+      "Data Collection Method"
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide13.xml",
+    "text": [
+      "Results and Findings of RQ1",
+      ""
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide14.xml",
+    "text": [
+      "Results and Findings of RQ1",
+      ""
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide15.xml",
+    "text": [
+      "Results and Findings of RQ1",
+      "",
+      "Theme",
+      "Core sub-themes",
+      "Illustrative quote",
+      "Meaning for operations",
+      "Fragmented recordkeeping creates no single source of truth",
+      "Manual and hybrid recording; person-dependent updates; informal workarounds.",
+      "\"So far, we do not have a system for tracking our sales and inventory...\" (Interviewee 1)",
+      "Operations depend on scattered records rather than a unified live record.",
+      "Delayed updates make the accurate picture arrive too late",
+      "Unposted movement; next-day correction; decisions made under uncertainty.",
+      "\"The deeper issue is that the real situation becomes visible too late.\" (Interviewee 3)",
+      "Even when the truth is eventually reconstructed, it often arrives after the decision window.",
+      "Inaccurate records disrupt service, fulfillment, and restocking",
+      "Customer promise failure; partial release; conservative or delayed restocking.",
+      "\"This can disappoint customers and reduce sales.\" (Interviewee 2)",
+      "Weak records quickly become visible as stockouts, delays, and missed sales.",
+      "Manual reconciliation shifts effort from operations to error correction",
+      "Repeated recounting; after-hours verification; coordination strain.",
+      "\"Sometimes it ends up in an argument because I am already loaded with work.\" (Interviewee 1)",
+      "Labor is redirected from serving customers and planning toward repetitive correction.",
+      "When records conflict, trust shifts to physical proof",
+      "Physical count as truth; signed slips and receipts preferred; slow confirmation.",
+      "\"We usually check the actual physical stock first because that is the most reliable basis.\" (Interviewee 2)",
+      "Record systems have not earned enough trust to support fast decisions on their own."
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide16.xml",
+    "text": [
+      "Results and Findings of RQ1",
+      "",
+      "Theme",
+      "Core sub-themes",
+      "Illustrative quote",
+      "Meaning for operations",
+      "Fragmented recordkeeping creates no single source of truth",
+      "Manual and hybrid recording; person-dependent updates; informal workarounds.",
+      "\"So far, we do not have a system for tracking our sales and inventory...\" (Interviewee 1)",
+      "Operations depend on scattered records rather than a unified live record.",
+      "Delayed updates make the accurate picture arrive too late",
+      "Unposted movement; next-day correction; decisions made under uncertainty.",
+      "\"The deeper issue is that the real situation becomes visible too late.\" (Interviewee 3)",
+      "Even when the truth is eventually reconstructed, it often arrives after the decision window.",
+      "Inaccurate records disrupt service, fulfillment, and restocking",
+      "Customer promise failure; partial release; conservative or delayed restocking.",
+      "\"This can disappoint customers and reduce sales.\" (Interviewee 2)",
+      "Weak records quickly become visible as stockouts, delays, and missed sales.",
+      "Manual reconciliation shifts effort from operations to error correction",
+      "Repeated recounting; after-hours verification; coordination strain.",
+      "\"Sometimes it ends up in an argument because I am already loaded with work.\" (Interviewee 1)",
+      "Labor is redirected from serving customers and planning toward repetitive correction.",
+      "When records conflict, trust shifts to physical proof",
+      "Physical count as truth; signed slips and receipts preferred; slow confirmation.",
+      "\"We usually check the actual physical stock first because that is the most reliable basis.\" (Interviewee 2)",
+      "Record systems have not earned enough trust to support fast decisions on their own."
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide17.xml",
+    "text": [
+      "Results and Findings of RQ1",
+      ""
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide18.xml",
+    "text": [
+      "Proposed IT Solution",
+      "",
+      "Cloud-Based Inventory and Financial Management System"
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide19.xml",
+    "text": [
+      "Conceptual Framework"
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide20.xml",
+    "text": [
+      "USE-CASE DIAGRAM"
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide21.xml",
+    "text": [
+      "Development Platform: Hardware"
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide22.xml",
+    "text": [
+      "Development Platform: Software",
+      ""
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide23.xml",
+    "text": [
+      "Development Platform: Frontend",
+      ""
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide24.xml",
+    "text": [
+      "Development Platform: Backend",
+      ""
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide25.xml",
+    "text": [
+      "Development Platform: Deployment",
+      ""
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide26.xml",
+    "text": [
+      "SYSTEM WALKTHROUGH"
+    ]
+  },
+  {
+    "slide": "ppt/slides/slide27.xml",
+    "text": []
+  }
+]

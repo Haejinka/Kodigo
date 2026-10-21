@@ -1,0 +1,826 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/x8f69ofe",
+    "index": 5,
+    "layout": {
+      "id": "ly/p83mt83u",
+      "name": "TITLE_AND_BODY_1_1"
+    },
+    "masterLayoutId": "ly/atofqts7",
+    "backgroundColor": "rgba(255,255,255,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "ly/p83mt83u",
+      "name": "TITLE_AND_BODY_1_1",
+      "parentLayoutId": "ly/atofqts7",
+      "elements": [
+        {
+          "order": 1,
+          "kind": "image",
+          "scope": "layout",
+          "id": "im/xonix4ze",
+          "editable": false,
+          "name": "Google Shape;16;p35",
+          "position": {
+            "left": 0,
+            "top": 0,
+            "width": 960,
+            "height": 540
+          },
+          "contentType": "image/png",
+          "crop": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "asset": {
+            "contentType": "image/png",
+            "byteLength": 32300
+          },
+          "fillImage": {
+            "contentType": "image/png",
+            "byteLength": 32300
+          }
+        },
+        {
+          "order": 2,
+          "kind": "shape",
+          "scope": "layout",
+          "id": "sh/hcnux47u",
+          "editable": false,
+          "name": "Google Shape;17;p35",
+          "position": {
+            "left": 56.34,
+            "top": 40.2,
+            "width": 584.19,
+            "height": 56.19
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 3,
+          "kind": "shape",
+          "scope": "layout",
+          "id": "sh/e50ve9on",
+          "editable": false,
+          "name": "Google Shape;18;p35",
+          "position": {
+            "left": 70.92,
+            "top": 133.83,
+            "width": 807.21,
+            "height": 237.39
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 4,
+          "kind": "textbox",
+          "scope": "layout",
+          "id": "sh/z69w7e58",
+          "editable": false,
+          "name": "Google Shape;19;p35",
+          "position": {
+            "left": 896.2,
+            "top": 498.67,
+            "width": 57.61,
+            "height": 41.32
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "text": "6",
+          "style": {
+            "anchor": 2,
+            "alignment": "right",
+            "verticalAlignment": "middle",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "6",
+              "style": {
+                "alignment": "right"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "6",
+                  "anchor": 2,
+                  "alignment": "right",
+                  "verticalAlignment": "middle",
+                  "wrap": "square",
+                  "autoFit": "shrinkText",
+                  "insets": {
+                    "top": 9.6,
+                    "right": 9.6,
+                    "bottom": 9.6,
+                    "left": 9.6
+                  },
+                  "useParagraphSpacing": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scope": "master",
+      "id": "ly/atofqts7",
+      "type": "master",
+      "backgroundColor": "lt1",
+      "elements": [
+        {
+          "order": 1,
+          "kind": "shape",
+          "scope": "master",
+          "id": "sh/czu98z2x",
+          "editable": false,
+          "name": "Google Shape;6;p33",
+          "position": {
+            "left": 32.72,
+            "top": 46.72,
+            "width": 894.55,
+            "height": 60.13
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 2,
+          "kind": "shape",
+          "scope": "master",
+          "id": "sh/d03a143i",
+          "editable": false,
+          "name": "Google Shape;7;p33",
+          "position": {
+            "left": 32.72,
+            "top": 120.99,
+            "width": 894.55,
+            "height": 358.68
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 3,
+          "kind": "textbox",
+          "scope": "master",
+          "id": "sh/618ru54n",
+          "editable": false,
+          "name": "Google Shape;8;p33",
+          "position": {
+            "left": 896.2,
+            "top": 498.67,
+            "width": 57.61,
+            "height": 41.32
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "text": "6",
+          "style": {
+            "anchor": 2,
+            "alignment": "right",
+            "verticalAlignment": "middle",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "6",
+              "style": {
+                "alignment": "right"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "6",
+                  "anchor": 2,
+                  "alignment": "right",
+                  "verticalAlignment": "middle",
+                  "wrap": "square",
+                  "autoFit": "shrinkText",
+                  "insets": {
+                    "top": 9.6,
+                    "right": 9.6,
+                    "bottom": 9.6,
+                    "left": 9.6
+                  },
+                  "useParagraphSpacing": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "order": 4,
+          "kind": "image",
+          "scope": "master",
+          "id": "im/k365s3mh",
+          "editable": false,
+          "name": "Google Shape;9;p33",
+          "position": {
+            "left": 0,
+            "top": 0,
+            "width": 960,
+            "height": 540
+          },
+          "contentType": "image/png",
+          "crop": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "asset": {
+            "contentType": "image/png",
+            "byteLength": 46002
+          },
+          "fillImage": {
+            "contentType": "image/png",
+            "byteLength": 46002
+          }
+        }
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/nehgvedw",
+      "editable": true,
+      "name": "Google Shape;119;g3dccc59b9e4_3_83",
+      "position": {
+        "left": 35.82,
+        "top": 14.56,
+        "width": 584.19,
+        "height": 56.19
+      },
+      "geometry": "rect",
+      "lineWidth": 0,
+      "text": "Research Goal\n",
+      "style": {
+        "anchor": 1,
+        "fontSize": 33.84,
+        "typeface": "Raleway",
+        "color": "#0070C0",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "textTransform": "none",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 0.9,
+        "insets": {
+          "top": 9.6,
+          "right": 9.6,
+          "bottom": 9.6,
+          "left": 9.6
+        },
+        "useParagraphSpacing": true
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Research Goal",
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Research Goal",
+              "anchor": 1,
+              "fontSize": 37.6,
+              "typeface": "Raleway",
+              "color": "#0070C0",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 0.9,
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ],
+          "bulletCharacter": "",
+          "lineSpacingPercent": 100000
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/rixw3ato",
+      "editable": true,
+      "name": "Google Shape;120;g3dccc59b9e4_3_83",
+      "position": {
+        "left": 0,
+        "top": 141.62,
+        "width": 371.18,
+        "height": 392.69
+      },
+      "geometry": "rect",
+      "lineWidth": 0,
+      "text": "Identify the key challenges and operational bottlenecks experienced by SMEs on  manual inventory tracking and error-prone financial reconciliation processes, and analyze how these challenges impact their overall efficiency in terms of : \nInaccurate Inventory tracking\nSlow-decision making\nHigh operational cost\nData inconsistency  \n",
+      "style": {
+        "anchor": 1,
+        "fontSize": 14.67,
+        "typeface": "Cambria",
+        "color": "#000000",
+        "bold": false,
+        "italic": false,
+        "alignment": "justify",
+        "verticalAlignment": "top",
+        "textTransform": "none",
+        "wrap": "square",
+        "autoFit": "resizeShapeToFitText",
+        "insets": {
+          "top": 9.6,
+          "right": 9.6,
+          "bottom": 9.6,
+          "left": 9.6
+        },
+        "useParagraphSpacing": true
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Identify the key challenges and operational bottlenecks experienced by SMEs on  manual inventory tracking and error-prone financial reconciliation processes, and analyze how these challenges impact their overall efficiency in terms of : ",
+          "lineSpacingPercent": 200000,
+          "style": {
+            "alignment": "justify"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Identify the key challenges and operational bottlenecks experienced by SMEs on  manual inventory tracking and error-prone financial reconciliation processes, and analyze how these challenges impact their overall efficiency in terms of : ",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Cambria",
+              "alignment": "justify",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "text": "Inaccurate Inventory tracking",
+          "lineSpacingPercent": 200000,
+          "style": {
+            "alignment": "justify"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Inaccurate Inventory tracking",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Cambria",
+              "alignment": "justify",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "text": "Slow-decision making",
+          "lineSpacingPercent": 200000,
+          "style": {
+            "alignment": "justify"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Slow-decision making",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Cambria",
+              "alignment": "justify",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "text": "High operational cost",
+          "lineSpacingPercent": 200000,
+          "style": {
+            "alignment": "justify"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "High operational cost",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Cambria",
+              "alignment": "justify",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "text": "Data inconsistency  ",
+          "lineSpacingPercent": 200000,
+          "style": {
+            "alignment": "justify"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Data inconsistency  ",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Cambria",
+              "alignment": "justify",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/qhovu5s3",
+      "editable": true,
+      "name": "Google Shape;121;g3dccc59b9e4_3_83",
+      "position": {
+        "left": 371.18,
+        "top": 141.62,
+        "width": 292.79,
+        "height": 214.93
+      },
+      "geometry": "rect",
+      "lineWidth": 0,
+      "text": "2.   Determine the most effective system framework and information security measures to be developed on a Cloud-based Inventory and financial management system.\n",
+      "style": {
+        "anchor": 1,
+        "fontSize": 14.67,
+        "typeface": "Cambria",
+        "color": "#000000",
+        "bold": false,
+        "italic": false,
+        "alignment": "justify",
+        "verticalAlignment": "top",
+        "textTransform": "none",
+        "wrap": "square",
+        "autoFit": "resizeShapeToFitText",
+        "insets": {
+          "top": 9.6,
+          "right": 9.6,
+          "bottom": 9.6,
+          "left": 9.6
+        },
+        "useParagraphSpacing": true
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "2.   Determine the most effective system framework and information security measures to be developed on a Cloud-based Inventory and financial management system.",
+          "lineSpacingPercent": 200000,
+          "style": {
+            "alignment": "justify"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "2.   Determine the most effective system framework and information security measures to be developed on a Cloud-based Inventory and financial management system.",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Cambria",
+              "alignment": "justify",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/dkfe50be",
+      "editable": true,
+      "name": "Google Shape;122;g3dccc59b9e4_3_83",
+      "position": {
+        "left": 679.62,
+        "top": 141.62,
+        "width": 242.61,
+        "height": 286.02
+      },
+      "geometry": "rect",
+      "lineWidth": 0,
+      "text": "3.   Assess the level of acceptability  and readiness of the proposed system in terms of : \nCost-effectiveness\nSystem Reliability\nOperational Efficiency\nSecurity\n",
+      "style": {
+        "anchor": 1,
+        "fontSize": 14.67,
+        "typeface": "Cambria",
+        "color": "#000000",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "textTransform": "none",
+        "wrap": "square",
+        "autoFit": "resizeShapeToFitText",
+        "insets": {
+          "top": 9.6,
+          "right": 9.6,
+          "bottom": 9.6,
+          "left": 9.6
+        },
+        "useParagraphSpacing": true
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "3.   Assess the level of acceptability  and readiness of the proposed system in terms of : ",
+          "lineSpacingPercent": 200000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "3.   Assess the level of acceptability  and readiness of the proposed system in terms of : ",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Cambria",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "text": "Cost-effectiveness",
+          "lineSpacingPercent": 200000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Cost-effectiveness",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Cambria",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "text": "System Reliability",
+          "lineSpacingPercent": 200000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "System Reliability",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Cambria",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "text": "Operational Efficiency",
+          "lineSpacingPercent": 200000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Operational Efficiency",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Cambria",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "text": "Security",
+          "lineSpacingPercent": 200000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Security",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Cambria",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

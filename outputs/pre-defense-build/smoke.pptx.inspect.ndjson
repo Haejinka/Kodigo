@@ -1,0 +1,11 @@
+{"kind":"deck","id":"pr/il4y2v","name":"Deck"}
+{"kind":"layout","id":"ly/dgjqho7q","editable":false,"name":"Master","type":"master"}
+{"kind":"layout","id":"ly/edczyxgn","editable":false,"name":"Title Slide","type":"title","placeholders":[{"name":"title","type":"title"},{"name":"subtitle","type":"subtitle"}]}
+{"kind":"layout","id":"ly/2don254n","editable":false,"name":"Section Header","type":"sectionHeader","placeholders":[{"name":"title","type":"title"}]}
+{"kind":"layout","id":"ly/a103e9oj","editable":false,"name":"Title and Body","type":"tx","placeholders":[{"name":"title","type":"title"},{"name":"body","type":"body"}]}
+{"kind":"layout","id":"ly/7q9orytc","editable":false,"name":"Title and Two Column","type":"twoColTx","placeholders":[{"name":"title","type":"title"},{"name":"Left column","type":"body"},{"name":"Right column","type":"body"}]}
+{"kind":"layout","id":"ly/n2h0j258","editable":false,"name":"Title and One Column","type":"tx","placeholders":[{"name":"title","type":"title"},{"name":"body","type":"body"}]}
+{"kind":"layout","id":"ly/1kn61cv6","editable":false,"name":"Blank","type":"blank"}
+{"kind":"slide","id":"sl/fps027","slideIndex":0,"layout":{"id":"ly/1kn61cv6","name":"Blank"},"title":"Kodigo technical pre-defense","textShapes":1,"backgroundColor":"rgba(11,17,32,1)"}
+{"kind":"textbox","id":"sh/gvepc3y5","slideIndex":0,"position":{"left":100,"top":100,"width":1500,"height":100},"text":"Kodigo technical pre-defense","geometry":"rect","lineWidth":0,"style":{"fontSize":60,"typeface":"Aptos","color":"#F8FAFC","alignment":"left"}}
+{"kind":"notes","id":"nt/fps027","slideIndex":0,"text":"Speaker notes test"}

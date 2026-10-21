@@ -1,0 +1,424 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/c7uhcr6t",
+    "index": 13,
+    "layout": {
+      "id": "ly/4v2ps7ql",
+      "name": "OBJECT"
+    },
+    "backgroundColor": "rgba(255,255,255,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "elements": [
+    {
+      "id": "im/jyloj2lo",
+      "kind": "image",
+      "position": {
+        "left": 690,
+        "top": 25,
+        "width": 235,
+        "height": 80
+      },
+      "fit": "contain",
+      "alt": "Original PHINMA Education logo extracted from supplied template"
+    },
+    {
+      "id": "sh/90vqdczq",
+      "kind": "textbox",
+      "name": "current-content-26",
+      "position": {
+        "left": 56,
+        "top": 48,
+        "width": 605,
+        "height": 58
+      },
+      "text": "Core system logic",
+      "style": {
+        "fontSize": 33.6,
+        "typeface": "Raleway",
+        "color": "#0070C0",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/8zm9k7y5",
+      "kind": "textbox",
+      "name": "current-content-27",
+      "position": {
+        "left": 835,
+        "top": 502,
+        "width": 85,
+        "height": 20
+      },
+      "text": "14 / 17",
+      "style": {
+        "fontSize": 14,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "right"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/v2d8fmhw",
+      "kind": "textbox",
+      "name": "current-content-108",
+      "position": {
+        "left": 56,
+        "top": 137,
+        "width": 846,
+        "height": 30
+      },
+      "text": "Checkout",
+      "style": {
+        "fontSize": 24,
+        "typeface": "Raleway",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/a14rmhgb",
+      "kind": "textbox",
+      "position": {
+        "left": 56,
+        "top": 174,
+        "width": 236,
+        "height": 53
+      },
+      "text": "Cart and payment",
+      "style": {
+        "fontSize": 19,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "center"
+      },
+      "geometry": "rect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#202C61",
+      "lineWidth": 1.5
+    },
+    {
+      "id": "sh/xovqhcz2",
+      "kind": "textbox",
+      "position": {
+        "left": 361,
+        "top": 174,
+        "width": 236,
+        "height": 53
+      },
+      "text": "Server validation",
+      "style": {
+        "fontSize": 19,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "center"
+      },
+      "geometry": "rect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#202C61",
+      "lineWidth": 1.5
+    },
+    {
+      "id": "sh/w3m9o7yh",
+      "kind": "textbox",
+      "position": {
+        "left": 666,
+        "top": 174,
+        "width": 236,
+        "height": 53
+      },
+      "text": "Commit sale + stock",
+      "style": {
+        "fontSize": 19,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "center"
+      },
+      "geometry": "rect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#202C61",
+      "lineWidth": 1.5
+    },
+    {
+      "id": "sh/sby90zm1",
+      "kind": "textbox",
+      "name": "current-content-109",
+      "position": {
+        "left": 56,
+        "top": 246,
+        "width": 846,
+        "height": 30
+      },
+      "text": "Bulk conversion",
+      "style": {
+        "fontSize": 24,
+        "typeface": "Raleway",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/tc7at436",
+      "kind": "textbox",
+      "position": {
+        "left": 56,
+        "top": 283,
+        "width": 236,
+        "height": 53
+      },
+      "text": "2 packs × 6 pieces",
+      "style": {
+        "fontSize": 19,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "center"
+      },
+      "geometry": "rect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#202C61",
+      "lineWidth": 1.5
+    },
+    {
+      "id": "sh/69gry94v",
+      "kind": "textbox",
+      "position": {
+        "left": 361,
+        "top": 283,
+        "width": 236,
+        "height": 53
+      },
+      "text": "12 base units",
+      "style": {
+        "fontSize": 19,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "center"
+      },
+      "geometry": "rect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#202C61",
+      "lineWidth": 1.5
+    },
+    {
+      "id": "sh/rapsrelg",
+      "kind": "textbox",
+      "position": {
+        "left": 666,
+        "top": 283,
+        "width": 236,
+        "height": 53
+      },
+      "text": "24 pieces become 12",
+      "style": {
+        "fontSize": 19,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "center"
+      },
+      "geometry": "rect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#202C61",
+      "lineWidth": 1.5
+    },
+    {
+      "id": "sh/edgr294r",
+      "kind": "textbox",
+      "name": "current-content-110",
+      "position": {
+        "left": 56,
+        "top": 355,
+        "width": 846,
+        "height": 30
+      },
+      "text": "Receiving",
+      "style": {
+        "fontSize": 24,
+        "typeface": "Raleway",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/fepsvelc",
+      "kind": "textbox",
+      "position": {
+        "left": 56,
+        "top": 392,
+        "width": 236,
+        "height": 53
+      },
+      "text": "Configured packages",
+      "style": {
+        "fontSize": 19,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "center"
+      },
+      "geometry": "rect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#202C61",
+      "lineWidth": 1.5
+    },
+    {
+      "id": "sh/oji9832t",
+      "kind": "textbox",
+      "position": {
+        "left": 361,
+        "top": 392,
+        "width": 236,
+        "height": 53
+      },
+      "text": "Stock + cost history",
+      "style": {
+        "fontSize": 19,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "center"
+      },
+      "geometry": "rect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#202C61",
+      "lineWidth": 1.5
+    },
+    {
+      "id": "sh/p4ra1o3e",
+      "kind": "textbox",
+      "position": {
+        "left": 666,
+        "top": 392,
+        "width": 236,
+        "height": 53
+      },
+      "text": "Review suggested price",
+      "style": {
+        "fontSize": 19,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "center"
+      },
+      "geometry": "rect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#202C61",
+      "lineWidth": 1.5
+    },
+    {
+      "id": "sh/by58jeds",
+      "kind": "textbox",
+      "name": "current-content-111",
+      "position": {
+        "left": 56,
+        "top": 468,
+        "width": 846,
+        "height": 23
+      },
+      "text": "v4 calls v3 for validated checkout. Bulk arithmetic is illustrative. Price approval is separate.",
+      "style": {
+        "fontSize": 16.51,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/jqd8jmhs",
+      "kind": "shape",
+      "position": {
+        "left": 292,
+        "top": 200.5,
+        "width": 69,
+        "height": 0
+      },
+      "geometry": "straightConnector1",
+      "lineColor": "#0070C0",
+      "lineWidth": 2
+    },
+    {
+      "id": "sh/ip4rqhgn",
+      "kind": "shape",
+      "position": {
+        "left": 597,
+        "top": 200.5,
+        "width": 69,
+        "height": 0
+      },
+      "geometry": "straightConnector1",
+      "lineColor": "#0070C0",
+      "lineWidth": 2
+    },
+    {
+      "id": "sh/0fi94jmx",
+      "kind": "shape",
+      "position": {
+        "left": 292,
+        "top": 309.5,
+        "width": 69,
+        "height": 0
+      },
+      "geometry": "straightConnector1",
+      "lineColor": "#0070C0",
+      "lineWidth": 2
+    },
+    {
+      "id": "sh/1graxo3i",
+      "kind": "shape",
+      "position": {
+        "left": 597,
+        "top": 309.5,
+        "width": 69,
+        "height": 0
+      },
+      "geometry": "straightConnector1",
+      "lineColor": "#0070C0",
+      "lineWidth": 2
+    },
+    {
+      "id": "sh/x0nalovi",
+      "kind": "shape",
+      "position": {
+        "left": 292,
+        "top": 418.5,
+        "width": 69,
+        "height": 0
+      },
+      "geometry": "straightConnector1",
+      "lineColor": "#0070C0",
+      "lineWidth": 2
+    },
+    {
+      "id": "sh/wze9cjud",
+      "kind": "shape",
+      "position": {
+        "left": 597,
+        "top": 418.5,
+        "width": 69,
+        "height": 0
+      },
+      "geometry": "straightConnector1",
+      "lineColor": "#0070C0",
+      "lineWidth": 2
+    }
+  ]
+}

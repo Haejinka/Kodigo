@@ -1,0 +1,770 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/y90nupkv",
+    "index": 0,
+    "layout": {
+      "id": "ly/ux4ruhcv",
+      "name": "TITLE"
+    },
+    "masterLayoutId": "ly/atofqts7",
+    "backgroundColor": "rgba(233,237,238,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "ly/ux4ruhcv",
+      "name": "TITLE",
+      "type": "title",
+      "parentLayoutId": "ly/atofqts7",
+      "backgroundColor": "lt2",
+      "elements": [
+        {
+          "order": 1,
+          "kind": "image",
+          "scope": "layout",
+          "id": "im/3qxwr69w",
+          "editable": false,
+          "name": "Google Shape;11;p34",
+          "position": {
+            "left": 0,
+            "top": 0,
+            "width": 960,
+            "height": 540
+          },
+          "contentType": "image/png",
+          "crop": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "asset": {
+            "contentType": "image/png",
+            "byteLength": 182917
+          },
+          "fillImage": {
+            "contentType": "image/png",
+            "byteLength": 182917
+          }
+        },
+        {
+          "order": 2,
+          "kind": "shape",
+          "scope": "layout",
+          "id": "sh/1ovyl4j6",
+          "editable": false,
+          "name": "Google Shape;12;p34",
+          "position": {
+            "left": 76.43,
+            "top": 182.61,
+            "width": 502.49,
+            "height": 174.77
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 3,
+          "kind": "shape",
+          "scope": "layout",
+          "id": "sh/0nmxcz2l",
+          "editable": false,
+          "name": "Google Shape;13;p34",
+          "position": {
+            "left": 76.43,
+            "top": 368.81,
+            "width": 502.49,
+            "height": 56.82
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 4,
+          "kind": "textbox",
+          "scope": "layout",
+          "id": "sh/nqdgne1c",
+          "editable": false,
+          "name": "Google Shape;14;p34",
+          "position": {
+            "left": 896.2,
+            "top": 498.67,
+            "width": 57.61,
+            "height": 41.32
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "text": "1",
+          "style": {
+            "anchor": 2,
+            "alignment": "right",
+            "verticalAlignment": "middle",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "1",
+              "style": {
+                "alignment": "right"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "1",
+                  "anchor": 2,
+                  "alignment": "right",
+                  "verticalAlignment": "middle",
+                  "wrap": "square",
+                  "autoFit": "shrinkText",
+                  "insets": {
+                    "top": 9.6,
+                    "right": 9.6,
+                    "bottom": 9.6,
+                    "left": 9.6
+                  },
+                  "useParagraphSpacing": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scope": "master",
+      "id": "ly/atofqts7",
+      "type": "master",
+      "backgroundColor": "lt1",
+      "elements": [
+        {
+          "order": 1,
+          "kind": "shape",
+          "scope": "master",
+          "id": "sh/czu98z2x",
+          "editable": false,
+          "name": "Google Shape;6;p33",
+          "position": {
+            "left": 32.72,
+            "top": 46.72,
+            "width": 894.55,
+            "height": 60.13
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 2,
+          "kind": "shape",
+          "scope": "master",
+          "id": "sh/d03a143i",
+          "editable": false,
+          "name": "Google Shape;7;p33",
+          "position": {
+            "left": 32.72,
+            "top": 120.99,
+            "width": 894.55,
+            "height": 358.68
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 3,
+          "kind": "textbox",
+          "scope": "master",
+          "id": "sh/618ru54n",
+          "editable": false,
+          "name": "Google Shape;8;p33",
+          "position": {
+            "left": 896.2,
+            "top": 498.67,
+            "width": 57.61,
+            "height": 41.32
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "text": "1",
+          "style": {
+            "anchor": 2,
+            "alignment": "right",
+            "verticalAlignment": "middle",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "1",
+              "style": {
+                "alignment": "right"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "1",
+                  "anchor": 2,
+                  "alignment": "right",
+                  "verticalAlignment": "middle",
+                  "wrap": "square",
+                  "autoFit": "shrinkText",
+                  "insets": {
+                    "top": 9.6,
+                    "right": 9.6,
+                    "bottom": 9.6,
+                    "left": 9.6
+                  },
+                  "useParagraphSpacing": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "order": 4,
+          "kind": "image",
+          "scope": "master",
+          "id": "im/k365s3mh",
+          "editable": false,
+          "name": "Google Shape;9;p33",
+          "position": {
+            "left": 0,
+            "top": 0,
+            "width": 960,
+            "height": 540
+          },
+          "contentType": "image/png",
+          "crop": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "asset": {
+            "contentType": "image/png",
+            "byteLength": 46002
+          },
+          "fillImage": {
+            "contentType": "image/png",
+            "byteLength": 46002
+          }
+        }
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/oz2pcb61",
+      "editable": true,
+      "name": "Google Shape;80;p1",
+      "position": {
+        "left": 33.18,
+        "top": 82.03,
+        "width": 262.36,
+        "height": 69.74
+      },
+      "contentType": "image/png",
+      "crop": {
+        "left": 0.21089,
+        "top": 0.48757,
+        "right": 0.55445,
+        "bottom": 0.40154
+      },
+      "asset": {
+        "contentType": "image/png",
+        "byteLength": 355971
+      },
+      "fillImage": {
+        "contentType": "image/png",
+        "byteLength": 355971
+      }
+    },
+    {
+      "order": 2,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/qd8jy94v",
+      "editable": true,
+      "name": "Google Shape;81;p1",
+      "position": {
+        "left": 22.59,
+        "top": 127.57,
+        "width": 532.16,
+        "height": 155.59
+      },
+      "geometry": "rect",
+      "lineWidth": 0,
+      "text": "\nEvaluating the Impact of a Cloud-Based Inventory and Financial Management System on Decision Making Efficiency for Small and Medium Enterprises\n\n",
+      "style": {
+        "anchor": 1,
+        "fontSize": 26.67,
+        "typeface": "Cambria",
+        "color": "#000000",
+        "bold": true,
+        "italic": false,
+        "alignment": "center",
+        "verticalAlignment": "top",
+        "textTransform": "none",
+        "wrap": "square",
+        "autoFit": "none",
+        "insets": {
+          "top": 9.6,
+          "right": 9.6,
+          "bottom": 9.6,
+          "left": 9.6
+        },
+        "useParagraphSpacing": true
+      },
+      "paragraphs": [
+        {
+          "index": 2,
+          "text": "Evaluating the Impact of a Cloud-Based Inventory and Financial Management System on Decision Making Efficiency for Small and Medium Enterprises",
+          "style": {
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Evaluating the Impact of a Cloud-Based Inventory and Financial Management System on Decision Making Efficiency for Small and Medium Enterprises",
+              "anchor": 1,
+              "fontSize": 26.67,
+              "typeface": "Cambria",
+              "bold": true,
+              "alignment": "center",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "none",
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ],
+          "lineSpacingPercent": 100000
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/d0j29on6",
+      "editable": true,
+      "name": "Google Shape;82;p1",
+      "position": {
+        "left": 58.56,
+        "top": 360.23,
+        "width": 245.92,
+        "height": 45.23
+      },
+      "geometry": "rect",
+      "lineWidth": 0,
+      "text": "Xymmer James D. Nadera\nSouthWestern University PHINMA",
+      "style": {
+        "anchor": 1,
+        "fontSize": 14.67,
+        "typeface": "Arial",
+        "color": "#000000",
+        "bold": true,
+        "italic": false,
+        "alignment": "center",
+        "verticalAlignment": "top",
+        "textTransform": "none",
+        "wrap": "square",
+        "autoFit": "resizeShapeToFitText",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        },
+        "useParagraphSpacing": true
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Xymmer James D. Nadera",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Xymmer James D. Nadera",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": true,
+              "italic": false,
+              "alignment": "center",
+              "verticalAlignment": "top",
+              "textTransform": "none",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "text": "SouthWestern University PHINMA",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "SouthWestern University PHINMA",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": false,
+              "italic": false,
+              "alignment": "center",
+              "verticalAlignment": "top",
+              "textTransform": "none",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/cfa10jml",
+      "editable": true,
+      "name": "Google Shape;83;p1",
+      "position": {
+        "left": 203.62,
+        "top": 430.35,
+        "width": 245.92,
+        "height": 46.05
+      },
+      "geometry": "rect",
+      "lineWidth": 0,
+      "text": "Justin Comendador\nSouthWestern University PHINMA",
+      "style": {
+        "anchor": 1,
+        "fontSize": 14.67,
+        "typeface": "Arial",
+        "color": "#000000",
+        "bold": true,
+        "italic": false,
+        "alignment": "center",
+        "verticalAlignment": "top",
+        "textTransform": "none",
+        "wrap": "square",
+        "autoFit": "resizeShapeToFitText",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        },
+        "useParagraphSpacing": true
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Justin Comendador",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Justin Comendador",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": true,
+              "italic": false,
+              "alignment": "center",
+              "verticalAlignment": "top",
+              "textTransform": "none",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "text": "SouthWestern University PHINMA",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "SouthWestern University PHINMA",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": false,
+              "italic": false,
+              "alignment": "center",
+              "verticalAlignment": "top",
+              "textTransform": "none",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/3ahk3u54",
+      "editable": true,
+      "name": "Google Shape;84;p1",
+      "position": {
+        "left": 337.23,
+        "top": 356.38,
+        "width": 245.92,
+        "height": 46.05
+      },
+      "geometry": "rect",
+      "lineWidth": 0,
+      "text": "Evon Vergara\nSouthWestern University PHINMA",
+      "style": {
+        "anchor": 1,
+        "fontSize": 14.67,
+        "typeface": "Arial",
+        "color": "#000000",
+        "bold": true,
+        "italic": false,
+        "alignment": "center",
+        "verticalAlignment": "top",
+        "textTransform": "none",
+        "wrap": "square",
+        "autoFit": "resizeShapeToFitText",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        },
+        "useParagraphSpacing": true
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Evon Vergara",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Evon Vergara",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "bold": true,
+              "alignment": "center",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "text": "SouthWestern University PHINMA",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "SouthWestern University PHINMA",
+              "anchor": 1,
+              "fontSize": 14.67,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": false,
+              "italic": false,
+              "alignment": "center",
+              "verticalAlignment": "top",
+              "textTransform": "none",
+              "wrap": "square",
+              "autoFit": "resizeShapeToFitText",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "id": "sh/298ju94j",
+      "editable": true,
+      "name": "Google Shape;85;p1",
+      "position": {
+        "left": 337.23,
+        "top": 422.64,
+        "width": 245.92,
+        "height": 27.87
+      },
+      "geometry": "rect",
+      "lineWidth": 0,
+      "style": {
+        "anchor": 1,
+        "fontSize": 18.67,
+        "typeface": "Arial",
+        "color": "#000000",
+        "bold": false,
+        "italic": false,
+        "alignment": "center",
+        "verticalAlignment": "top",
+        "textTransform": "none",
+        "wrap": "square",
+        "autoFit": "resizeShapeToFitText",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        },
+        "useParagraphSpacing": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,744 @@
+[
+  [
+    {
+      "kind": "textbox",
+      "text": "01 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "Kodigo  •  Capstone Pre-Defense"
+    },
+    {
+      "kind": "textbox",
+      "text": "Architecting a Lightweight Cloud-Based Inventory and Financial Management System: A Mixed-Methods Evaluation of Decision-Making Efficiency in Philippine SMEs"
+    },
+    {
+      "kind": "textbox",
+      "text": "Evon Christian Pahugot Vergara\nJustin Comendador\nXymmer James Nadera"
+    },
+    {
+      "kind": "textbox",
+      "text": "College of Information Technology and Engineering\nSouthwestern University – PHINMA"
+    },
+    {
+      "kind": "textbox",
+      "text": "Adviser: [Adviser name]     Academic year: [Academic year]"
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "Agenda"
+    },
+    {
+      "kind": "textbox",
+      "text": "02 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "Research context"
+    },
+    {
+      "kind": "textbox",
+      "text": "Background and case scenario\nProblem statement and goals\nRelated literature"
+    },
+    {
+      "kind": "textbox",
+      "text": "Research evidence"
+    },
+    {
+      "kind": "textbox",
+      "text": "Methodology\nBaseline findings for RQ1"
+    },
+    {
+      "kind": "textbox",
+      "text": "Developed system"
+    },
+    {
+      "kind": "textbox",
+      "text": "Solution and conceptual framework\nUse cases, architecture and database\nCore logic and development platform"
+    },
+    {
+      "kind": "textbox",
+      "text": "Evaluation and walkthrough"
+    },
+    {
+      "kind": "textbox",
+      "text": "Testing evidence and limitations\nDemonstration sequence"
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "Background and case scenario"
+    },
+    {
+      "kind": "textbox",
+      "text": "03 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "Separate sales and stock records create delayed visibility"
+    },
+    {
+      "kind": "textbox",
+      "text": "Manual entry and later reconciliation make owners compare\nseveral records before routine decisions."
+    },
+    {
+      "kind": "textbox",
+      "text": "Sale recorded"
+    },
+    {
+      "kind": "textbox",
+      "text": "Stock encoded later"
+    },
+    {
+      "kind": "textbox",
+      "text": "Owner reconciles\nbefore ordering"
+    },
+    {
+      "kind": "textbox",
+      "text": "Illustrative scenario based on the manuscript’s operational problem"
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "Statement of the problem"
+    },
+    {
+      "kind": "textbox",
+      "text": "04 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "RQ1"
+    },
+    {
+      "kind": "textbox",
+      "text": "Which tracking and reconciliation bottlenecks affect SME operations?"
+    },
+    {
+      "kind": "textbox",
+      "text": "RQ2"
+    },
+    {
+      "kind": "textbox",
+      "text": "Which system framework and security measures are appropriate?"
+    },
+    {
+      "kind": "textbox",
+      "text": "RQ3"
+    },
+    {
+      "kind": "textbox",
+      "text": "How acceptable is the developed system to intended users?"
+    },
+    {
+      "kind": "textbox",
+      "text": "Acceptability dimensions: cost-effectiveness, reliability, efficiency and security"
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "Research goals"
+    },
+    {
+      "kind": "textbox",
+      "text": "05 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "Design, develop, and evaluate a cloud-based inventory\nand financial management framework tailored for SMEs"
+    },
+    {
+      "kind": "textbox",
+      "text": "01"
+    },
+    {
+      "kind": "textbox",
+      "text": "Identify manual tracking and reconciliation bottlenecks"
+    },
+    {
+      "kind": "textbox",
+      "text": "02"
+    },
+    {
+      "kind": "textbox",
+      "text": "Determine the framework and information security measures"
+    },
+    {
+      "kind": "textbox",
+      "text": "03"
+    },
+    {
+      "kind": "textbox",
+      "text": "Evaluate acceptability after prototype interaction"
+    },
+    {
+      "kind": "textbox",
+      "text": "Condensed from current manuscript objectives. Adviser confirmation remains pending."
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "Review of related literature"
+    },
+    {
+      "kind": "textbox",
+      "text": "06 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "Record accuracy"
+    },
+    {
+      "kind": "textbox",
+      "text": "Inventory mismatch and manual consolidation"
+    },
+    {
+      "kind": "textbox",
+      "text": "Shabani et al. (2021); Kosadi et al. (2021)"
+    },
+    {
+      "kind": "textbox",
+      "text": "Cloud framework"
+    },
+    {
+      "kind": "textbox",
+      "text": "Integrated records, cost, safety and flexibility"
+    },
+    {
+      "kind": "textbox",
+      "text": "Luo (2024)"
+    },
+    {
+      "kind": "textbox",
+      "text": "Security and acceptance"
+    },
+    {
+      "kind": "textbox",
+      "text": "Controlled access and organizational readiness"
+    },
+    {
+      "kind": "textbox",
+      "text": "Mohammad (2022); Nagahawatta et al. (2024); Rashid et al. (2024)"
+    },
+    {
+      "kind": "textbox",
+      "text": "Literature themes and citations as reported in the current manuscript, Chapter 2"
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "Research methodology"
+    },
+    {
+      "kind": "textbox",
+      "text": "07 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "Exploratory sequential mixed methods"
+    },
+    {
+      "kind": "textbox",
+      "text": "RQ1"
+    },
+    {
+      "kind": "textbox",
+      "text": "Interviews + baseline questionnaire"
+    },
+    {
+      "kind": "textbox",
+      "text": "Operational bottlenecks"
+    },
+    {
+      "kind": "textbox",
+      "text": "RQ2"
+    },
+    {
+      "kind": "textbox",
+      "text": "Quantitative technical validation"
+    },
+    {
+      "kind": "textbox",
+      "text": "Framework and security"
+    },
+    {
+      "kind": "textbox",
+      "text": "RQ3"
+    },
+    {
+      "kind": "textbox",
+      "text": "Quantitative acceptability survey"
+    },
+    {
+      "kind": "textbox",
+      "text": "After prototype interaction"
+    },
+    {
+      "kind": "textbox",
+      "text": "Sampling: criterion-based purposive, with maximum variation\nDevelopment methodology: Agile Scrum"
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "Results and findings of RQ1"
+    },
+    {
+      "kind": "textbox",
+      "text": "08 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "Manuscript-reported baseline   •   18 pre-survey respondents"
+    },
+    {
+      "kind": "table",
+      "text": "Baseline indicator\tCount\tPercent\nStock update takes 16+ minutes\t13 / 18\t72.2%\n3+ discrepancies in the past 30 days\t12 / 18\t66.7%\nUncertain information delays decisions*\t16 / 18\t88.9%\nRecords from different sources mismatch*\t18 / 18\t100.0%"
+    },
+    {
+      "kind": "textbox",
+      "text": "* At least sometimes. Table 4.1. Baseline results, not Kodigo improvement rates."
+    },
+    {
+      "kind": "textbox",
+      "text": "Interview themes: fragmented records, delayed visibility, repeated correction"
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "Developed IT solution"
+    },
+    {
+      "kind": "textbox",
+      "text": "09 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "Point-of-sale and inventory management"
+    },
+    {
+      "kind": "textbox",
+      "text": "Sales"
+    },
+    {
+      "kind": "textbox",
+      "text": "Checkout, receipts and transaction history"
+    },
+    {
+      "kind": "textbox",
+      "text": "Inventory"
+    },
+    {
+      "kind": "textbox",
+      "text": "Base stock, options, adjustments and import"
+    },
+    {
+      "kind": "textbox",
+      "text": "Purchasing"
+    },
+    {
+      "kind": "textbox",
+      "text": "Suppliers, receiving and consignment balances"
+    },
+    {
+      "kind": "textbox",
+      "text": "Monitoring"
+    },
+    {
+      "kind": "textbox",
+      "text": "Alerts, descriptive analytics and reports"
+    },
+    {
+      "kind": "textbox",
+      "text": "Access"
+    },
+    {
+      "kind": "textbox",
+      "text": "Assigned-store accounts and TOTP MFA"
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "Conceptual framework"
+    },
+    {
+      "kind": "textbox",
+      "text": "10 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "Authorized users\nAdmin / Cashier / Inventory"
+    },
+    {
+      "kind": "textbox",
+      "text": "Kodigo\nRole and store scope"
+    },
+    {
+      "kind": "textbox",
+      "text": "Stored records\nSales and stock history"
+    },
+    {
+      "kind": "textbox",
+      "text": "Products, units,\nstock and supplier data"
+    },
+    {
+      "kind": "textbox",
+      "text": "Validated transactions\nand stock operations"
+    },
+    {
+      "kind": "textbox",
+      "text": "Reports and\noperational views"
+    },
+    {
+      "kind": "textbox",
+      "text": "Super Admin governs owner invite codes separately. Supplier records are internal."
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "Use cases and user access"
+    },
+    {
+      "kind": "textbox",
+      "text": "11 / 17"
+    },
+    {
+      "kind": "table",
+      "text": "Role\tMain use cases\tStore scope\nAdmin\tManage operations and users\tAssigned stores\nCashier\tProcess sales and review POS history\tAssigned store\nInventory\tMaintain products, stock and inventory reports\tPermitted stores\nSuper Admin\tGenerate owner invite codes\tSeparate invite portal"
+    },
+    {
+      "kind": "textbox",
+      "text": "Frontend route gates + database RLS and role/store checks\nTOTP supported. AAL2 applies when a verified factor requires it."
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "System architecture"
+    },
+    {
+      "kind": "textbox",
+      "text": "12 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "Browser application\nReact + TypeScript\nZustand + TanStack Query"
+    },
+    {
+      "kind": "textbox",
+      "text": "IndexedDB\nCache + selected queues"
+    },
+    {
+      "kind": "textbox",
+      "text": "Supabase Auth"
+    },
+    {
+      "kind": "textbox",
+      "text": "Data API + RPC"
+    },
+    {
+      "kind": "textbox",
+      "text": "Edge Functions"
+    },
+    {
+      "kind": "textbox",
+      "text": "Storage"
+    },
+    {
+      "kind": "textbox",
+      "text": "PostgreSQL\n\nRLS + validation\nStock triggers\nBusiness records"
+    },
+    {
+      "kind": "textbox",
+      "text": "Vercel SPA routing configured. Live deployment and applied migrations require verification."
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "Database design"
+    },
+    {
+      "kind": "textbox",
+      "text": "13 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "products\ncurrent_stock"
+    },
+    {
+      "kind": "textbox",
+      "text": "product_selling_options"
+    },
+    {
+      "kind": "textbox",
+      "text": "sales"
+    },
+    {
+      "kind": "textbox",
+      "text": "restock_history"
+    },
+    {
+      "kind": "textbox",
+      "text": "sale_items\nProduct and price snapshots"
+    },
+    {
+      "kind": "textbox",
+      "text": "inventory_movements"
+    },
+    {
+      "kind": "textbox",
+      "text": "1:N"
+    },
+    {
+      "kind": "textbox",
+      "text": "1:N"
+    },
+    {
+      "kind": "textbox",
+      "text": "1:N"
+    },
+    {
+      "kind": "textbox",
+      "text": "1:N"
+    },
+    {
+      "kind": "textbox",
+      "text": "Movement history references products and records before/after stock.\nStore membership: stores, profiles and store_users. Other entities omitted."
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "Core system logic"
+    },
+    {
+      "kind": "textbox",
+      "text": "14 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "Checkout"
+    },
+    {
+      "kind": "textbox",
+      "text": "Cart and payment"
+    },
+    {
+      "kind": "textbox",
+      "text": "Server validation"
+    },
+    {
+      "kind": "textbox",
+      "text": "Commit sale + stock"
+    },
+    {
+      "kind": "textbox",
+      "text": "Bulk conversion"
+    },
+    {
+      "kind": "textbox",
+      "text": "2 packs × 6 pieces"
+    },
+    {
+      "kind": "textbox",
+      "text": "12 base units"
+    },
+    {
+      "kind": "textbox",
+      "text": "24 pieces become 12"
+    },
+    {
+      "kind": "textbox",
+      "text": "Receiving"
+    },
+    {
+      "kind": "textbox",
+      "text": "Configured packages"
+    },
+    {
+      "kind": "textbox",
+      "text": "Stock + cost history"
+    },
+    {
+      "kind": "textbox",
+      "text": "Review suggested price"
+    },
+    {
+      "kind": "textbox",
+      "text": "v4 calls v3 for validated checkout. Bulk arithmetic is illustrative. Price approval is separate."
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "Development platform"
+    },
+    {
+      "kind": "textbox",
+      "text": "15 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "Hardware"
+    },
+    {
+      "kind": "textbox",
+      "text": "Desktop browser, barcode input, optional printer/drawer"
+    },
+    {
+      "kind": "textbox",
+      "text": "Software workflow"
+    },
+    {
+      "kind": "textbox",
+      "text": "Git, TypeScript checks, ESLint and GitHub Actions"
+    },
+    {
+      "kind": "textbox",
+      "text": "Frontend"
+    },
+    {
+      "kind": "textbox",
+      "text": "React, TypeScript, Vite, Tailwind, Zustand, TanStack Query"
+    },
+    {
+      "kind": "textbox",
+      "text": "Backend"
+    },
+    {
+      "kind": "textbox",
+      "text": "Supabase Auth, PostgreSQL, RLS, Storage, Edge Functions"
+    },
+    {
+      "kind": "textbox",
+      "text": "Deployment"
+    },
+    {
+      "kind": "textbox",
+      "text": "Vercel SPA routing configuration"
+    },
+    {
+      "kind": "textbox",
+      "text": "Current optional hardware bridge: QZ Tray. Device readiness remains unverified."
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "Testing, readiness and limitations"
+    },
+    {
+      "kind": "textbox",
+      "text": "16 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "Verified locally"
+    },
+    {
+      "kind": "textbox",
+      "text": "Pending live checks"
+    },
+    {
+      "kind": "textbox",
+      "text": "7 / 7 unit tests passed\nTypeScript check passed\nESLint check passed"
+    },
+    {
+      "kind": "textbox",
+      "text": "Checkout, stock and RLS\nMFA and deployed migrations\nIntended-user acceptability"
+    },
+    {
+      "kind": "textbox",
+      "text": "Limits: bounded offline queues, no automatic conflict resolution\nOperational reporting, no full accounting or tax filing\nOCR and predictive AI remain future options"
+    },
+    {
+      "kind": "textbox",
+      "text": "Local checks: 20 October 2026. Integration harness inspected, not run."
+    }
+  ],
+  [
+    {
+      "kind": "textbox",
+      "text": "System walkthrough"
+    },
+    {
+      "kind": "textbox",
+      "text": "17 / 17"
+    },
+    {
+      "kind": "textbox",
+      "text": "Planned initial state"
+    },
+    {
+      "kind": "textbox",
+      "text": "Cleared business records\nRequired schema, Auth and\nconfiguration retained"
+    },
+    {
+      "kind": "textbox",
+      "text": "Preparation pending.\nNo reset performed for this task."
+    },
+    {
+      "kind": "textbox",
+      "text": "01"
+    },
+    {
+      "kind": "textbox",
+      "text": "Login"
+    },
+    {
+      "kind": "textbox",
+      "text": "02"
+    },
+    {
+      "kind": "textbox",
+      "text": "Product setup"
+    },
+    {
+      "kind": "textbox",
+      "text": "03"
+    },
+    {
+      "kind": "textbox",
+      "text": "Receive stock"
+    },
+    {
+      "kind": "textbox",
+      "text": "04"
+    },
+    {
+      "kind": "textbox",
+      "text": "POS transaction"
+    },
+    {
+      "kind": "textbox",
+      "text": "05"
+    },
+    {
+      "kind": "textbox",
+      "text": "Verify deduction"
+    },
+    {
+      "kind": "textbox",
+      "text": "06"
+    },
+    {
+      "kind": "textbox",
+      "text": "Verify reports"
+    },
+    {
+      "kind": "textbox",
+      "text": "LIVE SYSTEM DEMONSTRATION"
+    }
+  ]
+]

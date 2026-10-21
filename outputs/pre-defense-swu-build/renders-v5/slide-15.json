@@ -1,0 +1,351 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/7qto7e10",
+    "index": 14,
+    "layout": {
+      "id": "ly/4v2ps7ql",
+      "name": "OBJECT"
+    },
+    "backgroundColor": "rgba(255,255,255,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "elements": [
+    {
+      "id": "im/va14nulk",
+      "kind": "image",
+      "position": {
+        "left": 690,
+        "top": 25,
+        "width": 235,
+        "height": 80
+      },
+      "fit": "contain",
+      "alt": "Original PHINMA Education logo extracted from supplied template"
+    },
+    {
+      "id": "sh/1sfqxsv6",
+      "kind": "textbox",
+      "name": "current-content-28",
+      "position": {
+        "left": 56,
+        "top": 48,
+        "width": 605,
+        "height": 58
+      },
+      "text": "Development platform",
+      "style": {
+        "fontSize": 33.6,
+        "typeface": "Raleway",
+        "color": "#0070C0",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/0r6p4nul",
+      "kind": "textbox",
+      "name": "current-content-29",
+      "position": {
+        "left": 835,
+        "top": 502,
+        "width": 85,
+        "height": 20
+      },
+      "text": "15 / 17",
+      "style": {
+        "fontSize": 14,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "right"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/nux8zidc",
+      "kind": "textbox",
+      "name": "current-content-112",
+      "position": {
+        "left": 56,
+        "top": 139,
+        "width": 240,
+        "height": 39
+      },
+      "text": "Hardware",
+      "style": {
+        "fontSize": 24,
+        "typeface": "Raleway",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/2to76dcr",
+      "kind": "textbox",
+      "name": "current-content-113",
+      "position": {
+        "left": 328,
+        "top": 139,
+        "width": 574,
+        "height": 52
+      },
+      "text": "Desktop browser, barcode input, optional printer/drawer",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/9wzq1svi",
+      "kind": "shape",
+      "position": {
+        "left": 56,
+        "top": 191,
+        "width": 846,
+        "height": 0
+      },
+      "geometry": "line",
+      "lineColor": "#A6B0BE",
+      "lineWidth": 1
+    },
+    {
+      "id": "sh/ov6p8nux",
+      "kind": "textbox",
+      "name": "current-content-114",
+      "position": {
+        "left": 56,
+        "top": 205,
+        "width": 240,
+        "height": 39
+      },
+      "text": "Software workflow",
+      "style": {
+        "fontSize": 24,
+        "typeface": "Raleway",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/3ydonyd8",
+      "kind": "textbox",
+      "name": "current-content-115",
+      "position": {
+        "left": 328,
+        "top": 205,
+        "width": 574,
+        "height": 52
+      },
+      "text": "Git, TypeScript checks, ESLint and GitHub Actions",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/ix47utcn",
+      "kind": "shape",
+      "position": {
+        "left": 56,
+        "top": 257,
+        "width": 846,
+        "height": 0
+      },
+      "geometry": "line",
+      "lineColor": "#A6B0BE",
+      "lineWidth": 1
+    },
+    {
+      "id": "sh/8veh8ril",
+      "kind": "textbox",
+      "name": "current-content-116",
+      "position": {
+        "left": 56,
+        "top": 271,
+        "width": 240,
+        "height": 39
+      },
+      "text": "Frontend",
+      "style": {
+        "fontSize": 24,
+        "typeface": "Raleway",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/9wni1wjq",
+      "kind": "textbox",
+      "name": "current-content-117",
+      "position": {
+        "left": 328,
+        "top": 271,
+        "width": 574,
+        "height": 52
+      },
+      "text": "React, TypeScript, Vite, Tailwind, Zustand, TanStack Query",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/mtwz6h0f",
+      "kind": "shape",
+      "position": {
+        "left": 56,
+        "top": 323,
+        "width": 846,
+        "height": 0
+      },
+      "geometry": "line",
+      "lineColor": "#A6B0BE",
+      "lineWidth": 1
+    },
+    {
+      "id": "sh/nu50zm10",
+      "kind": "textbox",
+      "name": "current-content-118",
+      "position": {
+        "left": 56,
+        "top": 337,
+        "width": 240,
+        "height": 39
+      },
+      "text": "Backend",
+      "style": {
+        "fontSize": 24,
+        "typeface": "Raleway",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/wzyhcrih",
+      "kind": "textbox",
+      "name": "current-content-119",
+      "position": {
+        "left": 328,
+        "top": 337,
+        "width": 574,
+        "height": 52
+      },
+      "text": "Supabase Auth, PostgreSQL, RLS, Storage, Edge Functions",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/x07i5wj2",
+      "kind": "shape",
+      "position": {
+        "left": 56,
+        "top": 389,
+        "width": 846,
+        "height": 0
+      },
+      "geometry": "line",
+      "lineColor": "#A6B0BE",
+      "lineWidth": 1
+    },
+    {
+      "id": "sh/axgza10b",
+      "kind": "textbox",
+      "name": "current-content-120",
+      "position": {
+        "left": 56,
+        "top": 403,
+        "width": 240,
+        "height": 39
+      },
+      "text": "Deployment",
+      "style": {
+        "fontSize": 24,
+        "typeface": "Raleway",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/vyp03m1w",
+      "kind": "textbox",
+      "name": "current-content-121",
+      "position": {
+        "left": 328,
+        "top": 403,
+        "width": 574,
+        "height": 52
+      },
+      "text": "Vercel SPA routing configuration",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/c3uh07id",
+      "kind": "textbox",
+      "name": "current-content-122",
+      "position": {
+        "left": 56,
+        "top": 465,
+        "width": 846,
+        "height": 22
+      },
+      "text": "Current optional hardware bridge: QZ Tray. Device readiness remains unverified.",
+      "style": {
+        "fontSize": 17,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    }
+  ]
+}

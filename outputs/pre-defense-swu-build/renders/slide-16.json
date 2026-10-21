@@ -1,0 +1,221 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/69wfm9o7",
+    "index": 15,
+    "layout": {
+      "id": "ly/4v2ps7ql",
+      "name": "OBJECT"
+    },
+    "backgroundColor": "rgba(255,255,255,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "elements": [
+    {
+      "id": "im/nup8nedg",
+      "kind": "image",
+      "position": {
+        "left": 690,
+        "top": 25,
+        "width": 235,
+        "height": 80
+      },
+      "fit": "contain",
+      "alt": "Original PHINMA Education logo extracted from supplied template"
+    },
+    {
+      "id": "sh/xg7axgf2",
+      "kind": "textbox",
+      "name": "current-content-30",
+      "position": {
+        "left": 56,
+        "top": 48,
+        "width": 605,
+        "height": 58
+      },
+      "text": "Testing, readiness and limitations",
+      "style": {
+        "fontSize": 33.6,
+        "typeface": "Raleway",
+        "color": "#0070C0",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "im/9w7qpovm",
+      "kind": "image",
+      "position": {
+        "left": 370,
+        "top": 491,
+        "width": 220,
+        "height": 35
+      },
+      "fit": "contain",
+      "alt": "Original Southwestern University PHINMA wordmark extracted from supplied template"
+    },
+    {
+      "id": "sh/napsr6x0",
+      "kind": "textbox",
+      "name": "current-content-31",
+      "position": {
+        "left": 835,
+        "top": 502,
+        "width": 85,
+        "height": 20
+      },
+      "text": "16 / 17",
+      "style": {
+        "fontSize": 14,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "right"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/29wby1wf",
+      "kind": "textbox",
+      "name": "current-content-123",
+      "position": {
+        "left": 56,
+        "top": 139,
+        "width": 395,
+        "height": 38
+      },
+      "text": "Verified locally",
+      "style": {
+        "fontSize": 26,
+        "typeface": "Raleway",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/pc7atgf6",
+      "kind": "textbox",
+      "name": "current-content-124",
+      "position": {
+        "left": 510,
+        "top": 139,
+        "width": 392,
+        "height": 38
+      },
+      "text": "Pending live checks",
+      "style": {
+        "fontSize": 26,
+        "typeface": "Raleway",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/obyt0bel",
+      "kind": "textbox",
+      "name": "current-content-125",
+      "position": {
+        "left": 56,
+        "top": 204,
+        "width": 395,
+        "height": 120
+      },
+      "text": "7 / 7 unit tests passed\nTypeScript check passed\nESLint check passed",
+      "style": {
+        "fontSize": 27,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/fm5snmx4",
+      "kind": "textbox",
+      "name": "current-content-126",
+      "position": {
+        "left": 510,
+        "top": 204,
+        "width": 392,
+        "height": 120
+      },
+      "text": "Checkout, stock and RLS\nMFA and deployed migrations\nIntended-user acceptability",
+      "style": {
+        "fontSize": 25,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/elwbu1wj",
+      "kind": "shape",
+      "position": {
+        "left": 56,
+        "top": 352,
+        "width": 846,
+        "height": 0
+      },
+      "geometry": "line",
+      "lineColor": "#A6B0BE",
+      "lineWidth": 1
+    },
+    {
+      "id": "sh/wza9cbqp",
+      "kind": "textbox",
+      "name": "current-content-127",
+      "position": {
+        "left": 56,
+        "top": 377,
+        "width": 846,
+        "height": 89
+      },
+      "text": "Limits: bounded offline queues, no automatic conflict resolution\nOperational reporting, no full accounting or tax filing\nOCR and predictive AI remain future options",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/h0jalgra",
+      "kind": "textbox",
+      "name": "current-content-128",
+      "position": {
+        "left": 56,
+        "top": 465,
+        "width": 846,
+        "height": 23
+      },
+      "text": "Local checks: 20 October 2026. Integration harness inspected, not run.",
+      "style": {
+        "fontSize": 17,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    }
+  ]
+}

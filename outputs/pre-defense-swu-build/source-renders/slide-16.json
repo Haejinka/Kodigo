@@ -1,0 +1,1296 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/gny5sjyp",
+    "index": 15,
+    "layout": {
+      "id": "ly/p83mt83u",
+      "name": "TITLE_AND_BODY_1_1"
+    },
+    "masterLayoutId": "ly/atofqts7",
+    "backgroundColor": "rgba(255,255,255,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "ly/p83mt83u",
+      "name": "TITLE_AND_BODY_1_1",
+      "parentLayoutId": "ly/atofqts7",
+      "elements": [
+        {
+          "order": 1,
+          "kind": "image",
+          "scope": "layout",
+          "id": "im/xonix4ze",
+          "editable": false,
+          "name": "Google Shape;16;p35",
+          "position": {
+            "left": 0,
+            "top": 0,
+            "width": 960,
+            "height": 540
+          },
+          "contentType": "image/png",
+          "crop": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "asset": {
+            "contentType": "image/png",
+            "byteLength": 32300
+          },
+          "fillImage": {
+            "contentType": "image/png",
+            "byteLength": 32300
+          }
+        },
+        {
+          "order": 2,
+          "kind": "shape",
+          "scope": "layout",
+          "id": "sh/hcnux47u",
+          "editable": false,
+          "name": "Google Shape;17;p35",
+          "position": {
+            "left": 56.34,
+            "top": 40.2,
+            "width": 584.19,
+            "height": 56.19
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 3,
+          "kind": "shape",
+          "scope": "layout",
+          "id": "sh/e50ve9on",
+          "editable": false,
+          "name": "Google Shape;18;p35",
+          "position": {
+            "left": 70.92,
+            "top": 133.83,
+            "width": 807.21,
+            "height": 237.39
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 4,
+          "kind": "textbox",
+          "scope": "layout",
+          "id": "sh/z69w7e58",
+          "editable": false,
+          "name": "Google Shape;19;p35",
+          "position": {
+            "left": 896.2,
+            "top": 498.67,
+            "width": 57.61,
+            "height": 41.32
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "text": "16",
+          "style": {
+            "anchor": 2,
+            "alignment": "right",
+            "verticalAlignment": "middle",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "16",
+              "style": {
+                "alignment": "right"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "16",
+                  "anchor": 2,
+                  "alignment": "right",
+                  "verticalAlignment": "middle",
+                  "wrap": "square",
+                  "autoFit": "shrinkText",
+                  "insets": {
+                    "top": 9.6,
+                    "right": 9.6,
+                    "bottom": 9.6,
+                    "left": 9.6
+                  },
+                  "useParagraphSpacing": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scope": "master",
+      "id": "ly/atofqts7",
+      "type": "master",
+      "backgroundColor": "lt1",
+      "elements": [
+        {
+          "order": 1,
+          "kind": "shape",
+          "scope": "master",
+          "id": "sh/czu98z2x",
+          "editable": false,
+          "name": "Google Shape;6;p33",
+          "position": {
+            "left": 32.72,
+            "top": 46.72,
+            "width": 894.55,
+            "height": 60.13
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 2,
+          "kind": "shape",
+          "scope": "master",
+          "id": "sh/d03a143i",
+          "editable": false,
+          "name": "Google Shape;7;p33",
+          "position": {
+            "left": 32.72,
+            "top": 120.99,
+            "width": 894.55,
+            "height": 358.68
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 3,
+          "kind": "textbox",
+          "scope": "master",
+          "id": "sh/618ru54n",
+          "editable": false,
+          "name": "Google Shape;8;p33",
+          "position": {
+            "left": 896.2,
+            "top": 498.67,
+            "width": 57.61,
+            "height": 41.32
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "text": "16",
+          "style": {
+            "anchor": 2,
+            "alignment": "right",
+            "verticalAlignment": "middle",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "16",
+              "style": {
+                "alignment": "right"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "16",
+                  "anchor": 2,
+                  "alignment": "right",
+                  "verticalAlignment": "middle",
+                  "wrap": "square",
+                  "autoFit": "shrinkText",
+                  "insets": {
+                    "top": 9.6,
+                    "right": 9.6,
+                    "bottom": 9.6,
+                    "left": 9.6
+                  },
+                  "useParagraphSpacing": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "order": 4,
+          "kind": "image",
+          "scope": "master",
+          "id": "im/k365s3mh",
+          "editable": false,
+          "name": "Google Shape;9;p33",
+          "position": {
+            "left": 0,
+            "top": 0,
+            "width": 960,
+            "height": 540
+          },
+          "contentType": "image/png",
+          "crop": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "asset": {
+            "contentType": "image/png",
+            "byteLength": 46002
+          },
+          "fillImage": {
+            "contentType": "image/png",
+            "byteLength": 46002
+          }
+        }
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/9sra9wfa",
+      "editable": true,
+      "name": "Google Shape;199;g3d391507471_0_35",
+      "position": {
+        "left": 56.34,
+        "top": 40.2,
+        "width": 584.19,
+        "height": 56.19
+      },
+      "geometry": "rect",
+      "lineWidth": 0,
+      "text": "Results and Findings of RQ1\n",
+      "style": {
+        "anchor": 1,
+        "fontSize": 25.2,
+        "typeface": "Raleway",
+        "color": "#0070C0",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "textTransform": "none",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 0.9,
+        "insets": {
+          "top": 9.6,
+          "right": 9.6,
+          "bottom": 9.6,
+          "left": 9.6
+        },
+        "useParagraphSpacing": true
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Results and Findings of RQ1",
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Results and Findings of RQ1",
+              "anchor": 1,
+              "fontSize": 28,
+              "typeface": "Raleway",
+              "color": "#0070C0",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 0.9,
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ],
+          "bulletCharacter": "",
+          "lineSpacingPercent": 100000
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "kind": "table",
+      "scope": "slide",
+      "id": "tb/lofq9sfa",
+      "editable": true,
+      "name": "Google Shape;200;g3d391507471_0_35",
+      "position": {
+        "left": 197.54,
+        "top": -104.03,
+        "width": 581,
+        "height": 381
+      },
+      "text": "Theme | Core sub-themes | Illustrative quote | Meaning for operations\nFragmented recordkeeping creates no single source of truth | Manual and hybrid recording; person-dependent updates; informal workarounds. | \"So far, we do not have a system for tracking our sales and inventory...\" (Interviewee 1) | Operations depend on scattered records rather than a unified live record.\nDelayed updates make the accurate picture arrive too late | Unposted movement; next-day correction; decisions made under uncertainty. | \"The deeper issue is that the real situation becomes visible too late.\" (Interviewee 3) | Even when the truth is eventually reconstructed, it often arrives after the decision window.\nInaccurate records disrupt service, fulfillment, and restocking | Customer promise failure; partial release; conservative or delayed restocking. | \"This can disappoint customers and reduce sales.\" (Interviewee 2) | Weak records quickly become visible as stockouts, delays, and missed sales.\nManual reconciliation shifts effort from operations to error correction | Repeated recounting; after-hours verification; coordination strain. | \"Sometimes it ends up in an argument because I am already loaded with work.\" (Interviewee 1) | Labor is redirected from serving customers and planning toward repetitive correction.\nWhen records conflict, trust shifts to physical proof | Physical count as truth; signed slips and receipts preferred; slow confirmation. | \"We usually check the actual physical stock first because that is the most reliable basis.\" (Interviewee 2) | Record systems have not earned enough trust to support fast decisions on their own.",
+      "rows": 6,
+      "cols": 4,
+      "cells": [
+        {
+          "index": 1,
+          "row": 1,
+          "column": 1,
+          "position": {
+            "left": 197.54,
+            "top": -104.03,
+            "width": 143,
+            "height": 27
+          },
+          "text": "Theme",
+          "fillColor": "#D9E2F3",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "bold": true,
+            "alignment": "center"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Theme",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "center"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Theme",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "bold": true,
+                  "alignment": "center"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "row": 1,
+          "column": 2,
+          "position": {
+            "left": 340.54,
+            "top": -104.03,
+            "width": 133,
+            "height": 27
+          },
+          "text": "Core sub-themes",
+          "fillColor": "#D9E2F3",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "bold": true,
+            "alignment": "center"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Core sub-themes",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "center"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Core sub-themes",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "bold": true,
+                  "alignment": "center"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "row": 1,
+          "column": 3,
+          "position": {
+            "left": 473.54,
+            "top": -104.03,
+            "width": 162,
+            "height": 27
+          },
+          "text": "Illustrative quote",
+          "fillColor": "#D9E2F3",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "bold": true,
+            "alignment": "center"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Illustrative quote",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "center"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Illustrative quote",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "bold": true,
+                  "alignment": "center"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "row": 1,
+          "column": 4,
+          "position": {
+            "left": 635.54,
+            "top": -104.03,
+            "width": 143,
+            "height": 27
+          },
+          "text": "Meaning for operations",
+          "fillColor": "#D9E2F3",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "bold": true,
+            "alignment": "center"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Meaning for operations",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "center"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Meaning for operations",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "bold": true,
+                  "alignment": "center"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "row": 2,
+          "column": 1,
+          "position": {
+            "left": 197.54,
+            "top": -77.03,
+            "width": 143,
+            "height": 68
+          },
+          "text": "Fragmented recordkeeping creates no single source of truth",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Fragmented recordkeeping creates no single source of truth",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Fragmented recordkeeping creates no single source of truth",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 6,
+          "row": 2,
+          "column": 2,
+          "position": {
+            "left": 340.54,
+            "top": -77.03,
+            "width": 133,
+            "height": 68
+          },
+          "text": "Manual and hybrid recording; person-dependent updates; informal workarounds.",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Manual and hybrid recording; person-dependent updates; informal workarounds.",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Manual and hybrid recording; person-dependent updates; informal workarounds.",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 7,
+          "row": 2,
+          "column": 3,
+          "position": {
+            "left": 473.54,
+            "top": -77.03,
+            "width": 162,
+            "height": 68
+          },
+          "text": "\"So far, we do not have a system for tracking our sales and inventory...\" (Interviewee 1)",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "\"So far, we do not have a system for tracking our sales and inventory...\" (Interviewee 1)",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "\"So far, we do not have a system for tracking our sales and inventory...\" (Interviewee 1)",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 8,
+          "row": 2,
+          "column": 4,
+          "position": {
+            "left": 635.54,
+            "top": -77.03,
+            "width": 143,
+            "height": 68
+          },
+          "text": "Operations depend on scattered records rather than a unified live record.",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Operations depend on scattered records rather than a unified live record.",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Operations depend on scattered records rather than a unified live record.",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 9,
+          "row": 3,
+          "column": 1,
+          "position": {
+            "left": 197.54,
+            "top": -9.03,
+            "width": 143,
+            "height": 82
+          },
+          "text": "Delayed updates make the accurate picture arrive too late",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Delayed updates make the accurate picture arrive too late",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Delayed updates make the accurate picture arrive too late",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 10,
+          "row": 3,
+          "column": 2,
+          "position": {
+            "left": 340.54,
+            "top": -9.03,
+            "width": 133,
+            "height": 82
+          },
+          "text": "Unposted movement; next-day correction; decisions made under uncertainty.",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Unposted movement; next-day correction; decisions made under uncertainty.",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Unposted movement; next-day correction; decisions made under uncertainty.",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 11,
+          "row": 3,
+          "column": 3,
+          "position": {
+            "left": 473.54,
+            "top": -9.03,
+            "width": 162,
+            "height": 82
+          },
+          "text": "\"The deeper issue is that the real situation becomes visible too late.\" (Interviewee 3)",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "\"The deeper issue is that the real situation becomes visible too late.\" (Interviewee 3)",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "\"The deeper issue is that the real situation becomes visible too late.\" (Interviewee 3)",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 12,
+          "row": 3,
+          "column": 4,
+          "position": {
+            "left": 635.54,
+            "top": -9.03,
+            "width": 143,
+            "height": 82
+          },
+          "text": "Even when the truth is eventually reconstructed, it often arrives after the decision window.",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Even when the truth is eventually reconstructed, it often arrives after the decision window.",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Even when the truth is eventually reconstructed, it often arrives after the decision window.",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 13,
+          "row": 4,
+          "column": 1,
+          "position": {
+            "left": 197.54,
+            "top": 72.97,
+            "width": 143,
+            "height": 68
+          },
+          "text": "Inaccurate records disrupt service, fulfillment, and restocking",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Inaccurate records disrupt service, fulfillment, and restocking",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Inaccurate records disrupt service, fulfillment, and restocking",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 14,
+          "row": 4,
+          "column": 2,
+          "position": {
+            "left": 340.54,
+            "top": 72.97,
+            "width": 133,
+            "height": 68
+          },
+          "text": "Customer promise failure; partial release; conservative or delayed restocking.",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Customer promise failure; partial release; conservative or delayed restocking.",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Customer promise failure; partial release; conservative or delayed restocking.",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 15,
+          "row": 4,
+          "column": 3,
+          "position": {
+            "left": 473.54,
+            "top": 72.97,
+            "width": 162,
+            "height": 68
+          },
+          "text": "\"This can disappoint customers and reduce sales.\" (Interviewee 2)",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "\"This can disappoint customers and reduce sales.\" (Interviewee 2)",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "\"This can disappoint customers and reduce sales.\" (Interviewee 2)",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 16,
+          "row": 4,
+          "column": 4,
+          "position": {
+            "left": 635.54,
+            "top": 72.97,
+            "width": 143,
+            "height": 68
+          },
+          "text": "Weak records quickly become visible as stockouts, delays, and missed sales.",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Weak records quickly become visible as stockouts, delays, and missed sales.",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Weak records quickly become visible as stockouts, delays, and missed sales.",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 17,
+          "row": 5,
+          "column": 1,
+          "position": {
+            "left": 197.54,
+            "top": 140.97,
+            "width": 143,
+            "height": 68
+          },
+          "text": "Manual reconciliation shifts effort from operations to error correction",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Manual reconciliation shifts effort from operations to error correction",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Manual reconciliation shifts effort from operations to error correction",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 18,
+          "row": 5,
+          "column": 2,
+          "position": {
+            "left": 340.54,
+            "top": 140.97,
+            "width": 133,
+            "height": 68
+          },
+          "text": "Repeated recounting; after-hours verification; coordination strain.",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Repeated recounting; after-hours verification; coordination strain.",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Repeated recounting; after-hours verification; coordination strain.",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 19,
+          "row": 5,
+          "column": 3,
+          "position": {
+            "left": 473.54,
+            "top": 140.97,
+            "width": 162,
+            "height": 68
+          },
+          "text": "\"Sometimes it ends up in an argument because I am already loaded with work.\" (Interviewee 1)",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "\"Sometimes it ends up in an argument because I am already loaded with work.\" (Interviewee 1)",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "\"Sometimes it ends up in an argument because I am already loaded with work.\" (Interviewee 1)",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 20,
+          "row": 5,
+          "column": 4,
+          "position": {
+            "left": 635.54,
+            "top": 140.97,
+            "width": 143,
+            "height": 68
+          },
+          "text": "Labor is redirected from serving customers and planning toward repetitive correction.",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Labor is redirected from serving customers and planning toward repetitive correction.",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Labor is redirected from serving customers and planning toward repetitive correction.",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 21,
+          "row": 6,
+          "column": 1,
+          "position": {
+            "left": 197.54,
+            "top": 208.97,
+            "width": 143,
+            "height": 68
+          },
+          "text": "When records conflict, trust shifts to physical proof",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "When records conflict, trust shifts to physical proof",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "When records conflict, trust shifts to physical proof",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 22,
+          "row": 6,
+          "column": 2,
+          "position": {
+            "left": 340.54,
+            "top": 208.97,
+            "width": 133,
+            "height": 68
+          },
+          "text": "Physical count as truth; signed slips and receipts preferred; slow confirmation.",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Physical count as truth; signed slips and receipts preferred; slow confirmation.",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Physical count as truth; signed slips and receipts preferred; slow confirmation.",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 23,
+          "row": 6,
+          "column": 3,
+          "position": {
+            "left": 473.54,
+            "top": 208.97,
+            "width": 162,
+            "height": 68
+          },
+          "text": "\"We usually check the actual physical stock first because that is the most reliable basis.\" (Interviewee 2)",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "\"We usually check the actual physical stock first because that is the most reliable basis.\" (Interviewee 2)",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "\"We usually check the actual physical stock first because that is the most reliable basis.\" (Interviewee 2)",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "index": 24,
+          "row": 6,
+          "column": 4,
+          "position": {
+            "left": 635.54,
+            "top": 208.97,
+            "width": 143,
+            "height": 68
+          },
+          "text": "Record systems have not earned enough trust to support fast decisions on their own.",
+          "style": {
+            "fontSize": 12,
+            "typeface": "Cambria",
+            "alignment": "left"
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "Record systems have not earned enough trust to support fast decisions on their own.",
+              "lineSpacingPercent": 115000,
+              "style": {
+                "alignment": "left"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "Record systems have not earned enough trust to support fast decisions on their own.",
+                  "fontSize": 12,
+                  "typeface": "Cambria",
+                  "alignment": "left"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

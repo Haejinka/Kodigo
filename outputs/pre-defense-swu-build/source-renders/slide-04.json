@@ -1,0 +1,495 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/jyx0ra1s",
+    "index": 3,
+    "layout": {
+      "id": "ly/p83mt83u",
+      "name": "TITLE_AND_BODY_1_1"
+    },
+    "masterLayoutId": "ly/atofqts7",
+    "backgroundColor": "rgba(255,255,255,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "ly/p83mt83u",
+      "name": "TITLE_AND_BODY_1_1",
+      "parentLayoutId": "ly/atofqts7",
+      "elements": [
+        {
+          "order": 1,
+          "kind": "image",
+          "scope": "layout",
+          "id": "im/xonix4ze",
+          "editable": false,
+          "name": "Google Shape;16;p35",
+          "position": {
+            "left": 0,
+            "top": 0,
+            "width": 960,
+            "height": 540
+          },
+          "contentType": "image/png",
+          "crop": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "asset": {
+            "contentType": "image/png",
+            "byteLength": 32300
+          },
+          "fillImage": {
+            "contentType": "image/png",
+            "byteLength": 32300
+          }
+        },
+        {
+          "order": 2,
+          "kind": "shape",
+          "scope": "layout",
+          "id": "sh/hcnux47u",
+          "editable": false,
+          "name": "Google Shape;17;p35",
+          "position": {
+            "left": 56.34,
+            "top": 40.2,
+            "width": 584.19,
+            "height": 56.19
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 3,
+          "kind": "shape",
+          "scope": "layout",
+          "id": "sh/e50ve9on",
+          "editable": false,
+          "name": "Google Shape;18;p35",
+          "position": {
+            "left": 70.92,
+            "top": 133.83,
+            "width": 807.21,
+            "height": 237.39
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 4,
+          "kind": "textbox",
+          "scope": "layout",
+          "id": "sh/z69w7e58",
+          "editable": false,
+          "name": "Google Shape;19;p35",
+          "position": {
+            "left": 896.2,
+            "top": 498.67,
+            "width": 57.61,
+            "height": 41.32
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "text": "4",
+          "style": {
+            "anchor": 2,
+            "alignment": "right",
+            "verticalAlignment": "middle",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "4",
+              "style": {
+                "alignment": "right"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "4",
+                  "anchor": 2,
+                  "alignment": "right",
+                  "verticalAlignment": "middle",
+                  "wrap": "square",
+                  "autoFit": "shrinkText",
+                  "insets": {
+                    "top": 9.6,
+                    "right": 9.6,
+                    "bottom": 9.6,
+                    "left": 9.6
+                  },
+                  "useParagraphSpacing": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scope": "master",
+      "id": "ly/atofqts7",
+      "type": "master",
+      "backgroundColor": "lt1",
+      "elements": [
+        {
+          "order": 1,
+          "kind": "shape",
+          "scope": "master",
+          "id": "sh/czu98z2x",
+          "editable": false,
+          "name": "Google Shape;6;p33",
+          "position": {
+            "left": 32.72,
+            "top": 46.72,
+            "width": 894.55,
+            "height": 60.13
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 2,
+          "kind": "shape",
+          "scope": "master",
+          "id": "sh/d03a143i",
+          "editable": false,
+          "name": "Google Shape;7;p33",
+          "position": {
+            "left": 32.72,
+            "top": 120.99,
+            "width": 894.55,
+            "height": 358.68
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 3,
+          "kind": "textbox",
+          "scope": "master",
+          "id": "sh/618ru54n",
+          "editable": false,
+          "name": "Google Shape;8;p33",
+          "position": {
+            "left": 896.2,
+            "top": 498.67,
+            "width": 57.61,
+            "height": 41.32
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "text": "4",
+          "style": {
+            "anchor": 2,
+            "alignment": "right",
+            "verticalAlignment": "middle",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "4",
+              "style": {
+                "alignment": "right"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "4",
+                  "anchor": 2,
+                  "alignment": "right",
+                  "verticalAlignment": "middle",
+                  "wrap": "square",
+                  "autoFit": "shrinkText",
+                  "insets": {
+                    "top": 9.6,
+                    "right": 9.6,
+                    "bottom": 9.6,
+                    "left": 9.6
+                  },
+                  "useParagraphSpacing": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "order": 4,
+          "kind": "image",
+          "scope": "master",
+          "id": "im/k365s3mh",
+          "editable": false,
+          "name": "Google Shape;9;p33",
+          "position": {
+            "left": 0,
+            "top": 0,
+            "width": 960,
+            "height": 540
+          },
+          "contentType": "image/png",
+          "crop": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "asset": {
+            "contentType": "image/png",
+            "byteLength": 46002
+          },
+          "fillImage": {
+            "contentType": "image/png",
+            "byteLength": 46002
+          }
+        }
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/1krmlkja",
+      "editable": true,
+      "name": "Google Shape;102;p6",
+      "position": {
+        "left": 270.42,
+        "top": 121.74,
+        "width": 447.44,
+        "height": 298.29
+      },
+      "rotation": 0,
+      "contentType": "image/png",
+      "asset": {
+        "contentType": "image/png",
+        "byteLength": 2085608
+      },
+      "fillImage": {
+        "contentType": "image/png",
+        "byteLength": 2085608
+      }
+    },
+    {
+      "order": 2,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/0jilsfip",
+      "editable": true,
+      "name": "Google Shape;103;p6",
+      "position": {
+        "left": 237.81,
+        "top": 125.46,
+        "width": 468.91,
+        "height": 310.97
+      },
+      "rotation": -4.36,
+      "contentType": "image/png",
+      "asset": {
+        "contentType": "image/png",
+        "byteLength": 631708
+      },
+      "fillImage": {
+        "contentType": "image/png",
+        "byteLength": 631708
+      }
+    },
+    {
+      "order": 3,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/ah0byt4b",
+      "editable": true,
+      "name": "Google Shape;104;p6",
+      "position": {
+        "left": 56.34,
+        "top": 40.2,
+        "width": 584.19,
+        "height": 56.19
+      },
+      "geometry": "rect",
+      "lineWidth": 0,
+      "text": "Case-based Scenario",
+      "style": {
+        "anchor": 1,
+        "fontSize": 33.6,
+        "typeface": "Open Sans",
+        "color": "#0070C0",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "textTransform": "none",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 0.9,
+        "insets": {
+          "top": 9.6,
+          "right": 9.6,
+          "bottom": 9.6,
+          "left": 9.6
+        },
+        "useParagraphSpacing": true
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Case-based Scenario",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Case-based Scenario",
+              "anchor": 1,
+              "color": "#0070C0",
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 0.9,
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ],
+          "bulletCharacter": ""
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/2l03up0v",
+      "editable": true,
+      "name": "Google Shape;105;p6",
+      "position": {
+        "left": 294.06,
+        "top": 139.32,
+        "width": 427.11,
+        "height": 283.25
+      },
+      "rotation": 5.29,
+      "contentType": "image/png",
+      "asset": {
+        "contentType": "image/png",
+        "byteLength": 617868
+      },
+      "fillImage": {
+        "contentType": "image/png",
+        "byteLength": 617868
+      }
+    },
+    {
+      "order": 5,
+      "kind": "image",
+      "scope": "slide",
+      "id": "im/pobmp4j6",
+      "editable": true,
+      "name": "Google Shape;106;p6",
+      "position": {
+        "left": 283.2,
+        "top": 160.07,
+        "width": 419.15,
+        "height": 278.88
+      },
+      "rotation": -5.69,
+      "contentType": "image/png",
+      "asset": {
+        "contentType": "image/png",
+        "byteLength": 586635
+      },
+      "fillImage": {
+        "contentType": "image/png",
+        "byteLength": 586635
+      }
+    }
+  ]
+}

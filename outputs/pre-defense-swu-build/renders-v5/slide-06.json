@@ -1,0 +1,303 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/gnmp4jqx",
+    "index": 5,
+    "layout": {
+      "id": "ly/4v2ps7ql",
+      "name": "OBJECT"
+    },
+    "backgroundColor": "rgba(255,255,255,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "elements": [
+    {
+      "id": "im/uls3e5or",
+      "kind": "image",
+      "position": {
+        "left": 690,
+        "top": 25,
+        "width": 235,
+        "height": 80
+      },
+      "fit": "contain",
+      "alt": "Original PHINMA Education logo extracted from supplied template"
+    },
+    {
+      "id": "sh/cb2tkvap",
+      "kind": "textbox",
+      "name": "current-content-10",
+      "position": {
+        "left": 56,
+        "top": 48,
+        "width": 605,
+        "height": 58
+      },
+      "text": "Review of related literature",
+      "style": {
+        "fontSize": 33.6,
+        "typeface": "Raleway",
+        "color": "#0070C0",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/dcbud0ra",
+      "kind": "textbox",
+      "name": "current-content-11",
+      "position": {
+        "left": 835,
+        "top": 502,
+        "width": 85,
+        "height": 20
+      },
+      "text": "06 / 17",
+      "style": {
+        "fontSize": 14,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "right"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/ydkbm5sv",
+      "kind": "textbox",
+      "name": "current-content-65",
+      "position": {
+        "left": 56,
+        "top": 140,
+        "width": 280,
+        "height": 37
+      },
+      "text": "Record accuracy",
+      "style": {
+        "fontSize": 25,
+        "typeface": "Raleway",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/zedcfa9g",
+      "kind": "textbox",
+      "name": "current-content-66",
+      "position": {
+        "left": 355,
+        "top": 140,
+        "width": 548,
+        "height": 38
+      },
+      "text": "Inventory mismatch and manual consolidation",
+      "style": {
+        "fontSize": 24,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/kzmdova1",
+      "kind": "textbox",
+      "name": "current-content-67",
+      "position": {
+        "left": 355,
+        "top": 183,
+        "width": 548,
+        "height": 43
+      },
+      "text": "Shabani et al. (2021); Kosadi et al. (2021)",
+      "style": {
+        "fontSize": 17,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/l0vuh0rm",
+      "kind": "shape",
+      "position": {
+        "left": 56,
+        "top": 229,
+        "width": 847,
+        "height": 0
+      },
+      "geometry": "line",
+      "lineColor": "#A6B0BE",
+      "lineWidth": 1
+    },
+    {
+      "id": "sh/eh0ba1sr",
+      "kind": "textbox",
+      "name": "current-content-68",
+      "position": {
+        "left": 56,
+        "top": 248,
+        "width": 280,
+        "height": 37
+      },
+      "text": "Cloud framework",
+      "style": {
+        "fontSize": 25,
+        "typeface": "Raleway",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/fi9c369c",
+      "kind": "textbox",
+      "name": "current-content-69",
+      "position": {
+        "left": 355,
+        "top": 248,
+        "width": 548,
+        "height": 38
+      },
+      "text": "Integrated records, cost, safety and flexibility",
+      "style": {
+        "fontSize": 24,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/baxkjqlk",
+      "kind": "textbox",
+      "name": "current-content-70",
+      "position": {
+        "left": 355,
+        "top": 291,
+        "width": 548,
+        "height": 43
+      },
+      "text": "Luo (2024)",
+      "style": {
+        "fontSize": 17,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/a9ojq5kz",
+      "kind": "shape",
+      "position": {
+        "left": 56,
+        "top": 337,
+        "width": 847,
+        "height": 0
+      },
+      "geometry": "line",
+      "lineColor": "#A6B0BE",
+      "lineWidth": 1
+    },
+    {
+      "id": "sh/xcz2l03q",
+      "kind": "textbox",
+      "name": "current-content-71",
+      "position": {
+        "left": 56,
+        "top": 356,
+        "width": 280,
+        "height": 37
+      },
+      "text": "Security and acceptance",
+      "style": {
+        "fontSize": 25,
+        "typeface": "Raleway",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/cbq1sv25",
+      "kind": "textbox",
+      "name": "current-content-72",
+      "position": {
+        "left": 355,
+        "top": 356,
+        "width": 548,
+        "height": 38
+      },
+      "text": "Controlled access and organizational readiness",
+      "style": {
+        "fontSize": 24,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/n6x0fqlo",
+      "kind": "textbox",
+      "name": "current-content-73",
+      "position": {
+        "left": 355,
+        "top": 399,
+        "width": 548,
+        "height": 43
+      },
+      "text": "Mohammad (2022); Nagahawatta et al. (2024); Rashid et al. (2024)",
+      "style": {
+        "fontSize": 17,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/25ojml43",
+      "kind": "textbox",
+      "name": "current-content-74",
+      "position": {
+        "left": 56,
+        "top": 471,
+        "width": 846,
+        "height": 22
+      },
+      "text": "Literature themes and citations as reported in the current manuscript, Chapter 2",
+      "style": {
+        "fontSize": 18,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    }
+  ]
+}

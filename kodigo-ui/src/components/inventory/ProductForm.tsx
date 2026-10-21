@@ -183,11 +183,13 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   const [urlInputMode, setUrlInputMode] = useState(false);
   const [advancedPricing, setAdvancedPricing] = useState<Record<string, boolean>>({});
   const [skuManuallyEdited, setSkuManuallyEdited] = useState(mode === 'edit' || Boolean(initial?.sku));
-  const [purchaseTotal, setPurchaseTotal] = useState(
-    (initial?.costPrice ?? 0) * (initial?.restockingOptions?.find((option) => option.isDefault)?.conversionFactor
+  const [purchaseTotal, setPurchaseTotal] = useState(() => {
+    const packagePrice = (initial?.costPrice ?? 0) * (initial?.restockingOptions?.find((option) => option.isDefault)?.conversionFactor
       ?? initial?.restockingOptions?.[0]?.conversionFactor
-      ?? (initial?.purchaseUnit ? initial.conversionFactor ?? 1 : 1)),
-  );
+      ?? (initial?.purchaseUnit ? initial.conversionFactor ?? 1 : 1));
+    // Base-unit costs retain six decimals; reconstructed package prices use centavos.
+    return Math.round((packagePrice + Number.EPSILON) * 100) / 100;
+  });
   const [purchaseQuantity, setPurchaseQuantity] = useState(mode === 'create' ? 0 : 1);
   const [startingStockAutoFill, setStartingStockAutoFill] = useState(mode === 'create');
   const [purchaseRestockingOptionId, setPurchaseRestockingOptionId] = useState(

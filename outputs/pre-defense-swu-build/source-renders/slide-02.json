@@ -1,0 +1,813 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/hwbqtkby",
+    "index": 1,
+    "layout": {
+      "id": "ly/p83mt83u",
+      "name": "TITLE_AND_BODY_1_1"
+    },
+    "masterLayoutId": "ly/atofqts7",
+    "backgroundColor": "rgba(255,255,255,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "ly/p83mt83u",
+      "name": "TITLE_AND_BODY_1_1",
+      "parentLayoutId": "ly/atofqts7",
+      "elements": [
+        {
+          "order": 1,
+          "kind": "image",
+          "scope": "layout",
+          "id": "im/xonix4ze",
+          "editable": false,
+          "name": "Google Shape;16;p35",
+          "position": {
+            "left": 0,
+            "top": 0,
+            "width": 960,
+            "height": 540
+          },
+          "contentType": "image/png",
+          "crop": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "asset": {
+            "contentType": "image/png",
+            "byteLength": 32300
+          },
+          "fillImage": {
+            "contentType": "image/png",
+            "byteLength": 32300
+          }
+        },
+        {
+          "order": 2,
+          "kind": "shape",
+          "scope": "layout",
+          "id": "sh/hcnux47u",
+          "editable": false,
+          "name": "Google Shape;17;p35",
+          "position": {
+            "left": 56.34,
+            "top": 40.2,
+            "width": 584.19,
+            "height": 56.19
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 3,
+          "kind": "shape",
+          "scope": "layout",
+          "id": "sh/e50ve9on",
+          "editable": false,
+          "name": "Google Shape;18;p35",
+          "position": {
+            "left": 70.92,
+            "top": 133.83,
+            "width": 807.21,
+            "height": 237.39
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 4,
+          "kind": "textbox",
+          "scope": "layout",
+          "id": "sh/z69w7e58",
+          "editable": false,
+          "name": "Google Shape;19;p35",
+          "position": {
+            "left": 896.2,
+            "top": 498.67,
+            "width": 57.61,
+            "height": 41.32
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "text": "2",
+          "style": {
+            "anchor": 2,
+            "alignment": "right",
+            "verticalAlignment": "middle",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "2",
+              "style": {
+                "alignment": "right"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "2",
+                  "anchor": 2,
+                  "alignment": "right",
+                  "verticalAlignment": "middle",
+                  "wrap": "square",
+                  "autoFit": "shrinkText",
+                  "insets": {
+                    "top": 9.6,
+                    "right": 9.6,
+                    "bottom": 9.6,
+                    "left": 9.6
+                  },
+                  "useParagraphSpacing": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scope": "master",
+      "id": "ly/atofqts7",
+      "type": "master",
+      "backgroundColor": "lt1",
+      "elements": [
+        {
+          "order": 1,
+          "kind": "shape",
+          "scope": "master",
+          "id": "sh/czu98z2x",
+          "editable": false,
+          "name": "Google Shape;6;p33",
+          "position": {
+            "left": 32.72,
+            "top": 46.72,
+            "width": 894.55,
+            "height": 60.13
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 2,
+          "kind": "shape",
+          "scope": "master",
+          "id": "sh/d03a143i",
+          "editable": false,
+          "name": "Google Shape;7;p33",
+          "position": {
+            "left": 32.72,
+            "top": 120.99,
+            "width": 894.55,
+            "height": 358.68
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "style": {
+            "anchor": 1,
+            "verticalAlignment": "top",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          }
+        },
+        {
+          "order": 3,
+          "kind": "textbox",
+          "scope": "master",
+          "id": "sh/618ru54n",
+          "editable": false,
+          "name": "Google Shape;8;p33",
+          "position": {
+            "left": 896.2,
+            "top": 498.67,
+            "width": 57.61,
+            "height": 41.32
+          },
+          "geometry": "rect",
+          "lineWidth": 0,
+          "text": "2",
+          "style": {
+            "anchor": 2,
+            "alignment": "right",
+            "verticalAlignment": "middle",
+            "wrap": "square",
+            "autoFit": "shrinkText",
+            "insets": {
+              "top": 9.6,
+              "right": 9.6,
+              "bottom": 9.6,
+              "left": 9.6
+            },
+            "useParagraphSpacing": true
+          },
+          "paragraphs": [
+            {
+              "index": 1,
+              "text": "2",
+              "style": {
+                "alignment": "right"
+              },
+              "runs": [
+                {
+                  "index": 1,
+                  "text": "2",
+                  "anchor": 2,
+                  "alignment": "right",
+                  "verticalAlignment": "middle",
+                  "wrap": "square",
+                  "autoFit": "shrinkText",
+                  "insets": {
+                    "top": 9.6,
+                    "right": 9.6,
+                    "bottom": 9.6,
+                    "left": 9.6
+                  },
+                  "useParagraphSpacing": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "order": 4,
+          "kind": "image",
+          "scope": "master",
+          "id": "im/k365s3mh",
+          "editable": false,
+          "name": "Google Shape;9;p33",
+          "position": {
+            "left": 0,
+            "top": 0,
+            "width": 960,
+            "height": 540
+          },
+          "contentType": "image/png",
+          "crop": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "asset": {
+            "contentType": "image/png",
+            "byteLength": 46002
+          },
+          "fillImage": {
+            "contentType": "image/png",
+            "byteLength": 46002
+          }
+        }
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/kry50jap",
+      "editable": true,
+      "name": "Google Shape;90;g3d344ab644e_1_5",
+      "position": {
+        "left": 56.34,
+        "top": 40.2,
+        "width": 584.19,
+        "height": 56.19
+      },
+      "geometry": "rect",
+      "lineWidth": 0,
+      "text": "Agenda:",
+      "style": {
+        "anchor": 1,
+        "fontSize": 33.6,
+        "typeface": "Open Sans",
+        "color": "#202C61",
+        "bold": true,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "textTransform": "none",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 0.9,
+        "insets": {
+          "top": 9.6,
+          "right": 9.6,
+          "bottom": 9.6,
+          "left": 9.6
+        },
+        "useParagraphSpacing": true
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Agenda:",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Agenda:",
+              "anchor": 1,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "shrinkText",
+              "autoFitScale": 0.9,
+              "insets": {
+                "top": 9.6,
+                "right": 9.6,
+                "bottom": 9.6,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ],
+          "bulletCharacter": ""
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "kind": "textbox",
+      "scope": "slide",
+      "id": "sh/ls7mtobu",
+      "editable": true,
+      "name": "Google Shape;91;g3d344ab644e_1_5",
+      "position": {
+        "left": 258.63,
+        "top": 35.43,
+        "width": 1001.51,
+        "height": 332.82
+      },
+      "geometry": "rect",
+      "lineWidth": 0,
+      "text": "Background of the study\nCase-based scenario\nStatement of the problem\nResearch Goals\nReview of Related Literature\nResearch Methodology\nResults and Findings of RQ1\nProposed IT solution\nConceptual framework\nUse case Diagram\nDevelopment Platform\nSystem Walkthrough\nUse-Case Diagram\n",
+      "style": {
+        "anchor": 1,
+        "fontSize": 26.67,
+        "typeface": "Arial",
+        "color": "#000000",
+        "bold": false,
+        "italic": false,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "textTransform": "none",
+        "wrap": "square",
+        "autoFit": "none",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        },
+        "useParagraphSpacing": true
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Background of the study",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Background of the study",
+              "anchor": 1,
+              "fontSize": 26.67,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": false,
+              "italic": false,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "textTransform": "none",
+              "wrap": "square",
+              "autoFit": "none",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "text": "Case-based scenario",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Case-based scenario",
+              "anchor": 1,
+              "fontSize": 26.67,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": false,
+              "italic": false,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "textTransform": "none",
+              "wrap": "square",
+              "autoFit": "none",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "text": "Statement of the problem",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Statement of the problem",
+              "anchor": 1,
+              "fontSize": 26.67,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "none",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "text": "Research Goals",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Research Goals",
+              "anchor": 1,
+              "fontSize": 26.67,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "none",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "text": "Review of Related Literature",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Review of Related Literature",
+              "anchor": 1,
+              "fontSize": 26.67,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "none",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 6,
+          "text": "Research Methodology",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Research Methodology",
+              "anchor": 1,
+              "fontSize": 26.67,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": false,
+              "italic": false,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "textTransform": "none",
+              "wrap": "square",
+              "autoFit": "none",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 7,
+          "text": "Results and Findings of RQ1",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Results and Findings of RQ1",
+              "anchor": 1,
+              "fontSize": 26.67,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "none",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 8,
+          "text": "Proposed IT solution",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Proposed IT solution",
+              "anchor": 1,
+              "fontSize": 26.67,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "none",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 9,
+          "text": "Conceptual framework",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Conceptual framework",
+              "anchor": 1,
+              "fontSize": 26.67,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "none",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 10,
+          "text": "Use case Diagram",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Use case Diagram",
+              "anchor": 1,
+              "fontSize": 26.67,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "none",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 11,
+          "text": "Development Platform",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Development Platform",
+              "anchor": 1,
+              "fontSize": 26.67,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": false,
+              "italic": false,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "textTransform": "none",
+              "wrap": "square",
+              "autoFit": "none",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 12,
+          "text": "System Walkthrough",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "System Walkthrough",
+              "anchor": 1,
+              "fontSize": 26.67,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "wrap": "square",
+              "autoFit": "none",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        },
+        {
+          "index": 13,
+          "text": "Use-Case Diagram",
+          "lineSpacingPercent": 100000,
+          "style": {
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Use-Case Diagram",
+              "anchor": 1,
+              "fontSize": 26.67,
+              "typeface": "Arial",
+              "color": "#000000",
+              "bold": false,
+              "italic": false,
+              "alignment": "left",
+              "verticalAlignment": "top",
+              "textTransform": "none",
+              "wrap": "square",
+              "autoFit": "none",
+              "insets": {
+                "top": 4.8,
+                "right": 9.6,
+                "bottom": 4.8,
+                "left": 9.6
+              },
+              "useParagraphSpacing": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

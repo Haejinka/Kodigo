@@ -6,3 +6,6 @@ node_modules/
 .DS_Store
 .supabase/
 supabase/.temp/
+
+# Generated presentation source exceeds GitHub's file size limit.
+/outputs/pre-defense-swu-build/source.proto.json

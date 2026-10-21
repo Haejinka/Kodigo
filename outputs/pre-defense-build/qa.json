@@ -1,0 +1,110 @@
+{
+  "slides": 12,
+  "notes": 12,
+  "presenter_allocations": [
+    4,
+    4,
+    4
+  ],
+  "native_objects": [
+    {
+      "slide": 1,
+      "presenter": 1,
+      "note_words_with_sources": 114,
+      "native_shapes": 9,
+      "native_connectors": 0,
+      "native_tables": 0
+    },
+    {
+      "slide": 2,
+      "presenter": 1,
+      "note_words_with_sources": 143,
+      "native_shapes": 18,
+      "native_connectors": 4,
+      "native_tables": 0
+    },
+    {
+      "slide": 3,
+      "presenter": 1,
+      "note_words_with_sources": 148,
+      "native_shapes": 18,
+      "native_connectors": 0,
+      "native_tables": 0
+    },
+    {
+      "slide": 4,
+      "presenter": 1,
+      "note_words_with_sources": 143,
+      "native_shapes": 19,
+      "native_connectors": 0,
+      "native_tables": 0
+    },
+    {
+      "slide": 5,
+      "presenter": 2,
+      "note_words_with_sources": 177,
+      "native_shapes": 14,
+      "native_connectors": 10,
+      "native_tables": 0
+    },
+    {
+      "slide": 6,
+      "presenter": 2,
+      "note_words_with_sources": 165,
+      "native_shapes": 18,
+      "native_connectors": 9,
+      "native_tables": 0
+    },
+    {
+      "slide": 7,
+      "presenter": 2,
+      "note_words_with_sources": 184,
+      "native_shapes": 21,
+      "native_connectors": 6,
+      "native_tables": 0
+    },
+    {
+      "slide": 8,
+      "presenter": 2,
+      "note_words_with_sources": 171,
+      "native_shapes": 11,
+      "native_connectors": 0,
+      "native_tables": 1
+    },
+    {
+      "slide": 9,
+      "presenter": 3,
+      "note_words_with_sources": 167,
+      "native_shapes": 14,
+      "native_connectors": 0,
+      "native_tables": 0
+    },
+    {
+      "slide": 10,
+      "presenter": 3,
+      "note_words_with_sources": 175,
+      "native_shapes": 27,
+      "native_connectors": 0,
+      "native_tables": 0
+    },
+    {
+      "slide": 11,
+      "presenter": 3,
+      "note_words_with_sources": 165,
+      "native_shapes": 16,
+      "native_connectors": 0,
+      "native_tables": 0
+    },
+    {
+      "slide": 12,
+      "presenter": 3,
+      "note_words_with_sources": 109,
+      "native_shapes": 7,
+      "native_connectors": 0,
+      "native_tables": 0
+    }
+  ],
+  "sensitive_pattern_hits": [],
+  "candidate_equals_final": true,
+  "final_sha256": "97e94fb56fd0e473fe631c25120d105dc626103944697d00f20fa96fcfed331a"
+}

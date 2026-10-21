@@ -1,0 +1,164 @@
+{
+  "schemaVersion": "presentation-finalization.v1",
+  "finalSha256": "59da48e8a4cb0bf5d9b6c3df2712c434f99b85c212baab052fec071a41ed6460",
+  "byteCount": 4568655,
+  "packageIntegrity": {
+    "chart_count": 0,
+    "claim_boundary": "Structural package checks only; no slide text, notes, formulas, chart values, or native PowerPoint execution were inspected.",
+    "finding_count": 0,
+    "findings": [],
+    "notes_parts_skipped": 17,
+    "relationship_part_count": 52,
+    "slide_count": 17,
+    "status": "pass",
+    "exitCode": 0,
+    "findingCount": 0,
+    "warnings": []
+  },
+  "presentationLayout": {
+    "finding_count": 0,
+    "findings": [],
+    "font_policy": {
+      "checked_text_script_count": 243,
+      "native_font_rendering_verified": false,
+      "observed_font_families": [
+        "Arial",
+        "Cambria",
+        "Raleway"
+      ],
+      "observed_font_use_counts": {
+        "Arial": 201,
+        "Cambria": 1,
+        "Raleway": 41
+      },
+      "passed": true,
+      "performed": true
+    },
+    "slide_count": 17,
+    "slide_size_in": [
+      10,
+      5.625
+    ],
+    "warning_count": 0,
+    "warnings": [],
+    "exitCode": 0,
+    "findingCount": 0,
+    "fontPolicy": {
+      "checked_text_script_count": 243,
+      "native_font_rendering_verified": false,
+      "observed_font_families": [
+        "Arial",
+        "Cambria",
+        "Raleway"
+      ],
+      "observed_font_use_counts": {
+        "Arial": 201,
+        "Cambria": 1,
+        "Raleway": 41
+      },
+      "passed": true,
+      "performed": true
+    }
+  },
+  "fontSelection": {
+    "basis": "reference",
+    "approvedFamilies": [
+      "Raleway",
+      "Cambria",
+      "Arial"
+    ],
+    "scriptFonts": {},
+    "referenceSha256": "e7456a215ce1b1989fc8bbd7e9c08a6ee65d15dc7f79866c748f0680cc8c10e3",
+    "referenceFontsVerifiedInEncodedText": true,
+    "checked_text_script_count": 243,
+    "native_font_rendering_verified": false,
+    "observed_font_families": [
+      "Arial",
+      "Cambria",
+      "Raleway"
+    ],
+    "observed_font_use_counts": {
+      "Arial": 201,
+      "Cambria": 1,
+      "Raleway": 41
+    },
+    "passed": true,
+    "performed": true
+  },
+  "firstPartyImport": {
+    "performed": true,
+    "passed": true,
+    "slideCount": 17,
+    "sha256": "59da48e8a4cb0bf5d9b6c3df2712c434f99b85c212baab052fec071a41ed6460",
+    "runtimeNodeModules": "C:/Users/verga/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules",
+    "nodeExecutable": "C:\\Users\\verga\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe"
+  },
+  "nativeTableArithmetic": {
+    "performed": true,
+    "checked_column_count": 0,
+    "checks": [],
+    "claim_boundary": "Displayed-value arithmetic with rounding tolerance; not source-data verification.",
+    "eligible_table_count": 0,
+    "finding_count": 0,
+    "findings": [],
+    "native_table_count": 2,
+    "passed": true,
+    "schema_version": "presentation-native-table-arithmetic.v1",
+    "skipped_tables": [
+      {
+        "reason": "no_numeric_amounts",
+        "slide": 8,
+        "table": 1
+      },
+      {
+        "reason": "no_numeric_amounts",
+        "slide": 11,
+        "table": 1
+      }
+    ],
+    "slide_count": 17,
+    "warning_count": 0,
+    "warnings": []
+  },
+  "nativeChartTitles": {
+    "performed": true,
+    "checks": [],
+    "finding_count": 0,
+    "findings": [],
+    "native_chart_count": 0,
+    "native_powerpoint_verified": false,
+    "passed": true,
+    "presentation_sha256": "59da48e8a4cb0bf5d9b6c3df2712c434f99b85c212baab052fec071a41ed6460",
+    "schema_version": "presentation-native-chart-titles.v1",
+    "slide_count": 17,
+    "source_text_emitted": false,
+    "unresolved_linked_title_count": 0
+  },
+  "sourceDerivedPolicyFlags": [
+    "--expected-slide-size-emu",
+    "9144000,5143500",
+    "--validate-heading-fit",
+    "--require-native-table-slide",
+    "8",
+    "--require-native-table-slide",
+    "11",
+    "--cover-role",
+    "none",
+    "--expected-slide-count",
+    "17",
+    "--approved-font-family",
+    "Raleway",
+    "--approved-font-family",
+    "Cambria",
+    "--approved-font-family",
+    "Arial"
+  ],
+  "nativeChartValidation": {
+    "detectedOwnerSlides": [],
+    "detectedChartCount": 0,
+    "targetApplication": "portable",
+    "sourceChartOwnersExplicitlyDeclared": true,
+    "validatorRan": false,
+    "passed": true
+  }
+}
