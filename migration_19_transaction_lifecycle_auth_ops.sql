@@ -723,7 +723,7 @@ BEGIN
     RAISE EXCEPTION 'Refund amount must be greater than zero';
   END IF;
 
-  SELECT COALESCE(abs(SUM(amount)) FILTER (WHERE amount < 0), 0)
+  SELECT COALESCE(ABS(SUM(amount) FILTER (WHERE amount < 0)), 0)
   INTO v_refunded
   FROM public.sale_payments
   WHERE sale_id = p_sale_id;
@@ -914,7 +914,7 @@ BEGIN
     );
   END LOOP;
 
-  SELECT COALESCE(abs(SUM(amount)) FILTER (WHERE amount < 0), 0)
+  SELECT COALESCE(ABS(SUM(amount) FILTER (WHERE amount < 0)), 0)
   INTO v_refunded
   FROM public.sale_payments
   WHERE sale_id = p_sale_id;
