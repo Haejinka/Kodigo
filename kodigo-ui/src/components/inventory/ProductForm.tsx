@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ImagePlus, Link, Package, Plus, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ImagePlus, Info, Link, Package, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { useToast } from '@/components/shared/Toast';
 import { useAuthStore } from '@/stores/authStore';
@@ -254,6 +254,14 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   const purchaseRestockingOption = form.restockingOptions?.find((option) => option.id === purchaseRestockingOptionId)
     ?? form.restockingOptions?.find((option) => option.isDefault)
     ?? form.restockingOptions?.[0];
+  const lowStockLevel = Math.max(0, Number(form.minStockLevel) || 0);
+  const safetyStockLevel = Math.max(0, Number(form.safetyStock) || 0);
+  const reorderLevel = Math.max(0, Number(form.reorderLevel) || 0);
+  const effectiveStockTrigger = Math.max(lowStockLevel, safetyStockLevel, reorderLevel);
+  const currentStock = Math.max(0, Number(form.currentStock) || 0);
+  const isAtOrBelowEffectiveTrigger = effectiveStockTrigger > 0 && currentStock <= effectiveStockTrigger;
+  const safetyStockSetsTrigger = safetyStockLevel > 0 && safetyStockLevel >= effectiveStockTrigger;
+  const formatInventoryLevel = (value: number) => `${value} ${baseUnit}${value === 1 ? '' : 's'}`;
   const savedRestockingUnits = Array.from(new Map(
     products
       .filter((product) => product.storeId === form.storeId)
@@ -827,13 +835,35 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
               const packageSize = Math.max(1, Number(purchaseRestockingOption?.conversionFactor) || 1);
               setForm((prev) => ({ ...prev, currentStock: Math.max(0, purchaseQuantity * packageSize) }));
               setStartingStockAutoFill(true);
-            }} className="mt-1 text-xs font-semibold text-blue-700 hover:text-blue-900">Auto-fill from purchase</button>}</Field><Field id="product-low-stock" label={`Low stock alert (${baseUnit}s)`}><input id="product-low-stock" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.minStockLevel || ''} onChange={(event) => set('minStockLevel', Number(event.target.value) || 0)} placeholder="e.g. 24" /></Field><Field id="product-safety-stock" label={`Safety stock (${baseUnit}s)`}><input id="product-safety-stock" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.safetyStock || ''} onChange={(event) => set('safetyStock', Number(event.target.value) || 0)} /></Field><Field id="product-reorder-level" label={`Reorder level (${baseUnit}s)`}><input id="product-reorder-level" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.reorderLevel || ''} onChange={(event) => {
+            }} className="mt-1 text-xs font-semibold text-blue-700 hover:text-blue-900">Auto-fill from purchase</button>}</Field><Field id="product-low-stock" label={`Low stock alert (${baseUnit}s)`} hint="Shows a warning when stock reaches this level. It is not the amount to order."><input id="product-low-stock" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.minStockLevel || ''} onChange={(event) => set('minStockLevel', Number(event.target.value) || 0)} placeholder="e.g. 24" /></Field><Field id="product-safety-stock" label={`Safety stock (${baseUnit}s)`} hint="Reserve kept for demand changes or delivery delays. A high value can keep the product in a restock state."><input id="product-safety-stock" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.safetyStock || ''} onChange={(event) => set('safetyStock', Number(event.target.value) || 0)} /></Field><Field id="product-reorder-level" label={`Reorder level (${baseUnit}s)`} hint="The stock level that can trigger replenishment. The order quantity is rounded to the purchase package."><input id="product-reorder-level" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.reorderLevel || ''} onChange={(event) => {
               set('reorderLevel', Number(event.target.value) || 0);
-            }} /></Field><Field id="product-lead-time" label="Lead time (days)"><input id="product-lead-time" type="number" min={1} step={1} className={`${inputCls} font-mono`} value={leadTimeDraft ?? String(form.leadTimeDays)} onChange={(event) => {
+            }} /></Field><Field id="product-lead-time" label="Lead time (days)" hint="Typical supplier delivery time. Recent sales can make the system flag stock before this many days remain."><input id="product-lead-time" type="number" min={1} step={1} className={`${inputCls} font-mono`} value={leadTimeDraft ?? String(form.leadTimeDays)} onChange={(event) => {
               const normalized = event.target.value.replace(/^0+(?=\d)/, '');
               setLeadTimeDraft(normalized);
               set('leadTimeDays', normalized === '' ? 1 : Number(normalized) || 1);
             }} onBlur={() => setLeadTimeDraft(null)} /></Field><Field id="product-rounding" label="Suggested price rounding"><select id="product-rounding" className={inputCls} value={form.priceRounding ?? 1} onChange={(event) => set('priceRounding', Number(event.target.value) || 1)}><option value={1}>Round up to nearest PHP 1</option><option value={5}>Round up to nearest PHP 5</option><option value={10}>Round up to nearest PHP 10</option></select></Field></div>
+            <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--muted)] p-4">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--card)] text-[var(--primary)] shadow-sm" aria-hidden="true"><Info className="h-4 w-4" /></span>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold text-[var(--foreground)]">How these levels work</h3>
+                  <p className="mt-1 text-sm leading-6 text-[var(--muted-foreground)]">Safety stock is a reserve you want to keep, not the amount to order. The stock status uses the highest of Low stock alert, Safety stock, and Reorder level as the static alert floor. Recent sales can make the system flag stock sooner based on supplier lead time.</p>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Effective alert floor</p>
+                  <p className="mt-1 font-mono text-base font-semibold tabular-nums text-[var(--foreground)]">{effectiveStockTrigger > 0 ? formatInventoryLevel(effectiveStockTrigger) : 'No static floor set'}</p>
+                  <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">Highest of the three inventory thresholds.</p>
+                </div>
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Current stock</p>
+                  <p className="mt-1 font-mono text-base font-semibold tabular-nums text-[var(--foreground)]">{formatInventoryLevel(currentStock)}</p>
+                  <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">{isAtOrBelowEffectiveTrigger ? 'At or below the floor: this product will be shown as at risk.' : 'Above the static alert floor.'}</p>
+                </div>
+              </div>
+              {safetyStockSetsTrigger && <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-900 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-100"><AlertTriangle className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" /><p><span className="font-semibold">Safety stock is setting the alert floor.</span> Stock at or below {formatInventoryLevel(safetyStockLevel)} will remain in a restock state until it rises above that reserve.</p></div>}
+            </div>
           </div>
         </div>
 
