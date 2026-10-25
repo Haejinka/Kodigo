@@ -4,12 +4,30 @@ import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/shared/Button';
 import { PasswordInput } from '@/components/shared/PasswordInput';
 import { useActiveBranding } from '@/lib/branding';
+import { SIGNUP_CONFIRMATION_NOTICE_KEY } from '@/lib/supabase';
 
 export function LoginPage() {
   const { login, isLoading, error, isAuthenticated, role } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const branding = useActiveBranding();
+  const [emailConfirmed] = useState(() => {
+    try {
+      return window.sessionStorage.getItem(SIGNUP_CONFIRMATION_NOTICE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    if (emailConfirmed) {
+      try {
+        window.sessionStorage.removeItem(SIGNUP_CONFIRMATION_NOTICE_KEY);
+      } catch {
+        // The confirmation message remains visible for this page load.
+      }
+    }
+  }, [emailConfirmed]);
 
   // If already logged in, redirect them immediately 
   useEffect(() => {
@@ -48,6 +66,12 @@ export function LoginPage() {
         {/* Card */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
           <h2 className="text-base font-semibold text-gray-900 mb-5">Sign in to your account</h2>
+
+          {emailConfirmed && (
+            <div role="status" className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm text-green-700 mb-4">
+              Email verified. Sign in to continue.
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import type { UserRole, Store } from '@/types';
-import { supabase } from '@/lib/supabase';
+import {
+  consumeSignupConfirmationCallback,
+  SIGNUP_CONFIRMATION_PENDING_KEY,
+  supabase,
+} from '@/lib/supabase';
+
+let signupConfirmationHandled = false;
 
 type StoreRow = {
   id: string;
@@ -254,10 +260,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initialize: async () => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
+
       if (sessionError) throw sessionError;
-      
-      if (session?.user) {
+
+      let isSignupConfirmation = signupConfirmationHandled || consumeSignupConfirmationCallback();
+      try {
+        const signupConfirmationPending = window.sessionStorage.getItem(SIGNUP_CONFIRMATION_PENDING_KEY) === '1';
+        isSignupConfirmation ||= signupConfirmationPending;
+        if (signupConfirmationPending) {
+          window.sessionStorage.removeItem(SIGNUP_CONFIRMATION_PENDING_KEY);
+        }
+      } catch {
+        // Storage may be unavailable in restricted browser contexts.
+      }
+
+      if (isSignupConfirmation) {
+        const shouldClearSession = !signupConfirmationHandled && Boolean(session);
+        signupConfirmationHandled = true;
+        if (shouldClearSession) {
+          const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
+          if (signOutError) console.warn('Could not clear the email-confirmation session.', signOutError);
+        }
+        set(resetAuthState);
+      } else if (session?.user) {
         // Fetch the extended profile from our table to get the role
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
@@ -284,7 +309,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (initialStoreId && initialStoreId !== 'all') {
           localStorage.setItem('kodigo_last_store_id', initialStoreId);
         }
-        
+
         set({
           user: session.user,
           profile,
