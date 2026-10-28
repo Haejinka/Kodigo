@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { shouldReportClientError } from '@/lib/client-error-policy';
 
 function errorMessage(value: unknown) {
   if (value instanceof Error) return value.message;
@@ -16,6 +17,11 @@ export async function logClientError(input: {
   context?: Record<string, unknown>;
   storeId?: string | null;
 }) {
+  // Local development can share production Supabase credentials. Keep those
+  // errors out of the persistent, admin-facing production notification feed.
+  const hostname = typeof window === 'undefined' ? undefined : window.location.hostname;
+  if (!shouldReportClientError(import.meta.env.DEV, hostname)) return;
+
   try {
     await supabase.rpc('log_client_error', {
       p_source: input.source,
