@@ -165,7 +165,7 @@ function getInitialOptions(storeId: string, initial?: Partial<Product>) {
 export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { activeStoreId, role } = useAuthStore();
+  const { activeStoreId, role, stores } = useAuthStore();
   const isStoreAdmin = role === 'admin';
   const products = useProductStore((state) => state.products);
   const fetchCategories = useProductStore((state) => state.fetchCategories);
@@ -199,7 +199,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   const [sellingFactorDrafts, setSellingFactorDrafts] = useState<Record<string, string>>({});
   const [leadTimeDraft, setLeadTimeDraft] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const initialStoreId = initial?.storeId ?? (activeStoreId === 'all' ? '' : activeStoreId) ?? '';
+  const initialStoreId = initial?.storeId ?? (activeStoreId && activeStoreId !== 'all' ? activeStoreId : '');
   const initialSupplierIds = initial?.supplierIds?.length
     ? initial.supplierIds
     : initial?.supplierId
@@ -300,6 +300,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     if (!targetStoreId) {
       setStoreCategories([]);
       setStoreSuppliers([]);
+      setCategoryLoading(false);
       return;
     }
     let cancelled = false;
@@ -351,6 +352,26 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       if (!prev[key]) return prev;
       const next = { ...prev };
       delete next[key];
+      return next;
+    });
+  };
+
+  const handleStoreSelection = (storeId: string) => {
+    setForm((prev) => ({
+      ...prev,
+      storeId,
+      categoryId: '',
+      supplierId: '',
+      supplierIds: [],
+      restockingOptions: (prev.restockingOptions || []).map((option) => ({ ...option, storeId })),
+      sellingOptions: prev.sellingOptions.map((option) => ({ ...option, storeId })),
+    }));
+    setStoreCategories([]);
+    setStoreSuppliers([]);
+    setErrors((prev) => {
+      if (!prev.storeId) return prev;
+      const next = { ...prev };
+      delete next.storeId;
       return next;
     });
   };
@@ -682,6 +703,25 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
         <div className="min-w-0 space-y-4">
           <div className={cardCls}>
             <h2 className={`${titleCls} mb-4`}>Product identity</h2>
+            {mode === 'create' && (!activeStoreId || activeStoreId === 'all') && (
+              <div className="mb-4 max-w-md">
+                <Field id="product-store" label="Store" required hint="Choose the store where this product and its categories will be managed.">
+                  <select
+                    id="product-store"
+                    className={inputCls}
+                    value={form.storeId}
+                    onChange={(event) => handleStoreSelection(event.target.value)}
+                    aria-invalid={Boolean(errors.storeId)}
+                    aria-describedby={errors.storeId ? 'product-store-error' : undefined}
+                  >
+                    <option value="">Select store</option>
+                    {stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
+                  </select>
+                  {errors.storeId && <p id="product-store-error" className="text-xs text-red-500">{errors.storeId}</p>}
+                  {stores.length === 0 && <p className="text-xs text-[var(--muted-foreground)]">No stores are available for this account yet.</p>}
+                </Field>
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field id="product-name" label="Product name" required><input id="product-name" className={inputCls} value={form.name} onChange={(event) => handleProductNameChange(event.target.value)} placeholder="e.g. Coca-Cola 330ml" />{errors.name && <p className="text-xs text-red-500">{errors.name}</p>}</Field>
               <Field id="product-sku" label="SKU" required hint={mode === 'create' ? 'Generated automatically from the product name. You can edit it if needed.' : 'SKU stays unchanged unless you edit it manually.'}><div className="flex gap-2"><input id="product-sku" className={`${inputCls} min-w-0 flex-1 font-mono`} value={form.sku} onChange={(event) => { setSkuManuallyEdited(true); set('sku', event.target.value.toUpperCase()); }} placeholder="e.g. COKE-330" />{mode === 'create' && <button type="button" onClick={() => { setSkuManuallyEdited(false); set('sku', generateProductSku(form.name, products)); }} disabled={!form.name.trim()} className="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-xs font-semibold text-[var(--foreground)] shadow-sm transition-colors hover:bg-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-50">Regenerate</button>}</div>{errors.sku && <p className="text-xs text-red-500">{errors.sku}</p>}</Field>
