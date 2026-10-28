@@ -702,8 +702,14 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="min-w-0 space-y-4">
           {mode === 'create' && !selectedStoreId && (
-            <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-              Choose one specific store from the store selector in the top bar before adding products or categories. {activeStoreId === 'all' ? '“All Stores” is a viewing scope and cannot receive inventory.' : 'No specific store is selected yet.'}
+            <div role="status" aria-live="polite" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+              <p className="font-semibold">Choose a store before adding inventory</p>
+              <p className="mt-1">
+                {activeStoreId === 'all'
+                  ? 'You’re viewing All Stores, which is for reviewing inventory across locations. Products and categories must be added with one store selected so stock stays separate.'
+                  : 'No specific store is selected yet. Products and categories must belong to one store so stock stays separate.'}
+              </p>
+              <p className="mt-1"><span className="font-semibold">Next step:</span> Open the store selector in the top bar and choose the store where this product belongs.</p>
             </div>
           )}
           {mode === 'create' && selectedStoreId && !canUseSelectedStore && (
@@ -728,11 +734,12 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
                     <option value="">Select category</option>
                     {storeCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                   </select>
-                  <button type="button" onClick={() => openQuickAdd('category')} disabled={!canUseSelectedStore || categoryLoading} className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition-colors hover:bg-[var(--muted)] hover:text-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50" aria-label="Add category" title="Add category">
+                  <button type="button" onClick={() => openQuickAdd('category')} disabled={!canUseSelectedStore || categoryLoading} className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition-colors hover:bg-[var(--muted)] hover:text-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50" aria-label="Add category" title={!canUseSelectedStore ? 'Select a specific store in the top bar to add a category' : categoryLoading ? 'Loading categories…' : 'Add category'}>
                     <Plus className="size-4" aria-hidden="true" />
                   </button>
                 </div>
-                <button type="button" onClick={() => void handleRestoreDefaultCategories()} disabled={!canUseSelectedStore || categoryLoading} className="mt-1 text-xs font-medium text-blue-700 hover:text-blue-800 disabled:text-gray-400">Restore default categories</button>
+                <button type="button" onClick={() => void handleRestoreDefaultCategories()} disabled={!canUseSelectedStore || categoryLoading} title={!canUseSelectedStore ? 'Select a specific store in the top bar to restore categories' : categoryLoading ? 'Loading categories…' : 'Restore default categories'} className="mt-1 text-xs font-medium text-blue-700 hover:text-blue-800 disabled:text-gray-400">Restore default categories</button>
+                {mode === 'create' && !selectedStoreId && <p className="mt-1 text-xs text-amber-800">Choose a store from the top bar to add or restore categories.</p>}
                 {errors.categoryId && <p className="text-xs text-red-500">{errors.categoryId}</p>}
               </Field>
               {isStoreAdmin && (
