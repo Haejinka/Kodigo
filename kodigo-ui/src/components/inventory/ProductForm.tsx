@@ -243,6 +243,11 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   }));
 
   const bulkOptions = form.sellingOptions.filter((option) => option.isBulk && option.isActive);
+  const selectedStoreId = mode === 'create'
+    ? (activeStoreId && activeStoreId !== 'all' ? activeStoreId : '')
+    : form.storeId;
+  const canUseSelectedStore = Boolean(selectedStoreId && (mode !== 'create' || form.storeId === selectedStoreId));
+  const selectedStoreName = stores.find((store) => store.id === selectedStoreId)?.name;
   const baseOption = form.sellingOptions.find((option) => !option.isBulk) ?? form.sellingOptions[0];
   const baseUnit = form.unit || baseOption?.unitLabel || 'unit';
   const basePrice = Math.max(0, Number(form.sellingPrice) || 0);
@@ -289,14 +294,23 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   }, [mode, purchaseQuantity, purchaseRestockingOption?.conversionFactor, purchaseTotal, startingStockAutoFill]);
 
   useEffect(() => {
-    if (mode !== 'create' || !activeStoreId || activeStoreId === 'all') return;
-    setForm((prev) => prev.storeId === activeStoreId
+    if (mode !== 'create') return;
+    const targetStoreId = activeStoreId && activeStoreId !== 'all' ? activeStoreId : '';
+    setForm((prev) => prev.storeId === targetStoreId
       ? prev
-      : { ...prev, storeId: activeStoreId, categoryId: '', supplierId: '', supplierIds: [], sellingOptions: prev.sellingOptions.map((option) => ({ ...option, storeId: activeStoreId })) });
+      : {
+        ...prev,
+        storeId: targetStoreId,
+        categoryId: '',
+        supplierId: '',
+        supplierIds: [],
+        restockingOptions: (prev.restockingOptions || []).map((option) => ({ ...option, storeId: targetStoreId })),
+        sellingOptions: prev.sellingOptions.map((option) => ({ ...option, storeId: targetStoreId })),
+      });
   }, [activeStoreId, mode]);
 
   useEffect(() => {
-    const targetStoreId = form.storeId || (activeStoreId === 'all' ? '' : activeStoreId) || '';
+    const targetStoreId = mode === 'create' ? selectedStoreId : form.storeId || selectedStoreId;
     if (!targetStoreId) {
       setStoreCategories([]);
       setStoreSuppliers([]);
@@ -332,12 +346,12 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       if (!cancelled) setCategoryLoading(false);
     });
     return () => { cancelled = true; };
-  }, [activeStoreId, form.storeId, isStoreAdmin]);
+  }, [activeStoreId, form.storeId, isStoreAdmin, mode, selectedStoreId]);
 
   useEffect(() => {
-    const targetStoreId = form.storeId || (activeStoreId === 'all' ? 'all' : activeStoreId);
+    const targetStoreId = selectedStoreId;
     if (targetStoreId) void fetchCategories(targetStoreId);
-  }, [activeStoreId, fetchCategories, form.storeId]);
+  }, [fetchCategories, selectedStoreId]);
 
   useEffect(() => {
     if (!form.autoPricingEnabled) return;
@@ -352,26 +366,6 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       if (!prev[key]) return prev;
       const next = { ...prev };
       delete next[key];
-      return next;
-    });
-  };
-
-  const handleStoreSelection = (storeId: string) => {
-    setForm((prev) => ({
-      ...prev,
-      storeId,
-      categoryId: '',
-      supplierId: '',
-      supplierIds: [],
-      restockingOptions: (prev.restockingOptions || []).map((option) => ({ ...option, storeId })),
-      sellingOptions: prev.sellingOptions.map((option) => ({ ...option, storeId })),
-    }));
-    setStoreCategories([]);
-    setStoreSuppliers([]);
-    setErrors((prev) => {
-      if (!prev.storeId) return prev;
-      const next = { ...prev };
-      delete next.storeId;
       return next;
     });
   };
@@ -510,8 +504,8 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   };
 
   const openQuickAdd = (type: 'category' | 'supplier') => {
-    if (!form.storeId) {
-      toast('error', 'Select a store first.');
+    if (!canUseSelectedStore) {
+      toast('error', 'Choose one specific store from the store selector in the top bar first.');
       return;
     }
     setQuickAddName('');
@@ -532,19 +526,20 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   const handleQuickAdd = async (event: React.FormEvent) => {
     event.preventDefault();
     const name = quickAddName.trim();
-    if (!name || !form.storeId || !quickAddType) return;
+    if (!name || !canUseSelectedStore || !quickAddType) return;
+    const storeId = selectedStoreId;
 
     setQuickAddLoading(true);
     try {
       if (quickAddType === 'category') {
-        const category = await addCategory(form.storeId, name);
+        const category = await addCategory(storeId, name);
         if (!category) throw new Error('Enter a category name.');
-        setStoreCategories(await fetchCategoriesForStore(form.storeId));
+        setStoreCategories(await fetchCategoriesForStore(storeId));
         set('categoryId', category.id);
         toast('success', `"${category.name}" category added.`);
       } else {
         const supplier = await addSupplier({
-          storeIds: [form.storeId],
+          storeIds: [storeId],
           name,
           contact: '',
           email: '',
@@ -554,7 +549,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
           leadTimeDays: 1,
         });
         if (!supplier) throw new Error('Failed to add supplier.');
-        setStoreSuppliers(await fetchSuppliersForStore(form.storeId));
+        setStoreSuppliers(await fetchSuppliersForStore(storeId));
         setForm((prev) => {
           const nextSupplierIds = prev.supplierIds?.length
             ? prev.supplierIds.includes(supplier.id) ? prev.supplierIds : [...prev.supplierIds, supplier.id]
@@ -578,11 +573,12 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   };
 
   const handleRestoreDefaultCategories = async () => {
-    if (!form.storeId) return;
+    if (!canUseSelectedStore) return;
+    const storeId = selectedStoreId;
     setCategoryLoading(true);
     try {
-      const added = await seedDefaultCategories(form.storeId);
-      setStoreCategories(await fetchCategoriesForStore(form.storeId));
+      const added = await seedDefaultCategories(storeId);
+      setStoreCategories(await fetchCategoriesForStore(storeId));
       if (added.length > 0 && !form.categoryId) set('categoryId', added[0].id);
       toast(added.length > 0 ? 'success' : 'info', added.length > 0 ? 'Default categories restored.' : 'Default categories are already available.');
     } catch (error: any) { toast('error', error?.message || 'Failed to restore default categories.'); }
@@ -627,6 +623,10 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!canUseSelectedStore) {
+      toast('error', 'Choose one specific store from the store selector in the top bar before adding a product.');
+      return;
+    }
     const nextErrors = validate();
     if (Object.keys(nextErrors).length > 0) { setErrors(nextErrors); return; }
     setLoading(true);
@@ -701,42 +701,38 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       <form onSubmit={handleSubmit}>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="min-w-0 space-y-4">
+          {mode === 'create' && !selectedStoreId && (
+            <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+              Choose one specific store from the store selector in the top bar before adding products or categories. {activeStoreId === 'all' ? '“All Stores” is a viewing scope and cannot receive inventory.' : 'No specific store is selected yet.'}
+            </div>
+          )}
+          {mode === 'create' && selectedStoreId && !canUseSelectedStore && (
+            <p role="status" className="rounded-lg bg-blue-50 px-4 py-2 text-sm text-blue-900">
+              Loading {selectedStoreName || 'the selected store'}…
+            </p>
+          )}
+          {mode === 'create' && canUseSelectedStore && selectedStoreName && (
+            <p role="status" className="rounded-lg bg-blue-50 px-4 py-2 text-sm text-blue-900">
+              This product will be added to <strong>{selectedStoreName}</strong> only.
+            </p>
+          )}
           <div className={cardCls}>
             <h2 className={`${titleCls} mb-4`}>Product identity</h2>
-            {mode === 'create' && (!activeStoreId || activeStoreId === 'all') && (
-              <div className="mb-4 max-w-md">
-                <Field id="product-store" label="Store" required hint="Choose the store where this product and its categories will be managed.">
-                  <select
-                    id="product-store"
-                    className={inputCls}
-                    value={form.storeId}
-                    onChange={(event) => handleStoreSelection(event.target.value)}
-                    aria-invalid={Boolean(errors.storeId)}
-                    aria-describedby={errors.storeId ? 'product-store-error' : undefined}
-                  >
-                    <option value="">Select store</option>
-                    {stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
-                  </select>
-                  {errors.storeId && <p id="product-store-error" className="text-xs text-red-500">{errors.storeId}</p>}
-                  {stores.length === 0 && <p className="text-xs text-[var(--muted-foreground)]">No stores are available for this account yet.</p>}
-                </Field>
-              </div>
-            )}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field id="product-name" label="Product name" required><input id="product-name" className={inputCls} value={form.name} onChange={(event) => handleProductNameChange(event.target.value)} placeholder="e.g. Coca-Cola 330ml" />{errors.name && <p className="text-xs text-red-500">{errors.name}</p>}</Field>
               <Field id="product-sku" label="SKU" required hint={mode === 'create' ? 'Generated automatically from the product name. You can edit it if needed.' : 'SKU stays unchanged unless you edit it manually.'}><div className="flex gap-2"><input id="product-sku" className={`${inputCls} min-w-0 flex-1 font-mono`} value={form.sku} onChange={(event) => { setSkuManuallyEdited(true); set('sku', event.target.value.toUpperCase()); }} placeholder="e.g. COKE-330" />{mode === 'create' && <button type="button" onClick={() => { setSkuManuallyEdited(false); set('sku', generateProductSku(form.name, products)); }} disabled={!form.name.trim()} className="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-xs font-semibold text-[var(--foreground)] shadow-sm transition-colors hover:bg-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-50">Regenerate</button>}</div>{errors.sku && <p className="text-xs text-red-500">{errors.sku}</p>}</Field>
               <Field id="product-barcode" label="Barcode" hint="Optional. Scan or type the product barcode."><input id="product-barcode" className={`${inputCls} font-mono`} value={form.barcode} onChange={(event) => set('barcode', event.target.value)} placeholder="4800888888881" /></Field>
               <Field id="product-category" label="Category" required>
                 <div className="flex gap-2">
-                  <select id="product-category" className={`${inputCls} min-w-0 flex-1`} value={form.categoryId} disabled={!form.storeId} onChange={(event) => set('categoryId', event.target.value)}>
+                  <select id="product-category" className={`${inputCls} min-w-0 flex-1`} value={form.categoryId} disabled={!canUseSelectedStore} onChange={(event) => set('categoryId', event.target.value)}>
                     <option value="">Select category</option>
                     {storeCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                   </select>
-                  <button type="button" onClick={() => openQuickAdd('category')} disabled={!form.storeId || categoryLoading} className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition-colors hover:bg-[var(--muted)] hover:text-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50" aria-label="Add category" title="Add category">
+                  <button type="button" onClick={() => openQuickAdd('category')} disabled={!canUseSelectedStore || categoryLoading} className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition-colors hover:bg-[var(--muted)] hover:text-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-50" aria-label="Add category" title="Add category">
                     <Plus className="size-4" aria-hidden="true" />
                   </button>
                 </div>
-                <button type="button" onClick={() => void handleRestoreDefaultCategories()} disabled={!form.storeId || categoryLoading} className="mt-1 text-xs font-medium text-blue-700 hover:text-blue-800 disabled:text-gray-400">Restore default categories</button>
+                <button type="button" onClick={() => void handleRestoreDefaultCategories()} disabled={!canUseSelectedStore || categoryLoading} className="mt-1 text-xs font-medium text-blue-700 hover:text-blue-800 disabled:text-gray-400">Restore default categories</button>
                 {errors.categoryId && <p className="text-xs text-red-500">{errors.categoryId}</p>}
               </Field>
               {isStoreAdmin && (
@@ -907,7 +903,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
           </div>
         </div>
 
-        <div className="min-w-0 space-y-4"><div className={cardCls}><h2 className={`${titleCls} mb-3`}>Product image</h2><div className="flex items-center gap-3"><div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">{form.imageUrl ? <><img src={form.imageUrl} alt="Product preview" className="h-full w-full object-cover" /><button type="button" onClick={clearImage} className="absolute right-1 top-1 rounded-full border border-gray-200 bg-white p-0.5 text-gray-500 hover:text-red-500" aria-label="Remove product image"><X className="h-3.5 w-3.5" /></button></> : <ImagePlus className="h-7 w-7 text-gray-300" />}</div><div className="min-w-0 flex-1 space-y-2"><div className="flex flex-wrap gap-2"><button type="button" onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"><ImagePlus className="h-3.5 w-3.5" />Upload</button><button type="button" onClick={() => setUrlInputMode((value) => !value)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"><Link className="h-3.5 w-3.5" />URL</button></div>{urlInputMode && <input type="url" className={`${inputCls} font-mono text-xs`} value={form.imageUrl?.startsWith('blob:') ? '' : form.imageUrl ?? ''} onChange={(event) => set('imageUrl', event.target.value || undefined)} placeholder="https://example.com/image.jpg" />}<p className="text-[11px] leading-snug text-gray-400">JPG, PNG, GIF, or WebP. Max 5 MB.</p><input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} /></div></div></div><div className="rounded-xl border border-blue-100 bg-blue-50 p-4"><div className="flex items-start gap-2"><Package className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" /><div><p className="text-sm font-semibold text-blue-900">Inventory rule</p><p className="mt-1 text-xs leading-5 text-blue-800">POS availability for a bulk mode is derived as floor(base stock ÷ units per bulk). A case, pack, or bundle never gets its own stock balance.</p></div></div></div><div className="flex items-center justify-end gap-3"><Button variant="secondary" type="button" onClick={() => navigate('/inventory')}>Cancel</Button><Button variant="primary" type="submit" loading={loading}>{mode === 'create' ? 'Save Product' : 'Update Product'}</Button></div></div>
+        <div className="min-w-0 space-y-4"><div className={cardCls}><h2 className={`${titleCls} mb-3`}>Product image</h2><div className="flex items-center gap-3"><div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">{form.imageUrl ? <><img src={form.imageUrl} alt="Product preview" className="h-full w-full object-cover" /><button type="button" onClick={clearImage} className="absolute right-1 top-1 rounded-full border border-gray-200 bg-white p-0.5 text-gray-500 hover:text-red-500" aria-label="Remove product image"><X className="h-3.5 w-3.5" /></button></> : <ImagePlus className="h-7 w-7 text-gray-300" />}</div><div className="min-w-0 flex-1 space-y-2"><div className="flex flex-wrap gap-2"><button type="button" onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"><ImagePlus className="h-3.5 w-3.5" />Upload</button><button type="button" onClick={() => setUrlInputMode((value) => !value)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"><Link className="h-3.5 w-3.5" />URL</button></div>{urlInputMode && <input type="url" className={`${inputCls} font-mono text-xs`} value={form.imageUrl?.startsWith('blob:') ? '' : form.imageUrl ?? ''} onChange={(event) => set('imageUrl', event.target.value || undefined)} placeholder="https://example.com/image.jpg" />}<p className="text-[11px] leading-snug text-gray-400">JPG, PNG, GIF, or WebP. Max 5 MB.</p><input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} /></div></div></div><div className="rounded-xl border border-blue-100 bg-blue-50 p-4"><div className="flex items-start gap-2"><Package className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" /><div><p className="text-sm font-semibold text-blue-900">Inventory rule</p><p className="mt-1 text-xs leading-5 text-blue-800">POS availability for a bulk mode is derived as floor(base stock ÷ units per bulk). A case, pack, or bundle never gets its own stock balance.</p></div></div></div><div className="flex items-center justify-end gap-3"><Button variant="secondary" type="button" onClick={() => navigate('/inventory')}>Cancel</Button><Button variant="primary" type="submit" loading={loading} disabled={mode === 'create' && !canUseSelectedStore}>{mode === 'create' ? 'Save Product' : 'Update Product'}</Button></div></div>
       </div>
       </form>
 
