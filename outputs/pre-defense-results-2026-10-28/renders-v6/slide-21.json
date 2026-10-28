@@ -1,0 +1,105 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/dxijyc",
+    "index": 20,
+    "layout": {
+      "id": "ly/4v2ps7ql",
+      "name": "OBJECT"
+    },
+    "backgroundColor": "rgba(255,255,255,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "elements": [
+    {
+      "id": "im/m5sbetwr",
+      "kind": "image",
+      "position": {
+        "left": 690,
+        "top": 25,
+        "width": 235,
+        "height": 80
+      },
+      "fit": "contain",
+      "alt": "Original PHINMA Education wordmark retained from the defense template"
+    },
+    {
+      "id": "sh/8zexwzuh",
+      "kind": "textbox",
+      "position": {
+        "left": 56,
+        "top": 48,
+        "width": 605,
+        "height": 58
+      },
+      "text": "Results and findings of RQ2",
+      "style": {
+        "fontSize": 33.6,
+        "typeface": "Raleway",
+        "color": "#0070C0",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/t0nep4b2",
+      "kind": "textbox",
+      "position": {
+        "left": 56,
+        "top": 119,
+        "width": 846,
+        "height": 29
+      },
+      "text": "System checks, 27 October 2026",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "tb/7yxsjiho",
+      "kind": "table",
+      "position": {
+        "left": 56,
+        "top": 159,
+        "width": 846,
+        "height": 320
+      },
+      "text": "What was checked\tResult\tWhat it means\nApplication build\tPassed\tThe application built without errors.\nSales calculations\t17 of 17 passed\tTested calculations gave the expected results.\nLogin protection\t4 of 4 passed\tProtected pages required users to sign in.\nAccess rules\t20 of 22 passed\tTwo security gaps still need fixing.\nData protection\tControls present\tSecure connections and record-access limits were confirmed.",
+      "rows": 6,
+      "cols": 3
+    },
+    {
+      "id": "sh/julwjat0",
+      "kind": "textbox",
+      "position": {
+        "left": 285,
+        "top": 489,
+        "width": 617,
+        "height": 23
+      },
+      "text": "AI-assisted system checks. Detailed evidence is in the speaker notes.",
+      "style": {
+        "fontSize": 15,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    }
+  ]
+}

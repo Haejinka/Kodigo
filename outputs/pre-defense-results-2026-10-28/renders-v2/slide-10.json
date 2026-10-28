@@ -1,0 +1,128 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/fu1gfa1s",
+    "index": 9,
+    "layout": {
+      "id": "ly/4v2ps7ql",
+      "name": "OBJECT"
+    },
+    "backgroundColor": "rgba(255,255,255,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "elements": [
+    {
+      "id": "im/ixcj6lgb",
+      "kind": "image",
+      "name": "Picture 7",
+      "position": {
+        "left": 690,
+        "top": 27.38,
+        "width": 235,
+        "height": 75.24
+      }
+    },
+    {
+      "id": "sh/18byd4zy",
+      "kind": "textbox",
+      "name": "current-content-14",
+      "position": {
+        "left": 56,
+        "top": 48,
+        "width": 605,
+        "height": 58
+      },
+      "text": "Results and findings of RQ1",
+      "style": {
+        "fontSize": 33.6,
+        "typeface": "Raleway",
+        "color": "#0070C0",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/ri9g7uhw",
+      "kind": "textbox",
+      "name": "current-content-86",
+      "position": {
+        "left": 56,
+        "top": 130,
+        "width": 846,
+        "height": 34
+      },
+      "text": "Manuscript-reported baseline   •   18 pre-survey respondents",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "tb/3ylcze1o",
+      "kind": "table",
+      "name": "Table 4",
+      "position": {
+        "left": 56,
+        "top": 180,
+        "width": 846,
+        "height": 230
+      },
+      "text": "Baseline indicator\tCount\tPercent\nStock update takes 16+ minutes\t13 / 18\t72.2%\n3+ discrepancies in the past 30 days\t12 / 18\t66.7%\nUncertain information delays decisions*\t16 / 18\t88.9%\nRecords from different sources mismatch*\t18 / 18\t100.0%",
+      "rows": 5,
+      "cols": 3
+    },
+    {
+      "id": "sh/tkby9kzm",
+      "kind": "textbox",
+      "name": "current-content-87",
+      "position": {
+        "left": 56,
+        "top": 422,
+        "width": 846,
+        "height": 29
+      },
+      "text": "* At least sometimes. Table 4.1. Baseline results, not Kodigo improvement rates.",
+      "style": {
+        "fontSize": 17,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/sjix0zy1",
+      "kind": "textbox",
+      "name": "current-content-88",
+      "position": {
+        "left": 56,
+        "top": 459,
+        "width": 846,
+        "height": 30
+      },
+      "text": "Interview themes: fragmented records, delayed visibility, repeated correction",
+      "style": {
+        "fontSize": 20,
+        "typeface": "Arial",
+        "color": "#202C61",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    }
+  ]
+}

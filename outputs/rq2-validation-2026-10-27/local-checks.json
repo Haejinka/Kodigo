@@ -1,0 +1,38 @@
+{
+  "results": [
+    {
+      "name": "typecheck",
+      "command": "node node_modules/typescript/bin/tsc -b",
+      "started": "2026-10-27T15:14:07.148Z",
+      "finished": "2026-10-27T15:14:22.230Z",
+      "exitCode": 0,
+      "log": "typecheck.log"
+    },
+    {
+      "name": "lint",
+      "command": "node node_modules/eslint/bin/eslint.js .",
+      "started": "2026-10-27T15:14:07.159Z",
+      "finished": "2026-10-27T15:14:39.094Z",
+      "exitCode": 0,
+      "log": "lint.log"
+    },
+    {
+      "name": "unit",
+      "command": "node --experimental-strip-types --test scripts/unit/consignment-calculations.test.mjs scripts/unit/reporting-calculations.test.mjs",
+      "started": "2026-10-27T15:14:07.167Z",
+      "finished": "2026-10-27T15:14:07.518Z",
+      "exitCode": 0,
+      "log": "unit.log"
+    },
+    {
+      "name": "build",
+      "command": "node node_modules/vite/bin/vite.js build",
+      "started": "2026-10-27T15:14:39.094Z",
+      "finished": "2026-10-27T15:15:06.027Z",
+      "exitCode": 0,
+      "log": "build.log"
+    }
+  ],
+  "integrationTestCredentialAvailable": false,
+  "packageLockSha256": "1b0aaca27f8c180bf82383ee3af1da036bd01fd10d2025e56b8235e1a962e7a8"
+}

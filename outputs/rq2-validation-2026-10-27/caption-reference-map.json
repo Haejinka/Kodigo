@@ -1,0 +1,242 @@
+[
+  {
+    "kind": "Figure",
+    "number": "3.1",
+    "bookmark": "kodigo_figure_3_1",
+    "caption": "Figure 3.1. Agile Development Cycle Used in the Study"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.2",
+    "bookmark": "kodigo_figure_3_2",
+    "caption": "Figure 3.2. Conceptual Framework of the Kodigo System"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.3",
+    "bookmark": "kodigo_figure_3_3",
+    "caption": "Figure 3.3. UML Use-Case Diagram of the Kodigo System"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.4",
+    "bookmark": "kodigo_figure_3_4",
+    "caption": "Figure 3.4. Context Flow Diagram of the Kodigo System"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.5",
+    "bookmark": "kodigo_figure_3_5",
+    "caption": "Figure 3.5. Data Flow Diagram (Level 1) of the Kodigo System"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.6",
+    "bookmark": "kodigo_figure_3_6",
+    "caption": "Figure 3.6. Admin Onboarding Page"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.7",
+    "bookmark": "kodigo_figure_3_7",
+    "caption": "Figure 3.7. Login Page"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.8",
+    "bookmark": "kodigo_figure_3_8",
+    "caption": "Figure 3.8. General Settings Page"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.9",
+    "bookmark": "kodigo_figure_3_9",
+    "caption": "Figure 3.9. User Management Page"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.10",
+    "bookmark": "kodigo_figure_3_10",
+    "caption": "Figure 3.10. Invite User Modal"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.11",
+    "bookmark": "kodigo_figure_3_11",
+    "caption": "Figure 3.11. Notification Preferences Page"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.12",
+    "bookmark": "kodigo_figure_3_12",
+    "caption": "Figure 3.12. Security Settings Page"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.13",
+    "bookmark": "kodigo_figure_3_13",
+    "caption": "Figure 3.13. Dashboard Page"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.14",
+    "bookmark": "kodigo_figure_3_14",
+    "caption": "Figure 3.14. Inventory List Page"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.15",
+    "bookmark": "kodigo_figure_3_15",
+    "caption": "Figure 3.15. Add Product Page"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.16",
+    "bookmark": "kodigo_figure_3_16",
+    "caption": "Figure 3.16. Suppliers Page"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.17",
+    "bookmark": "kodigo_figure_3_17",
+    "caption": "Figure 3.17. Add Supplier Page"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.18",
+    "bookmark": "kodigo_figure_3_18",
+    "caption": "Figure 3.18. Restocking Page"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.19",
+    "bookmark": "kodigo_figure_3_19",
+    "caption": "Figure 3.19. Point-of-Sale Page"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.20",
+    "bookmark": "kodigo_figure_3_20",
+    "caption": "Figure 3.20. Analytics Page"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.21",
+    "bookmark": "kodigo_figure_3_21",
+    "caption": "Figure 3.21. Product Rankings Page"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.22",
+    "bookmark": "kodigo_figure_3_22",
+    "caption": "Figure 3.22. Mean Formula"
+  },
+  {
+    "kind": "Figure",
+    "number": "3.23",
+    "bookmark": "kodigo_figure_3_23",
+    "caption": "Figure 3.23. Standard Deviation Formula"
+  },
+  {
+    "kind": "Figure",
+    "number": "4.1",
+    "bookmark": "kodigo_figure_4_1",
+    "caption": "Figure 4.1. Demographic and Operational Profile of Pre-Survey Respondents"
+  },
+  {
+    "kind": "Figure",
+    "number": "4.2",
+    "bookmark": "kodigo_figure_4_2",
+    "caption": "Figure 4.2. Common Causes of Reconciliation Issues Reported in the Pre-Survey"
+  },
+  {
+    "kind": "Figure",
+    "number": "4.3",
+    "bookmark": "kodigo_figure_4_3",
+    "caption": "Figure 4.3. Decisions Most Frequently Delayed by Inventory or Reconciliation Issues"
+  },
+  {
+    "kind": "Figure",
+    "number": "4.4",
+    "bookmark": "kodigo_figure_4_4",
+    "caption": "Figure 4.4. Mean Scores of the RQ1-Related Perception Items"
+  },
+  {
+    "kind": "Figure",
+    "number": "4.5",
+    "bookmark": "kodigo_figure_4_5",
+    "caption": "Figure 4.5. Thematic Map of the Qualitative Findings for Research Question 1"
+  },
+  {
+    "kind": "Table",
+    "number": "3.1",
+    "bookmark": "kodigo_table_3_1",
+    "caption": "Table 3.1. Sample Distribution of Participants"
+  },
+  {
+    "kind": "Table",
+    "number": "3.2",
+    "bookmark": "kodigo_table_3_2",
+    "caption": "Table 3.2. Project Timeline and Milestones"
+  },
+  {
+    "kind": "Table",
+    "number": "3.3",
+    "bookmark": "kodigo_table_3_3",
+    "caption": "Table 3.3. Estimated Project Cost"
+  },
+  {
+    "kind": "Table",
+    "number": "3.4",
+    "bookmark": "kodigo_table_3_4",
+    "caption": "Table 3.4. Software Development Tools"
+  },
+  {
+    "kind": "Table",
+    "number": "3.5",
+    "bookmark": "kodigo_table_3_5",
+    "caption": "Table 3.5. Project Features"
+  },
+  {
+    "kind": "Table",
+    "number": "4.1",
+    "bookmark": "kodigo_table_4_1",
+    "caption": "Table 4.1. Key Baseline Indicators Related to Research Question 1"
+  },
+  {
+    "kind": "Table",
+    "number": "4.2",
+    "bookmark": "kodigo_table_4_2",
+    "caption": "Table 4.2. Mean Ratings on Current Workflow Conditions and Operational Effects"
+  },
+  {
+    "kind": "Table",
+    "number": "4.3",
+    "bookmark": "kodigo_table_4_3",
+    "caption": "Table 4.3. Interview Participant Contexts Included in the Thematic Analysis"
+  },
+  {
+    "kind": "Table",
+    "number": "4.4",
+    "bookmark": "kodigo_table_4_4",
+    "caption": "Table 4.4. Themes, Sub-Themes, and Illustrative Quotes from the Interview Data"
+  },
+  {
+    "kind": "Table",
+    "number": "4.5",
+    "bookmark": "kodigo_table_4_5",
+    "caption": "Table 4.5. Integrated Summary of the Quantitative and Qualitative Findings for Research Question 1"
+  },
+  {
+    "kind": "Table",
+    "number": "4.6",
+    "bookmark": "kodigo_table_4_6",
+    "caption": "Table 4.6. Executed Technical Verification Results"
+  },
+  {
+    "kind": "Table",
+    "number": "4.7",
+    "bookmark": "kodigo_table_4_7",
+    "caption": "Table 4.7. Confirmed Authorization Failures in the Controlled Assessment"
+  }
+]

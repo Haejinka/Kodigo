@@ -1,0 +1,10 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"migrations\":[{\"version\":\"20260328104303\",\"name\":\"07_multistore\"},{\"version\":\"20260328104451\",\"name\":\"08_multistore_rls\"},{\"version\":\"20260429201154\",\"name\":\"create_product_selling_options_for_catalog\"},{\"version\":\"20260429201558\",\"name\":\"harden_product_selling_options_trigger_search_path\"},{\"version\":\"20260429205424\",\"name\":\"reporting_schema_alignment\"},{\"version\":\"20260429205606\",\"name\":\"reporting_schema_alignment_advisor_cleanup\"},{\"version\":\"20260430085348\",\"name\":\"notification_system\"},{\"version\":\"20260430085459\",\"name\":\"notification_function_privileges\"},{\"version\":\"20260915144026\",\"name\":\"product_archiving\"},{\"version\":\"20260923040503\",\"name\":\"repair_sale_item_category_snapshot\"},{\"version\":\"20260930130000\",\"name\":\"consignment_inventory_lots\"},{\"version\":\"20260930180000\",\"name\":\"fix_shared_stock_alert_scope\"},{\"version\":\"20261021055917\",\"name\":\"fix_pos_item_discount_snapshots\"}]}"
+    }
+  ],
+  "structuredContent": null,
+  "isError": false
+}

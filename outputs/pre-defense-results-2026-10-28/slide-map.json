@@ -1,0 +1,186 @@
+[
+  {
+    "slide": 1,
+    "id": "sl/y90nupkv",
+    "presenter": 1,
+    "seconds": 30,
+    "sourceSlide": 1,
+    "title": "Kodigo"
+  },
+  {
+    "slide": 2,
+    "id": "sl/hwbqtkby",
+    "presenter": 1,
+    "seconds": 20,
+    "sourceSlide": 2,
+    "title": "Agenda"
+  },
+  {
+    "slide": 3,
+    "id": "sl/ofy9wn61",
+    "presenter": 1,
+    "seconds": 55,
+    "sourceSlide": 3,
+    "title": "Background and case scenario"
+  },
+  {
+    "slide": 4,
+    "id": "sl/jyx0ra1s",
+    "presenter": 1,
+    "seconds": 40,
+    "sourceSlide": 4,
+    "title": "Statement of the problem"
+  },
+  {
+    "slide": 5,
+    "id": "sl/i107q5of",
+    "presenter": 1,
+    "seconds": 40,
+    "sourceSlide": 5,
+    "title": "Research goals"
+  },
+  {
+    "slide": 6,
+    "id": "sl/x8f69ofe",
+    "presenter": 1,
+    "seconds": 40,
+    "sourceSlide": 6,
+    "title": "Review of related literature"
+  },
+  {
+    "slide": 7,
+    "id": "sl/gnmp4jqx",
+    "presenter": 1,
+    "seconds": 55,
+    "sourceSlide": 7,
+    "title": "Research methodology"
+  },
+  {
+    "slide": 8,
+    "id": "sl/5upj74",
+    "presenter": 1,
+    "seconds": 20,
+    "sourceSlide": null,
+    "title": "Results and findings of RQ1"
+  },
+  {
+    "slide": 9,
+    "id": "sl/k20d11",
+    "presenter": 1,
+    "seconds": 25,
+    "sourceSlide": null,
+    "title": "Results and findings of RQ1"
+  },
+  {
+    "slide": 10,
+    "id": "sl/fu1gfa1s",
+    "presenter": 1,
+    "seconds": 25,
+    "sourceSlide": 8,
+    "title": "Results and findings of RQ1"
+  },
+  {
+    "slide": 11,
+    "id": "sl/h5kdxb",
+    "presenter": 1,
+    "seconds": 30,
+    "sourceSlide": null,
+    "title": "Results and findings of RQ1"
+  },
+  {
+    "slide": 12,
+    "id": "sl/9pfpzc",
+    "presenter": 1,
+    "seconds": 25,
+    "sourceSlide": null,
+    "title": "Results and findings of RQ1"
+  },
+  {
+    "slide": 13,
+    "id": "sl/uvwarf",
+    "presenter": 1,
+    "seconds": 25,
+    "sourceSlide": null,
+    "title": "Results and findings of RQ1"
+  },
+  {
+    "slide": 14,
+    "id": "sl/udsvah03",
+    "presenter": 2,
+    "seconds": 40,
+    "sourceSlide": 9,
+    "title": "Developed IT solution"
+  },
+  {
+    "slide": 15,
+    "id": "sl/m90b6t0r",
+    "presenter": 2,
+    "seconds": 40,
+    "sourceSlide": 10,
+    "title": "Conceptual framework"
+  },
+  {
+    "slide": 16,
+    "id": "sl/jetc3ut0",
+    "presenter": 2,
+    "seconds": 40,
+    "sourceSlide": 11,
+    "title": "UML use-case diagram"
+  },
+  {
+    "slide": 17,
+    "id": "sl/8f2psfyx",
+    "presenter": 2,
+    "seconds": 60,
+    "sourceSlide": 12,
+    "title": "System architecture"
+  },
+  {
+    "slide": 18,
+    "id": "sl/hgzapcr6",
+    "presenter": 2,
+    "seconds": 45,
+    "sourceSlide": 13,
+    "title": "Database design"
+  },
+  {
+    "slide": 19,
+    "id": "sl/6lsnupw7",
+    "presenter": 2,
+    "seconds": 50,
+    "sourceSlide": 14,
+    "title": "Core system logic"
+  },
+  {
+    "slide": 20,
+    "id": "sl/vaxsvy10",
+    "presenter": 3,
+    "seconds": 45,
+    "sourceSlide": 15,
+    "title": "Development platform"
+  },
+  {
+    "slide": 21,
+    "id": "sl/dxijyc",
+    "presenter": 3,
+    "seconds": 45,
+    "sourceSlide": null,
+    "title": "Results and findings of RQ2"
+  },
+  {
+    "slide": 22,
+    "id": "sl/xq29of",
+    "presenter": 3,
+    "seconds": 45,
+    "sourceSlide": null,
+    "title": "Results and findings of RQ2"
+  },
+  {
+    "slide": 23,
+    "id": "sl/gny5sjyp",
+    "presenter": 3,
+    "seconds": 60,
+    "sourceSlide": 16,
+    "title": "System walkthrough"
+  }
+]

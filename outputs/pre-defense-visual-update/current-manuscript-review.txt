@@ -1,0 +1,564 @@
+Architecting a Lightweight Cloud-Based Inventory and Financial Management System: A Mixed-Methods Evaluation of Decision-Making Efficiency in Philippine SMEs
+
+A Capstone Project Presented to the
+
+Faculty of the
+
+College of Information Technology and Engineering
+
+Southwestern University -PHINMA
+
+In Partial Fulfillment
+
+of the Requirements for the Degree
+
+BACHELOR OF SCIENCE IN INFORMATION TECHNOLOGY
+
+By
+
+Evon Christian Pahugot Vergara
+Justin Comendador
+Xymmer James Nadera
+
+
+2026
+
+
+
+TABLE OF CONTENTS
+
+
+
+
+
+LIST OF FIGURES
+
+
+LIST OF TABLES
+
+
+
+
+
+
+
+
+
+
+
+CHAPTER 1
+INTRODUCTION
+In the Philippine market, many local businesses still rely on localized Point of Sale (POS) systems that do not communicate effectively with a central database, leading to delayed or inconsistent records. This study documents the development and evaluation of Kodigo, a cloud-based inventory and financial management application for small and medium enterprises. The current system uses connected, server-validated operations and scoped records to support sales, inventory, and reporting; selected POS and inventory changes can be queued in the browser during connectivity interruptions. The system is designed to reduce manual reconciliation and provide a consistent operational view for participating stores.
+
+Background of the Study 
+The global business landscape has undergone a significant paradigm shift, evolving from manual, paper-based ledger systems to localized digital tools, and effectively toward integrated cloud ecosystems. Internationally, the adoption of cloud technology has become a cornerstone for Small and Medium Enterprises (SMEs) aiming to scale, as these platforms allow for real-time data synchronization across disparate geographical locations. However, while global markets have largely transitioned to these automated environments, a substantial portion of the SME sector in developing regions remains tethered to fragmented legacy systems. According to Nevalga (2022), while Philippine MSMEs recognize the relative advantage of cloud adoption, they often face significant barriers related to implementation costs and a lack of government-supported infrastructure.
+In the Philippine market, this digital divide is not merely a lack of hardware but a structural issue regarding connectivity. The current operational standard for many local businesses relies on localized Point of Sale (POS) terminals that function in isolation. Unicommerce (2026) identifies this reliance on manual documentation and inconsistent tracking as a primary threat to local brands, creating data silos where inventory movement at the branch level does not reflect in the financial master data. Consequently, business owners are forced to depend on delayed manual reconciliation, a process that is historically error-prone and time-consuming. These operational blind spots inevitably lead to data lag, leaving management without a real-time view of total assets and complicating critical tasks such as tax compliance and profit auditing.
+To address these inefficiencies, this research documents the development and implementation of the Cloud-Based Inventory and Financial Management System. This integrated approach is supported by recent findings in the field; for instance, Ayochok and Perez (2024) highlighted that enhancing inventory systems is critical for resolving inefficiencies caused by manual procedures in local institutions. Furthermore, transitioning to automated platforms significantly improves decision quality. As noted by CloudCFO (2025), cloud automation reduces overhead costs and provides management with real-time visibility into cash flow, which is essential for long-term sustainability. Additionally, comparative studies establish that system-driven inventory tools significantly outperform manual tracking in terms of speed and error reduction (Conde et al., 2026).
+Ultimately, the shift toward a Cloud-Based Inventory and Financial Management System is no longer a luxury but a necessity for competitive survival. This study seeks to validate a technological framework specifically tailored to the resource constraints of Cebu City’s SMEs. By bridging the gap between physical inventory and digital financial records, this project aims to establish a "Single Source of Truth" that empowers local business owners to move from reactive troubleshooting to proactive strategic planning.
+Statement of the Problem 
+Multi-branch SMEs frequently encounter operational inefficiencies due to a reliance on manual inventory tracking and financial reconciliation. These disjointed processes result in inaccurate stock data, delayed financial reporting, and revenue inconsistencies. To address these gaps, this research evaluates the Cloud-Based Inventory and Financial Management System, which maintains centralized records for connected operations and supports bounded queueing of selected transactions during interruptions. Specifically, this study seeks to answer the following questions:
+What are the key challenges and operational bottlenecks faced by SMEs in manual inventory tracking and error-prone financial reconciliation processes, and how do these challenges impact their overall efficiency in terms of:
+a. Inaccurate inventory trackingb. Slow decision-makingc. High operational costd. Data inconsistency
+What system framework and information security measures are most appropriate for the development of the proposed Cloud-Based Inventory and Financial Management System, as evaluated by qualified technical validators in terms of:
+a. System Architecture and Framework Design
+b. Data Security and Access Control
+c. Role-Based Access and User Privilege Management
+d. Data Integrity and Transmission Security
+
+What is the level of acceptability of the developed Cloud-Based Inventory and Financial Management System among intended users and technical evaluators in terms of:
+a. Cost-effectiveness
+b. System reliability
+c. Operational efficiency
+d. Security
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Objectives of the Study
+The primary objective of this study is to design, develop, and evaluate a cloud-based inventory and financial management framework tailored for small and medium enterprises. The study aimed to address existing operational challenges in inventory tracking and financial reporting while ensuring that the proposed solution is acceptable to its intended users. Specifically, the study seeks to achieve the following objectives:
+Identify the key challenges and operational bottlenecks experienced by SMEs on  manual inventory tracking and error-prone financial reconciliation processes, and analyze how these challenges impact their overall efficiency in terms of : 
+Inaccurate inventory tracking
+Slow decision-making
+High operational cost
+Data inconsistency  
+Determine the most appropriate system framework and information security measures for the proposed Cloud-Based Inventory and Financial Management System, as validated by qualified technical evaluators in terms of:
+System architecture and framework design
+Data security and access control
+Role-based access and user privilege management
+Data integrity and transmission security
+
+
+
+Evaluate the level of acceptability of the developed system among intended users in terms of:
+Cost-effectiveness
+ System reliability
+ Operational efficiency
+ Security
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Scope and Limitations
+The digital transformation of Small and Medium Enterprises (SMEs) in the Philippines is often hindered by fragmented systems that isolate critical business data. This study documents the development and evaluation of Kodigo, a browser-based, online-first inventory and financial management application for multi-branch SME operations. The system was shaped around the operational needs of SMEs in Cebu City. To define the boundaries of the investigation and the technical deliverables, the scope is divided into the Scope of the Study, which outlines the research parameters and target users, and the Scope of the System, which details the implemented features and architecture.
+
+
+
+
+
+
+
+
+
+
+
+
+Scope of the Study
+This study focuses on the design, implementation, and evaluation of a Cloud-Based Inventory and Financial Management System to address synchronization challenges between physical inventory and financial records in SMEs. In the implemented role structure, the Super Admin is limited to generating invite codes for Admin account creation, business owners function as Admin users, and operational staff use the system according to assigned permissions, including Cashier and Inventory roles.
+a. Business owners, who function as Admin users and require store-level and multi-store visibility for strategic decision-making and operational oversight
+b. Operational staff, particularly Cashiers and Inventory personnel, who use assigned permissions for daily work. Cashiers process sales and receipts. Inventory users maintain products and base-unit stock, record adjustments, and review inventory-oriented reports. Supplier purchasing and the dedicated restocking and supplier-management workflows are handled by Admin users.
+
+The study focuses on the integration of POS transactions with a centralized inventory database to maintain a shared authoritative record across participating branches. It covers system development, framework validation, security evaluation, and user acceptability assessment. The implemented application includes descriptive analytics, product rankings, and sales-velocity views derived from recorded activity, but does not include AI-driven forecasting or predictive machine learning.
+
+
+
+
+
+Scope of the System
+The technical development of the Cloud-Based Inventory and Financial Management System includes the following core functionalities and architectural components:
+Core Functionality: The system combines connected POS and inventory workflows with base-unit stock control, configured selling options, supplier and purchase-order management, sales and inventory reporting, and consignment tracking. For consigned goods, the agreed supplier value is recorded as payable when the goods are received; Admin users record payments or credits and review the resulting supplier balance.
+Technical Stack: The implemented application uses React, TypeScript, and Vite for the frontend; Tailwind CSS, Zustand, and TanStack Query for interface, state, and data-query management; and Supabase PostgreSQL, Auth, Row Level Security, Storage, RPC, and Edge Functions for backend services. IndexedDB supports bounded browser caching and mutation queueing. jsPDF and write-excel-file support document and report outputs. QZ Tray provides an optional local connection for cash-drawer pulses through a selected printer. Vercel SPA routing configuration supports deployment.
+Information Security: The framework includes Supabase authentication, invite-based onboarding, role-based access control, TOTP multi-factor authentication, Row Level Security, server-side validation, and protected functions. AAL2 assurance is used for protected operations when a factor is enrolled and required. These controls separate Super Admin invite-code governance, Admin operations, Cashier sales, and Inventory work within assigned store scope.
+
+
+
+
+
+
+
+Limitations of the Study
+Specific Focus: The study will only explore the implementation of the cloud-based framework for inventory and financial synchronization ; it does not cover external factors like supply chain logistics, fleet management, or raw material procurement.
+Implementation Depth: The research evaluates the developed prototype/application within the selected SME context and supported store scope rather than claiming a full-scale national deployment.
+Security Limitations: While the system addresses data protection, the study does not cover full-scale cybersecurity solutions or the specifics of advanced international security certifications.
+
+Limitations of the System
+The system provides descriptive analytics, rankings, sales velocity, and values derived from recorded transactions; it does not include Artificial Intelligence (AI) or Machine Learning (ML) forecasting. It is not certified accounting software and does not file taxes with the Bureau of Internal Revenue (BIR). The consignment module records the agreed value of received goods, Admin-entered supplier payments or credits, and outstanding balances; it is not a general accounts-payable system or general ledger. The application is online-first. It supports bounded browser caching and queueing for selected POS or inventory mutations, but not comprehensive offline reporting or automatic conflict resolution.
+
+Significance of the Study 
+The development of a cloud-based management framework for multi-branch SMEs holds substantial value for various stakeholders by addressing the critical gap between physical operations and digital financial records. Beyond solving immediate operational issues, this research serves as a strategic model for digital transformation that can be adapted by SMEs in other regions of the Philippines and throughout Southeast Asia to improve global competitiveness. The significance of this study is detailed below:
+Business Owners and Investors: The study provides a practical framework for maintaining shared records across participating business locations. In the current system, owners using an Admin account can review store-scoped sales, stock, and supplier information after connected updates are recorded. These views can support routine oversight and informed planning, while the system remains dependent on connected operations for its authoritative records.
+Branch Managers and Operations Staff: The framework reduces repeated manual entry by connecting point-of-sale transactions with authoritative inventory records. Server-validated sales and stock changes help keep recorded quantities and financial values aligned for subsequent views and reports. Supported operations can be queued during some connectivity interruptions, helping staff continue selected tasks without claiming complete offline operation.
+The Local SME Sector in the Philippines: As many local businesses still rely on fragmented legacy systems, this research serves as a practical model for digital transformation within the Philippine context. It demonstrates how accessible cloud infrastructure can be leveraged to modernize traditional business models, allowing SMEs to compete with larger enterprises. By adopting such cost-effective, high-efficiency technologies, local sectors can improve their resilience, operational standards, and overall contribution to the digital economy.
+Information Technology Students and Practitioners: This study contributes an example of applying a React and TypeScript frontend with cloud backend services to a retail management problem. It describes practical use of client state and query management, role-based access, Row Level Security, TOTP assurance, server-side validation, and bounded offline queueing. The implementation provides a case study in maintaining controlled, auditable records across connected application workflows.
+Researchers: Future researchers can utilize this study as a foundational reference for investigations related to cloud adoption rates, SME digitalization, and inventory management systems. The data and architectural framework presented here can serve as a baseline for further studies that may explore advanced features, such as the integration of Artificial Intelligence for demand forecasting or the application of blockchain for immutable financial auditing.
+Software Developers: This project documents the integration of frontend application workflows with cloud database services for multi-store retail operations. It highlights design concerns around role and store authorization, transaction validation, historical snapshots, inventory consistency, and authentication. These implementation details may inform developers building similar systems for small retailers.
+
+
+Definition of Terms 
+To help you understand the technical terms used in this study, the following definitions are organized alphabetically for your reference.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CHAPTER 2
+REVIEW OF RELATED LITERATURE
+Recent studies emphasize the increasing role of digital technologies in transforming the operational practices of Small and Medium Enterprises (SMEs), particularly in inventory and financial management. Cloud computing has emerged as a significant technological innovation that allows SMEs to improve operational efficiency and enhance decision-making processes. Cloud-based financial systems allow organizations to access updated financial information from any location through internet-based platforms, enabling managers to monitor financial performance continuously and make faster and more accurate financial decisions (Nguyen & Hoang, 2025). Similarly, cloud-based accounting information systems improve financial reporting by enabling managers to observe transactions and operational activities in real time, allowing organizations to identify inconsistencies early and maintain more reliable financial records (Vo Van et al., 2026). Cloud accounting systems improve organizational coordination by allowing multiple departments to access shared financial data while automating financial transactions, which enhances the efficiency of financial management processes within SMEs (Septiawan et al., 2025). Cloud-based management information systems enhance organizational decision-making by providing centralized access to operational data and real-time analytical tools that allow managers to analyze business performance more effectively (Ashrafuzzaman, 2024). Real-time inventory monitoring systems allow businesses to track stock levels continuously, which reduces discrepancies and improves inventory control within SMEs (Daniel & Archie, 2024). Integrating predictive analytics with real-time inventory monitoring allows organizations to anticipate demand patterns and make better decisions regarding stock replenishment and inventory planning (Nasir & Martha, 2024).
+Overall, the literature indicates that cloud-based inventory and financial management systems provide SMEs with centralized data management, automated financial processes, and real-time operational monitoring, which reduces inefficiencies associated with manual systems and enables managers to make faster and more informed decisions.
+
+Challenges and Operational Bottlenecks Faced by Small and Medium-Sized Enterprises
+Small and medium enterprises continue to encounter operational bottlenecks when inventory records and financial data are maintained through manual, disconnected processes. One recurring problem is inventory record inaccuracy. Shabani et al. (2021) explained that inventory record inaccuracy occurs when the quantity recorded in the inventory system does not match the quantity physically available. In practical SME operations, this mismatch can result from delayed stock encoding, manual stock counts, and branch-level recording inconsistencies, which contribute to stock discrepancies, stockout risks, and unreliable inventory information for day-to-day decisions. Manual financial reconciliation also creates reporting delays and workflow inefficiencies. Kosadi et al. (2021) found that when data from multiple transaction platforms are manually integrated into internal reports, the process tends to produce duplicated records, longer reporting cycles, and a greater chance of error. For SMEs that still reconcile sales, inventory movements, and financial records through spreadsheets or separate branch files, reconciliation becomes dependent on repeated checking, matching, and correction before reports can be finalized. This slows the release of financial information needed for operational and managerial decisions. Another bottleneck is the lack of real-time visibility across inventory and financial records. When stock updates and transaction records are encoded manually and reconciled only after transactions have accumulated, business owners and managers are left with delayed and sometimes inconsistent operational data. As noted by Kosadi et al. (2021), records duplication and non-automated reconciliation processes prolong processing time, while Shabani et al. (2021) showed that inaccurate inventory records can distort inventory and sales management performance. In multi-branch SME settings, these conditions can intensify reporting inefficiencies, create uncertainty in stock monitoring, and increase the amount of time spent resolving discrepancies rather than supporting routine operations.
+
+System Frameworks and Information Security Measures of the Proposed System
+The reviewed literature indicates that an effective cloud-based inventory and financial management system for SMEs should be grounded in a centralized and scalable system framework. Luo (2024) explained that, within a cloud computing environment, the construction mode of SME accounting informatization should be evaluated using factors such as cost, safety, stability, flexibility, expansibility, technical ability, and human resources. Applied to the proposed system, this supports a framework in which inventory, sales, and financial records are stored in a shared cloud environment so that branch-level transactions can be synchronized into a unified database structure. A centralized cloud framework is also relevant because the proposed system combines operational and financial data that must remain consistent across users and locations. Luo (2024) further noted that cloud computing-based models are evaluated against traditional approaches in terms of flexibility and scalability, which are important for systems that need to support multiple users, branch transactions, and continuous updates. This supports the design of a cloud-based platform in which inventory tracking, transaction recording, and financial reporting are integrated within one system environment rather than maintained in isolated records. Information security measures are equally critical in the design of the proposed system. Nagahawatta et al. (2024) identified cloud security standards, data privacy concerns, data security concerns, skilled personnel, technology readiness, legal compliance, and trust in cloud service providers as security-related factors that shape SME cloud computing decisions. These factors suggest that the proposed system should not only store data in the cloud but also apply security controls that protect confidentiality, integrity, and authorized access to financial and inventory records. SMEs also face cybersecurity vulnerabilities due to limited protective measures, constrained financial resources, and inadequate cybersecurity expertise, which makes the inclusion of practical and cost-conscious security controls important in cloud-based system design (Manzoor et al., 2024). Literature on cloud security also emphasizes the role of authentication and access control in securing cloud-based systems. Mohammad (2022) stated that access control protects confidentiality by ensuring that data are disclosed only to authorized users and protects integrity by limiting alteration of resources to legitimate users. In the context of the proposed system, this supports the use of user authentication mechanisms and role-based access control so that business owners, managers, and staff members are granted only the functions and records appropriate to their roles. For cloud-native and scalable systems, secure communication and authorization mechanisms must also be considered in the framework design. Rahaman et al. (2023) reported that role-based access control was the most efficient access control mechanism in the reviewed cloud-native studies and noted that secure communication should implement Mutual Transport Layer Security (mTLS) or JSON Web Token (JWT). These findings support the inclusion of authenticated user sessions, protected API communication, and role-based permissions in the proposed cloud-based inventory and financial management system to strengthen secure access and data protection. 
+Acceptability Level of the Proposed Cloud-Based Inventory and Financial Management System
+Research examining technology adoption among small and medium enterprises highlights several factors that influence the acceptability of cloud-based systems. Relative advantage, compatibility, complexity, organizational readiness, and top management support significantly influence SMEs’ intentions to adopt cloud accounting systems (Rashid et al., 2024). Organizational capabilities also play an important role in technology adoption. Digital culture, top management support, human resource capability, and adoption costs are among the most important predictors of digital technology adoption in SMEs (Faiz et al., 2024). Operational efficiency improvements are also important determinants of system acceptance. Data-driven financial management systems improve organizational decision-making by providing real-time financial insights that support budgeting, forecasting, and strategic planning (Ige et al., 2024). System reliability is another important factor influencing technology acceptance among SMEs. Cloud-based accounting systems enhance organizational performance by enabling continuous system availability, improved data integrity, and real-time access to financial information (Vo Van et al., 2026). Security considerations also influence adoption decisions. Security and privacy concerns remain critical factors influencing SME adoption of cloud computing technologies (Nagahawatta et al., 2024).
+
+
+
+
+
+Summary of the Review of Related Literature
+The literature reviewed in this chapter shows that manual inventory tracking and financial reconciliation create persistent operational bottlenecks for SMEs, particularly in the areas of inventory discrepancies, delayed reconciliation, limited real-time visibility, and inefficient reporting workflows. These issues affect the quality and timeliness of information available to business owners and managers, making routine and strategic decisions more difficult. The reviewed works also show that a cloud-based system framework is appropriate for integrating inventory, sales, and financial records within a centralized platform. A well-designed cloud framework supports synchronized data processing, shared access across authorized users, and a structure that can adapt to the operational requirements of growing SMEs. The literature further highlights that system design must be supported by appropriate security measures. Authentication controls, role-based access, secure data transmission, and broader data protection practices are essential in protecting sensitive operational and financial information stored in the cloud. Taken together, the reviewed literature supports the need for a cloud-based inventory and financial management system that can reduce the inefficiencies of manual processes while providing SMEs with a more integrated, secure, and decision-oriented platform.
+
+
+
+
+CHAPTER 3
+RESEARCH AND SYSTEM DEVELOPMENT METHODOLOGY
+This chapter presents the methodology used to design, develop, and evaluate the proposed Cloud-Based Inventory and Financial Management System for small and medium enterprises (SMEs). It describes the study's method and research design, sampling approach, data gathering tools and techniques, procedures for data collection, project timeline, estimated cost, software development methodology, conceptual framework, software development tools, use-case diagram, and data analysis tools and techniques. The methodological choices were aligned with the study's three research questions so that existing operational problems could be examined, translated into system requirements, and evaluated through a functional prototype.
+
+Research Framework and Design
+This study adopts a mixed-method approach arranged in an exploratory sequential manner. The qualitative component is used first to understand the operational realities of SMEs that still rely on manual or partially digitized inventory tracking and financial reconciliation. Insights from this phase inform the system requirements, workflow logic, and information security considerations of the proposed cloud-based system. The quantitative component is then used to describe baseline operational conditions and to assess the post-implementation acceptability of the prototype. Mixed-method inquiry is appropriate for applied information systems research because it enables researchers to combine narrative explanations of user experience with numerical indicators of operational conditions and system evaluation (Creswell & Plano Clark, 2017; Fetters et al., 2013; Morgan, 2013). 
+Research Question 1 is addressed through a mixed-method strand. Qualitative interview data are used to identify operational bottlenecks, while quantitative baseline questionnaire data are used to describe the frequency and extent of current problems such as inventory discrepancies, delayed reconciliation, and data inconsistency. Research Question 2 is addressed through a quantitative strand. Structured technical validation ratings are used to determine the appropriateness of the proposed system framework and information security measures for the cloud-based solution. Research Question 3 is addressed through a quantitative strand. Survey responses gathered after prototype interaction are used to determine the level of acceptability of the system in terms of cost-effectiveness, system reliability, operational efficiency, and security.Three complementary research designs support the method adopted in this study. First, a descriptive design is used for Research Question 1. This design is appropriate because the study must document current inventory and financial management practices and describe the operational consequences of manual or fragmented processes in real SME settings. Descriptive inquiry is suitable when the goal is to present the characteristics of an existing condition as experienced by participants and observed in practice. Second, a developmental-evaluative design is used for Research Question 2. This design is appropriate for information technology studies that move from problem diagnosis to system planning, prototyping, refinement, and quantitative technical validation. In the present study, the developmental-evaluative design translates operational needs into system modules, user roles, data flows, and security safeguards, then uses structured validation ratings to determine whether the proposed framework and information security measures are appropriate for the intended SME environment. Prior research also indicates that meaningful user involvement contributes to higher system relevance and implementation success (Bano et al., 2015). Third, an evaluative design is used for Research Question 3. After the prototype is developed and exposed to intended users, an evaluative design makes it possible to assess whether the system is acceptable and useful in the target setting. This is consistent with information systems acceptance literature, which emphasizes the importance of user perceptions, system characteristics, and performance benefits in determining likely adoption and continued use 
+Overall, the selected framework is appropriate because it connects diagnosis, development, and evaluation within one coherent study. The design allows the researchers to begin with the actual problems faced by SMEs, convert those problems into technical requirements, and then determine whether the resulting system is acceptable for practical use.
+
+Sampling and Techniques
+This study uses non-probability purposive sampling, specifically criterion-based purposive sampling with elements of maximum variation sampling. The sampling technique is appropriate because the study requires participants who have direct and relevant experience in inventory monitoring, sales recording, financial reconciliation, and system use within SME operations, as well as qualified technical evaluators capable of assessing the proposed system framework and information security measures. Criterion-based purposive sampling ensures that all participants possess the characteristics necessary to answer the research questions, while maximum variation strengthens the study by including participants from the partner enterprise and from similar SMEs with comparable operational conditions (Palinkas et al., 2015). The main participant criteria are as follows: (1) for the interview phase, the participant is a business owner or manager of the partner SME or of a comparable SME; (2) for the survey phase, the participant is a business owner, manager, or operations staff member involved in daily sales, inventory-related work, or financial reconciliation; and (3) for the technical validation phase, the participant is a qualified IT instructor, system developer, database specialist, or information systems practitioner capable of evaluating the appropriateness of the proposed system framework and security measures. Including participants from comparable SMEs broadens the empirical base of the study and reduces the risk of drawing conclusions from a single organizational context only. A case-oriented approach supported by comparable settings is appropriate when the study seeks to understand patterns across real-world environments rather than isolate variables in a laboratory setting (Crowe et al., 2011). The adequacy of the qualitative interview sample is supported by the information power of the selected respondents because interview participants are deliberately chosen for their managerial and decision-making relevance (Malterud et al., 2016). For the quantitative components, all identified operational respondents will be included in the baseline and acceptability surveys, while multiple qualified technical evaluators will be engaged to provide structured validation ratings for Research Question 2. Table 3.1 presents the distribution of participants.
+
+
+
+
+
+
+
+
+Table 3.1. Sample Distribution of Participants
+The distribution reflects the study’s intent to capture both managerial and operational perspectives through different instruments. Owners and managers will serve as the qualitative interview informants, contributing strategic, supervisory, and decision-making perspectives on inventory monitoring, reconciliation practices, and business inefficiencies. Owners/managers and operations staff will participate in the quantitative surveys to provide baseline and post-implementation data regarding operational practices and system acceptability. The technical validators/IT experts will separately provide quantitative ratings on whether the proposed architecture and security controls are appropriate for SME use. This combination supports the qualitative diagnosis of operational problems, the quantitative evaluation of the system framework and information security measures, and the quantitative evaluation of acceptability.
+Data Gathering Tools and Techniques
+Data gathering in this study is organized according to the method assigned to each research question. Separate instruments were prepared for qualitative inquiry, baseline quantitative profiling, and post-implementation system evaluation. To maintain methodological clarity, the tools refer to the instruments used to collect information, while the techniques refer to the procedures through which those instruments are administered.
+
+Data Gathering Tools
+Semi-Structured Interview Guide. This instrument will be used with business owners/managers only to obtain detailed descriptions of current workflows, recurring stock discrepancies, reconciliation delays, cost implications, and decision-making challenges. Semi-structured interviews are appropriate because they provide consistent topics while leaving room for participants to elaborate on managerial realities and contextual issues (Kallio et al., 2016). The tool supports the qualitative component of Research Question 1.
+Baseline Operational Questionnaire. This structured questionnaire will be administered before prototype deployment to obtain quantitative information about current inventory tracking methods, the occurrence of discrepancies, reconciliation time, and perceived operational delays. The tool supports the quantitative component of Research Question 1 by describing the baseline condition of participating SMEs in a form that can be summarized statistically and visually.
+System Acceptability Survey. This post-implementation survey will be accomplished by intended users after interacting with the prototype. The instrument measures the proposed system in terms of cost-effectiveness, system reliability, operational efficiency, and security. These dimensions are aligned with information systems success and software quality literature, particularly system quality, net benefits, reliability, and security considerations (International Organization for Standardization & International Electrotechnical Commission, 2023). This tool directly supports Research Question 3.
+Technical Validation Survey. This structured survey will be accomplished by qualified technical evaluators to examine whether the prototype’s framework and security controls are appropriate for a cloud-based SME environment. The instrument focuses on authentication, role-based access control, data integrity, centralized synchronization, and secure data handling, and it supports Research Question 2 through quantitative validation ratings.
+
+Data Gathering Techniques
+Semi-Structured Interviewing. The researchers will conduct guided interviews with business owners/managers only. This technique is suited to eliciting detailed explanations of how manual or fragmented processes affect managerial oversight, operational control, reconciliation practices, and business decision-making.
+Survey Administration. Structured questionnaires will be administered before and after implementation. Pre-implementation survey administration captures baseline operational indicators, while post-implementation survey administration captures user judgments about the prototype.
+Guided Prototype Evaluation. After development, selected users will perform common tasks such as logging in, processing sales, updating inventory records, and viewing reports. This technique ensures that respondents evaluate the system after direct interaction rather than through abstract description alone.
+Technical Validation Survey Administration. Qualified technical evaluators will review the prototype using the structured validation survey to assess the appropriateness of the system framework and information security measures.
+The combination of interviews, surveys, guided system use, and technical validation is appropriate because it produces rich qualitative descriptions and measurable quantitative evidence. In this study, the interviews with business owners/managers provide managerial and decision-oriented qualitative insights, while the baseline operational questionnaire, technical validation survey, and system acceptability survey provide quantitative evidence regarding baseline conditions, framework appropriateness, and system acceptability. This combination reflects the integrative logic of mixed-method studies in which qualitative data explain the nature of a problem and quantitative data support description and evaluation (Creswell & Plano Clark, 2017; Fetters et al., 2013).
+
+
+
+
+
+
+
+
+
+
+
+
+Procedures for Data Collection
+The data collection procedure was carried out in three major phases to ensure the systematic gathering of both qualitative and quantitative data needed to address the study objectives. These phases included the pre-implementation phase, the system development and controlled deployment phase, and the post-implementation phase. This step-by-step procedure enabled the researchers to first examine the existing operational practices of the selected SME partner organization, then develop and deploy the proposed system in a controlled setting, and finally assess its acceptability and potential contribution to improving decision-making efficiency.
+ • Pre-Implementation Phase
+• Coordinate with the selected SME partner organization in Cebu City and secure permission to conduct the study.
+• Conduct preliminary interviews with the business owner/manager of the partner SME and the owners/managers of selected comparable SMEs to identify key operational bottlenecks, reconciliation issues, and decision-making challenges related to inventory monitoring, sales recording, and financial reconciliation.
+• Administer the pre-implementation questionnaire to gather baseline quantitative data on current tracking methods, reconciliation practices, and operational delays.
+• Consolidate and review the qualitative and quantitative baseline results to identify operational bottlenecks and translate them into system requirements.
+• System Development and Controlled Deployment
+• Develop the proposed Cloud-Based Inventory and Financial Management System using the Agile development methodology.
+• Deploy the functional prototype in a controlled testing environment within the partner organization.
+• Allow selected users to perform representative tasks such as recording sales transactions, updating inventory records, and viewing operational reports.
+• Post-Implementation Phase
+• Administer the System Acceptability Survey after the evaluation period to measure cost-effectiveness, system reliability, operational efficiency, and security.
+• Administer the Technical Validation Survey to qualified technical evaluators to obtain quantitative ratings on the appropriateness of the system framework and information security measures.
+• Compile and analyze the collected data to determine the extent to which the proposed system can improve decision-making efficiency in the SME environment. 
+
+
+
+
+
+
+
+
+
+
+
+
+Project Timeline and Milestones
+The project timeline integrates the research-writing tasks and the system development activities to ensure that documentation and technical work progress in parallel. Table 3.2 presents the project schedule and key deliverables of the study.
+Table 3.2. Project Timeline and Milestones
+The schedule shows that the early phases of the project focus on conceptualization, literature support, and methodology, while the middle phases focus on system planning, iterative development, and testing. The final phases emphasize controlled deployment, user evaluation, security validation, and completion of the research manuscript. 
+
+
+
+
+Project Estimated Cost
+The estimated cost of the project covers the minimum resources required to support the development and initial deployment of the proposed Cloud-Based Inventory and Financial Management System. The projected budget focuses on essential software services, hardware integration devices, and other resources necessary for prototype operation in an SME environment. Table 3.3 presents the estimated project cost.
+Table 3.3. Estimated Project Cost
+The budget is intentionally limited to practical resources for a minimum viable deployment. Cloud hosting and web access support centralized data storage and online accessibility, while the thermal printer, barcode scanner, cash drawer, and trigger support actual point-of-sale operation. The remaining allocation covers minor development utilities and other implementation-related expenses.
+
+Software Development Methodology
+
+Figure 3.1. Agile Development Cycle Used in the Study
+This study strictly utilizes the Agile Scrum software development methodology to engineer the cloud-based platform. Scrum is an iterative and incremental framework that is highly effective for managing complex software development where user requirements may evolve as functional prototypes are exposed to the target environment. Unlike the linear Waterfall model, or the purely continuous flow of Kanban, Scrum provides a highly structured cadence through fixed-length development cycles known as Sprints. Agile Scrum is appropriate because the proposed system must be refined through repeated user feedback and because SME requirements may become clearer as the prototype evolves. Studies on software development show that Agile Scrum supports responsiveness, collaboration, and continuous improvement, particularly in projects where user needs shape product features during development (Beck et al., 2001; Mishra & Alzoubi, 2023; Strode et al., 2022).
+Plan. The researchers will consolidate findings from the baseline study and identify system goals, functional requirements, user roles, and scope boundaries.
+Design. The researchers will prepare the database structure, interface layout, process flow, and security controls such as authentication and access separation.
+Develop. The prototype modules for point-of-sale processing, inventory management, dashboard monitoring, and reporting will be coded incrementally so that each component can be reviewed and improved.
+Test. Each iteration will undergo functional testing to verify the correctness of transaction recording, inventory updates, and report generation and to identify errors that require correction.
+Deploy. A working prototype will be placed in a controlled environment for user interaction and operational evaluation.
+Review. User feedback and validator comments will be gathered and used to refine the prototype before final evaluation.
+Launch. The finalized version will serve as the completed system output of the study and the basis for the acceptability assessment.
+ 
+ 
+ 
+
+
+Conceptual Framework
+
+Figure 3.2. Conceptual Framework of the Kodigo System
+Figure 3.2 presents the conceptual framework of the developed Kodigo Cloud-Based Inventory and Financial Management System. The Super Admin operates outside daily business workflows and is limited to generating invite codes for Admin account creation. Admin users function as business-owner accounts and manage assigned stores, users, products, suppliers, purchasing, consignment balances, dashboards, and reports. Inventory personnel maintain products, base-unit stock, adjustments, and inventory views. Cashiers process sales and receipts.
+Within the cloud-based platform, the roles use authentication, MFA, user and role management, inventory control, supplier records, POS, reporting, and bounded offline queueing. Supplier information and delivery details are entered internally by authorized staff; there is no supplier-facing portal. Connected operations maintain authoritative transaction and stock records. The consignment module records received lots, supplier payables, and Admin-entered payments or credits. Reports and analytics are derived from recorded data.
+Software Development Tools
+The software development tools were selected to support the complete life cycle of the implemented web-based system, from interface design and application coding to backend services, version control, reporting outputs, and visual styling. Their combined use enabled the researchers to translate user requirements into a functional application, manage changes across iterative cycles, and maintain a consistent development environment. Table 3.4 presents the tools used and their specific roles in development.
+Table 3.4. Software Development Tools
+Project Features
+Table 3.5. Project Features
+Table 3.5 presents the project features of the developed Cloud-Based Inventory and Financial Management System. It supports four roles: Super Admin for invite-code governance; Admin for assigned-store operations, users, suppliers, purchasing, and reporting; Cashier for POS sales and receipts; and Inventory for products, stock, adjustments, and inventory-oriented reports. Core features include base-unit stock management, configured selling options, consignment supplier balances, transaction history, notifications, and descriptive dashboards.
+The platform integrates sales, inventory, supplier management, purchasing, consignment tracking, reports, and descriptive analytics. Role permissions separate invite governance, store administration, inventory work, and transaction processing, with server-authoritative records. Bounded offline queueing supports selected operations; comprehensive conflict resolution and predictive AI are outside the implemented scope.
+ Use-Case Diagram
+A use case diagram is an important tool for visualizing the functions of a system and showing the interactions between users and the system. It helps present the system’s functional requirements in a clear and organized manner, making it easier to understand the roles of users and the services the system provides. This is essential in supporting effective system design and improving communication among stakeholders.According to Rahayu et al. (2021), use case diagrams provide a clear visual representation of user requirements, helping developers better understand the goals and workflows of the system. Similarly, Yulianto et al. (2020) state that use case diagrams support system development by identifying functional boundaries, promoting clarity, and reducing the risk of scope creep. Through this, use case diagrams encourage better collaboration between technical and non-technical stakeholders, which contributes to the development of a more organized, user-centered, and efficient system.
+
+Figure 3.3. UML Use-Case Diagram of the Kodigo System
+Figure 3.3 presents the UML use-case diagram of the Kodigo system. The four roles are Super Admin, Admin, Inventory Staff, and Cashier. Authentication uses MFA assurance when configured. Super Admin generates Admin invite codes. Admin manages assigned stores, users, suppliers, purchase orders, dedicated restocking, consignment balances, dashboards, analytics, and reports. Inventory Staff manage products, base-unit stock, adjustments, and inventory-oriented reports. Cashiers process POS sales and receipts. These use cases reflect the implemented role separation.
+Context Flow Diagram
+A context flow diagram provides a high-level view of the system boundary by showing the human roles and operational information that exchange data with the Kodigo platform. Supplier information is represented as an internal business record rather than as a separate supplier-facing system.
+
+Figure 3.4. Context Flow Diagram of the Kodigo System
+Figure 3.4 presents the context flow diagram of the developed system. It connects the Kodigo platform to Super Admin, Admin, Inventory Staff, and Cashier roles. Super Admin requests invite-code generation and receives onboarding status. Admin manages assigned stores, users, products, suppliers, purchase orders, restocking, consignment balances, dashboards, analytics, and reports. Inventory Staff maintain product and stock records and receive inventory views. Cashiers submit sales and receive confirmations and receipts. Supplier and delivery details are maintained as internal records; no supplier portal or external integration is implemented.
+
+Data Flow Diagram
+A data flow diagram shows how data move through the major processes, data stores, and external entities of the developed system.
+
+Figure 3.5. Data Flow Diagram (Level 1) of the Kodigo System
+Figure 3.5 presents the level-1 data flow diagram of the developed Kodigo system. It shows authentication and MFA, onboarding and role enforcement, inventory and purchasing, POS and transaction lifecycle, reports and analytics, and bounded offline queueing. Application guards, protected server functions, and database policies enforce role and store access. Records include products, configured stock streams, movements, suppliers, purchase orders, receiving, consignment lots and payables, supplier payments, sales, receipts, returns, refunds, and audit events. Server-validated sales record selected payment methods and update the configured stock stream. Reports read recorded transactions and inventory history. Supported operations can be queued in the browser during connectivity loss and replayed after reconnection; this does not provide comprehensive offline behavior or automatic conflict resolution.
+
+Mock-ups and Prototype
+This section presents the visual mock-ups translated into the working prototype/application of the developed Cloud-Based Inventory and Financial Management System. Interface screenshots in this section are representative earlier-build captures; the accompanying text describes the current application. The figures are arranged according to the actual flow of system use, beginning with account creation and access, followed by administrative configuration, daily operational modules, transaction processing, and reporting views. Each figure is accompanied by an explanation of how the page works and how validation is applied to maintain data integrity, role separation, and secure system use.
+
+Account Creation and System Access. The sequence begins with the pages used to register the owner account and authenticate authorized users before they can enter the operational modules of the system.
+
+Figure 3.6. Admin Onboarding Page
+Figure 3.6 presents the Admin onboarding page of the implemented system. This interface is used by the business owner to create the initial Admin account after receiving an invite code generated by the Super Admin. The page captures the full name, email address, password, and Admin invite code before access to the main application is granted. The page functions as a controlled registration gateway for the business-owner Admin account that will manage store operations and authorized users. Validation takes place by requiring complete field entry, checking the email structure, enforcing password input, and rejecting account creation when the invite code is missing or invalid.
+
+
+Figure 3.7. Login Page
+Figure 3.7 presents the login page used by the Super Admin, Admin, Inventory, Cashier, and other authorized staff accounts. After a registered email address and password are entered, the system authenticates the account and redirects the user to the modules permitted by the assigned role. The page also provides a password visibility control and a direct path to the Admin onboarding flow during first-time setup when a valid invite code has been issued. Validation occurs by requiring both credentials, checking them against stored account records, and preventing access when the combination is incorrect, incomplete, or unauthorized.
+Administrative Configuration. After access is granted, the administrator configures store records, user access, notification preferences, and security settings to prepare the system for daily operations.
+
+Figure 3.8. General Settings Page
+Figure 3.8 presents the general settings page where an authorized Admin manages store information and creates new store entries. The upper panel displays the stores already registered in the system, while the lower form captures the store name, address, and applicable tax rate for a new branch or selling location. This page serves as the foundation of store-based record keeping because inventory, users, and reports are linked to a selected store. Validation occurs by requiring the store name, limiting tax-rate input to numeric values, and blocking incomplete store records from being saved.
+
+Figure 3.9. User Management Page
+Figure 3.9 presents the user-management page. Admin users can list, create, update, and remove authorized users within their assigned store scope and initiate password-reset instructions. The protected management function validates role and store access server-side, with MFA assurance applied when required.
+
+Figure 3.10. Invite User Modal
+Figure 3.10 presents the invite-user modal used by an authorized Admin to create an account. The form captures the user's name, email, password, role, and store assignment so the account receives the appropriate operational scope. Super Admin invite codes are used separately for Admin onboarding. Validation checks required fields, email format, password requirements, role and store assignment before the protected user-management function proceeds.
+
+Figure 3.11. Notification Preferences Page
+Figure 3.11 presents the notification-preferences page. Users can configure available in-app preferences for low-stock, out-of-stock, daily-summary, sales-milestone, and related system notifications. The application records supported sale, error, and report-export events for in-app review. Preference settings are associated with the authenticated user; this interface does not by itself indicate delivery through an external email service.
+
+Figure 3.12. Security Settings Page
+Figure 3.12 presents the security-settings page for password management and TOTP multi-factor authentication. Users can change a password after providing the required current and new credentials, and can enroll or verify a TOTP factor. Protected operations apply the required authentication assurance together with role and store policies; enrolled factors can require AAL2 assurance.
+Operational Management and Inventory Control. Once the system is configured, the administrator can monitor the store, maintain product records, manage suppliers, and review replenishment requirements through the core operational pages.
+
+Figure 3.13. Dashboard Page
+Figure 3.13 shows a representative dashboard capture from an earlier build. The current dashboard uses a reference date and Weekly, Monthly, or Yearly controls for summary metrics, trends, and recent transactions. Its Top 10 product panel ranks net base units in the reference month; stock alerts reflect current inventory. The metrics are derived from recorded transactions and inventory data within the permitted store scope.
+
+Figure 3.14. Inventory List Page
+Figure 3.14 shows a representative inventory-list capture from an earlier build. The current Inventory area supports product search and filtering, base-unit quantity and stock-state review, adjustments, velocity, and history. Its tabs also include consignment records and inventory views; authorized Inventory users can perform permitted stock work, while supplier and purchase management remains Admin-scoped. The dedicated full restocking page is also restricted to Admin.
+
+Figure 3.15. Add Product Page
+Figure 3.15 presents the add-product page used to encode an inventory item. The form collects product identity, store assignment, SKU, barcode, category, supplier links, base-unit configuration, cost, price, stock and reorder settings, restocking options, and selling options. Configured receiving packages are converted to base units. Selling options can share the product's stock or use a separate configured stock stream. Bulk pricing may use fixed or percentage rules; margin-assisted pricing and rounding can prepare a suggested price. Validation checks required fields, image types, and numeric values.
+
+Figure 3.16. Suppliers Page
+Figure 3.16 presents the suppliers page, which serves as the main listing for supplier records. The page allows authorized users to search suppliers and review operational measures such as overall score, reliability, price score, lead time, order count, and on-time percentage. Suppliers can be linked to multiple assigned stores and products, and the indicators are derived from stored purchasing data rather than manually entered on the list. The page also provides controlled supplier actions subject to role and store policies.
+
+Figure 3.17. Add Supplier Page
+Figure 3.17 presents the add supplier page used to register a supplier and assign it to permitted stores. The form captures supplier or company name, contact person, email, phone number, business address, lead time, and related contact information. The lower panel explains that performance scores are calculated after transactions have been recorded. Validation requires key fields, checks email and phone formats, enforces numeric lead-time input, and prevents users from manually entering system-derived performance scores.
+
+Figure 3.18. Restocking Page
+Figure 3.18 presents the dedicated Admin restocking page. Recommendations use recorded sales and stock-loss history together with supplier lead time, configured buffers, and package-size rounding; threshold rules provide a fallback when usable history is unavailable. Supplier-grouped purchase orders and receiving convert configured packages into base units. Receiving records cost and a suggested selling price without silently changing the live price. The Inventory area also provides a restocking view for permitted inventory work.
+
+
+
+
+
+
+Point-of-Sale Transaction Flow. After master records have been prepared, the cashier-facing page supports the actual sales transaction by allowing fast product search, quantity adjustment, and payment processing.
+
+Figure 3.19. Point-of-Sale Page
+Figure 3.19 presents the point-of-sale page used for transactions. Cashiers can search by name, SKU, or barcode; select configured selling options; adjust cart quantities; apply supported item discounts; and proceed to payment. The server validates role and store access, prices, options, stock, discounts, tax, and cash tender. The transaction records the selected payment method (cash, GCash, card, or bank transfer) without processing through a payment gateway. Stock effects follow the product's configured shared or separate stock mapping, and sale and receipt snapshots are retained. Supported POS mutations may queue in the browser during connectivity interruptions; voids, refunds, and partial refunds follow controlled transaction workflows.
+
+
+Monitoring and Performance Reporting. After transactions have been recorded, the system summarizes the resulting operational data through analytical and ranking views intended to support managerial decision-making.
+
+Figure 3.20. Analytics Page
+Figure 3.20 presents the analytics page. It provides Today, 7-day, 30-day, 90-day, and custom period filters, plus payment and transaction-status filters. It displays net sales, transaction count, average order value, gross profit, revenue trends, sales by hour, category and selling-option breakdowns, and recent transactions. This is descriptive reporting based on recorded activity; it does not provide AI forecasting or report exports. Sales and inventory exports are available from the Reports area according to role.
+
+Figure 3.21. Product Rankings Page
+The product-rankings page supports today, week, month, and custom periods and compares products or selling-option combinations using measures such as base units, net revenue, gross sales, discounts and returns, and profit. Rankings are derived from recorded sales for the selected period rather than arranged manually. The dashboard's separate Top 10 panel uses net base units for the reference month.
+
+
+Data Analysis Tools and Techniques
+The collected data will be analyzed using qualitative and quantitative procedures consistent with the mixed-method structure of the study. The qualitative component will be analyzed through thematic analysis, while the quantitative component will be processed and visualized using Power BI supported by descriptive statistics. The use of both approaches enables the researchers to interpret lived operational experiences and measurable evaluation results in a complementary manner.
+Interview responses will be transcribed, organized, and analyzed using thematic analysis. Following Braun and Clarke (2006) and the trustworthiness guidance of Nowell et al. (2017), the researchers will (1) familiarize themselves with the data, (2) generate initial codes, (3) search for candidate themes, (4) review and refine the themes, (5) define and name the themes, and (6) interpret the findings in relation to the research questions. This approach is appropriate because it allows recurring patterns in workflow problems and decision-making challenges to emerge directly from participant accounts rather than being imposed in advance. Thematic analysis will be used for the qualitative component of Research Question 1.
+The quantitative responses from the baseline operational questionnaire, the technical validation survey, and the system acceptability survey will be encoded and imported into Power BI. Power BI will be used to organize the dataset, create calculated measures, and present the results through tables, indicator cards, bar charts, and other dashboard visuals. This tool is appropriate because business intelligence platforms improve the clarity of numerical findings and help transform survey results into decision-oriented visual summaries (Hurbean et al., 2023; Raihanto et al., 2023).
+For the quantitative component of Research Question 1, Power BI will be used to present baseline descriptive results such as frequency and percentage distributions of current inventory tracking methods, occurrence of discrepancies, and time required for reconciliation. For Research Question 2, Power BI will be used to compute and visualize the mean and sample standard deviation of the technical validation ratings for the proposed system framework and information security measures. For Research Question 3, Power BI will be used to compute and visualize the mean and sample standard deviation of the acceptability ratings under the criteria of cost-effectiveness, system reliability, operational efficiency, and security. 
+The mean will be used to determine the average rating for each indicator and criterion, while the sample standard deviation will be used to determine the consistency of responses. The formulas to be used are presented below.
+
+Figure 3.22. Mean Formula
+
+Figure 3.23. Standard Deviation Formula
+Where:
+x̄ = mean
+Σx = sum of all responses
+n = number of responses
+s = sample standard deviation
+xi = individual response value
+Accordingly, thematic analysis will answer the qualitative component of Research Question 1, whereas Power BI will support the quantitative component of Research Question 1, the entirety of Research Question 2, and the entirety of Research Question 3. During interpretation, the researchers will compare the qualitative themes and quantitative patterns to determine whether the developed system addresses the diagnosed bottlenecks and supports better decision-making in SME operations.
+CHAPTER 4
+RESULTS AND DISCUSSIONS
+This chapter presents, analyzes, and interprets the findings for Research Question 1, which sought to identify the key challenges and operational bottlenecks faced by small and medium enterprises in manual inventory tracking and error-prone financial reconciliation, particularly in terms of inaccurate inventory tracking, slow decision-making, high operational cost, and data inconsistency. The discussion integrates baseline pre-survey results from operational respondents and thematic analysis of interview transcripts. Taken together, the findings show that the central operational problem is not merely the use of manual tools, but the absence of one timely, trusted, and shared source of truth for stock movement, sales, pricing, and related financial records.
+
+Response Rate
+In the study's assessment of response rates, all intended operational respondents completed the pre-survey, and all identified interview transcripts for the qualitative strand were included in the thematic analysis. Specifically, for the quantitative portion, 18 out of 18 target participants completed the pre-survey, resulting in a 100.0% response rate. Similarly, the qualitative portion saw full participation, with 5 out of 5 target interview transcripts analyzed, also yielding a 100.0% response rate. This total participation provided full coverage of the available baseline quantitative data and the cross-case qualitative accounts used to answer Research Question 1.
+
+
+
+Demographics
+The pre-survey respondents represented both decision-making and day-to-day operational roles. Operations staff formed the largest group, followed by owners or managers, cashiers or sales encoders, and stock custodians. The distribution of years in role also indicates that the dataset reflects both relatively new and experienced personnel, allowing the chapter to capture operational bottlenecks from multiple perspectives. In addition, the operational profile already suggests fragmented workflows, since most respondents relied on a combination of two or more methods rather than a single integrated tool.
+
+
+
+Figure 4.1. Demographic and Operational Profile of Pre-Survey Respondents
+Findings for Research Question 1
+Research Question 1 asked: What are the key challenges and operational bottlenecks faced by SMEs in manual inventory tracking and error-prone financial reconciliation processes, and how do these challenges affect overall efficiency in terms of inaccurate inventory tracking, slow decision-making, high operational cost, and data inconsistency? The quantitative findings establish the extent and frequency of the problem, while the interview data explain how these issues emerge in everyday work and why they persist.
+
+Baseline workflow conditions from the pre-survey
+The pre-survey results show that manual and fragmented processes remain deeply embedded in current SME operations. A majority of respondents (61.1%) reported using a combination of two or more methods, while another 33.3% still relied primarily on paper logbooks. Only one respondent reported spreadsheet use as the main method. This pattern indicates that most participating businesses do not operate with one continuously updated record; instead, they switch between notebooks, spreadsheets, POS outputs, receipts, and chat-based confirmations.
+Table 4.1. Key Baseline Indicators Related to Research Question 1
+
+Figure 4.2. Common Causes of Reconciliation Issues Reported in the Pre-Survey
+Note. Respondents could select more than one cause; percentages therefore total more than 100 percent.
+Figure 4.2 shows that late encoding emerged as the most frequently reported cause of reconciliation problems (66.7%), followed by price or amount mismatches (61.1%) and wrong item counts (55.6%). Missing sales entries (44.4%) and lost documents (33.3%) further reveal that errors do not originate from one step alone. Instead, they accumulate across recording, updating, checking, and document handling. This strengthens the view that the problem is process fragmentation rather than a single isolated control failure.
+
+Figure 4.3. Decisions Most Frequently Delayed by Inventory or Reconciliation Issues
+Note. Respondents could select more than one type of delayed decision.
+
+Figure 4.3 indicates that the most affected decisions were restocking or purchasing (66.7%), investigation of discrepancies (61.1%), and daily closing or report submission (50.0%). Supplier ordering and pricing adjustments were also frequently delayed. These results show that slow information flow affects both immediate frontline operations and higher-level management tasks. The delay is therefore not confined to reporting; it also shapes whether businesses can replenish stock on time, confirm quantities, or respond quickly to emerging problems.
+
+Perceived effects of the current workflow on efficiency
+The perception-based items in the pre-survey reinforce the baseline indicators. Respondents were only neutral on whether their current process keeps stock records accurate throughout the day and whether inventory and financial records remain consistent across tools. In contrast, they agreed or strongly agreed that manual checking increases workload, reconciliation delays affect decision timeliness, and errors create avoidable costs.
+Table 4.2. Mean Ratings on Current Workflow Conditions and Operational Effects
+
+Figure 4.4. Mean Scores of the RQ1-Related Perception Items
+As shown in Table 4.2 and Figure 4.4, the highest mean was recorded for the statement that manual checking and re-encoding increase workload (M = 4.50, SD = 0.51), followed by the statement that reconciliation delays affect decision timeliness (M = 4.28, SD = 0.57). The statement that inventory or reconciliation errors create avoidable costs also received a high mean (M = 3.89, SD = 0.96). By contrast, the two positively framed statements on accuracy and consistency both obtained lower means (M = 2.78), indicating that respondents did not strongly perceive their current workflow as dependable throughout the day. Taken together, the scale results show that the present workflow is experienced more as a burden to be corrected than as a reliable basis for decisions.
+
+Qualitative themes from the interview transcripts
+The qualitative strand explains the operational meaning behind the survey patterns. Five interview transcripts from different SME contexts were reviewed using thematic analysis. Although the businesses differed in size and industry, the same cross-case pattern appeared repeatedly: once stock, sales, pricing, transfers, or payment records were spread across multiple tools and people, the reliable picture of operations became delayed, uncertain, and dependent on rechecking.
+Table 4.3. Interview Participant Contexts Included in the Thematic Analysis
+
+Figure 4.5. Thematic Map of the Qualitative Findings for Research Question 1
+Figure 4.5 summarizes the thematic structure of the interview data. At the center is the lack of a timely, trusted single source of truth. From that central problem flowed five related themes: fragmented recordkeeping, delayed visibility of the true situation, disruption to service and restocking, labor shifted toward error correction, and greater trust in physical proof than in the shared record itself.
+
+
+
+
+
+
+
+Table 4.4. Themes, Sub-Themes, and Illustrative Quotes from the Interview Data
+
+Fragmented recordkeeping creates no single source of truth
+The first theme shows that records are distributed across notebooks, spreadsheets, chat messages, POS summaries, receipts, and memory. In Interviewee 1’s account, inventory decisions depended largely on checking which items looked low and then contacting another person to verify prices. Similar fragmentation appeared in the grocery, hardware, and bakery cases, where branch transfers, release slips, production logs, or chat updates could exist separately from the main stock file. This directly reflects data inconsistency, because each tool contains only a partial version of the operational reality.
+
+Delayed updates make the accurate picture arrive too late
+The second theme highlights the timing problem. Interviewee 3 explained that the real situation often becomes visible too late, while Interviewee 5 emphasized that by the time all records are complete, the opportunity to adjust production, labor, or restocking may already be gone. This theme explains why survey respondents frequently reported delayed purchasing, report submission, and discrepancy investigation. The issue is therefore not merely whether the record becomes accurate eventually, but whether it becomes accurate in time to guide action.
+
+
+
+
+
+
+
+Inaccurate records disrupt service, fulfillment, and restocking
+The third theme connects data problems to visible operational outcomes. Interviewees described customers being told that stock was available when the shelf count said otherwise, partial releases for promised orders, and more cautious restocking because the numbers could not be trusted. In the hardware case, an incomplete record reduced the ability to commit materials to a contractor. In the bakery case, delayed information led to conservative production decisions and missed sales opportunities. These accounts show that inaccurate tracking weakens both service reliability and inventory responsiveness.
+
+Manual reconciliation shifts effort from operations to error correction
+The fourth theme clarifies why operational cost is not limited to direct cash loss. Interviewees repeatedly described overtime, repeated checking, recounting, follow-up calls, document chasing, and after-hours correction. Survey results mirror this pattern, since every respondent reported spending at least 30 minutes per reconciliation cycle and all respondents reported incurring extra costs due to errors at least once or twice in a typical month. The cost is therefore both monetary and organizational, because staff attention is diverted from serving customers and planning the business.
+
+When records conflict, trust shifts to physical proof
+The fifth theme reveals a trust deficit in the record system itself. When numbers do not match, respondents do not immediately trust the spreadsheet, notebook, or report; they return to physical counts, signed slips, delivery receipts, and screenshots. This explains why discrepancy tracing often takes 30 minutes or more. It also shows that the existing record structure does not yet function as a decision-ready source of truth. Instead, managers must repeatedly re-validate the record against physical evidence before acting on it.
+
+Integrated discussion of the quantitative and qualitative findings
+When the survey and interview results are interpreted together, a coherent picture emerges. The quantitative data show that the problems are frequent and consequential, while the qualitative data explain the mechanisms through which they occur. The integrated pattern is summarized in Table 3.5.
+
+Table 4.5. Integrated Summary of the Quantitative and Qualitative Findings for Research Question 1
+Overall, the findings answer Research Question 1 by showing that the most critical operational bottleneck is the absence of a unified record that can support sales processing, stock visibility, and financial reconciliation. Inaccurate inventory tracking emerges when updates are delayed or scattered across tools. Slow decision-making occurs when staff must verify records before acting. High operational cost arises from rework, overtime, emergency replenishment, wasted effort, and missed opportunities. Data inconsistency persists because different documents or systems capture only fragments of the same event. These baseline findings support the system's focus on connected, server-validated records and bounded queueing for selected operations. They describe pre-existing conditions and do not, by themselves, measure post-implementation performance reductions.
+
+Summary of Findings
+The quantitative and qualitative findings converge on the same conclusion. Current SME practices are characterized by fragmented recordkeeping, delayed updating, repeated reconciliation, and weak confidence in the records used for decisions. Most respondents relied on multiple tools, experienced recurring discrepancies, and reported that the current workflow increased workload and delayed operational action. The interview data further showed that these problems are felt directly through stock uncertainty, slower replenishment, customer service disruption, and greater dependence on physical verification.
+More specifically, the chapter found that inaccurate inventory tracking is sustained by delayed postings, missed entries, and multiple non-synchronized records. Slow decision-making arises because usable information is often available only after additional checking. High operational cost results from overtime, emergency buying, repeated counting, and missed sales. Data inconsistency persists because different sources of information do not align at the same time or with the same level of detail. These findings establish that the problem addressed in this study is both operational and informational: without a shared, timely, and trusted record, SMEs are forced to operate reactively instead of making confident, evidence-based decisions.
+
+
+References
+Ashrafuzzaman, M. (2024). The impact of cloud-based management information systems on HRM efficiency: An analysis of small and medium-sized enterprises (SMEs). Advances in Learning, Data Science and Management. https://doi.org/10.69593/ajaimldsmis.v1i01.124
+Ayochok, J., & Perez, C. (2024). Enhancement of inventory management system of state universities and colleges in Mountain Province. East Asian Journal of Multidisciplinary Research, 3(10), 4627–4646. https://doi.org/10.55927/eajmr.v3i10.11278
+Bano, M., Zowghi, D., Ferrari, A., Spoletini, P., & Donati, B. (2015). A systematic review on the relationship between user involvement and system success. Information and Software Technology, 58, 148–169. https://doi.org/10.1016/j.infsof.2014.06.011
+Beck, K., Beedle, M., van Bennekum, A., Cockburn, A., Cunningham, W., Fowler, M., Grenning, J., Highsmith, J., Hunt, A., Jeffries, R., Kern, J., Marick, B., Martin, R. C., Mellor, S., Schwaber, K., Sutherland, J., & Thomas, D. (2001). Manifesto for Agile Software Development. Agile Alliance. https://agilemanifesto.org/
+Braun, V., & Clarke, V. (2006). Using thematic analysis in psychology. Qualitative Research in Psychology, 3(2), 77–101. https://doi.org/10.1191/1478088706qp063oa
+CloudCFO. (2025, September 1). Digital tools to automate payroll, bookkeeping, and tax filing in 2025. https://cloudcfo.ph/blog/digital-tools-to-automate-payroll-bookkeeping-and-tax-filing-in-2025/
+Conde, J., Canuto, R., Tablizo, G. R., Templado, J., Trillana, J. E., & Embile, K. J. B. (2026). Manual versus system driven inventory management: A comparative study for operational productivity. Ascendens Asia Singapore–Bestlink College of the Philippines Journal of Multidisciplinary Research, 7(1). https://ojs.aaresearchindex.com/index.php/aasgbcpjmra/article/view/15675
+Creswell, J. W., & Plano Clark, V. L. (2017). Designing and conducting mixed methods research (3rd ed.). SAGE Publications.
+Crowe, S., Cresswell, K., Robertson, A., Huby, G., Avery, A. J., & Sheikh, A. (2011). The case study approach. BMC Medical Research Methodology, 11, Article 100. https://doi.org/10.1186/1471-2288-11-100
+Daniel, M., & Archie, O. (2024). Optimizing SME inventory operations: IoT and automation for cost-effective stock management. Journal of Supply Chain Innovation and Technology. https://doi.org/10.13140/RG.2.2.27000.15362
+Ding, J. (2024). Application and optimization of cloud computing in financial management information systems. In R. Gupta et al. (Eds.), Recent advancements in computational finance and business analytics (pp. 185–195). Springer. https://doi.org/10.1007/978-3-031-70598-4_18
+Faiz, F., Le, V., & Masli, E. K. (2024). Determinants of digital technology adoption in innovative SMEs. Journal of Innovation & Knowledge, 9(4), Article 100610. https://doi.org/10.1016/j.jik.2024.100610
+Fetters, M. D., Curry, L. A., & Creswell, J. W. (2013). Achieving integration in mixed methods designs: Principles and practices. Health Services Research, 48(6, Pt. 2), 2134–2156. https://doi.org/10.1111/1475-6773.12117
+Hurbean, L., Militaru, F., Muntean, M., & Danaiata, D. (2023). The impact of business intelligence and analytics adoption on decision making effectiveness and managerial work performance. Scientific Annals of Economics and Business, 70(SI), 43–54. https://doi.org/10.47743/saeb-2023-0012
+Ige, O., Adeyemi, S., & Babatunde, T. (2024). Implementing data-driven financial management systems in SMEs: A case review approach. International Journal of Management & Entrepreneurship Research, 6(10), 3115–3128. https://doi.org/10.51594/ijmer.v6i10.1613
+International Organization for Standardization, & International Electrotechnical Commission. (2023). ISO/IEC 25010:2023 systems and software engineering—Systems and software quality requirements and evaluation (SQuaRE)—Product quality model. ISO.
+Kallio, H., Pietilä, A.-M., Johnson, M., & Kangasniemi, M. (2016). Systematic methodological review: Developing a framework for a qualitative semi-structured interview guide. Journal of Advanced Nursing, 72(12), 2954–2965. https://doi.org/10.1111/jan.13031
+Kosadi, F., Ginting, W., & Merliana, V. (2021). Digital receipts of online transactions in the reconciliation process and the preparation of financial reports. Journal of Indonesian Economy and Business, 36(1), 31–50. https://doi.org/10.22146/jieb.59884
+Luo, R. (2024). Research on accounting informatization construction mode of small and medium-sized enterprises in cloud computing environment. In Learning and analytics in intelligent systems (pp. 597–605). Springer Nature Switzerland. https://doi.org/10.1007/978-3-031-69457-8_54
+Malterud, K., Siersma, V. D., & Guassora, A. D. (2016). Sample size in qualitative interview studies: Guided by information power. Qualitative Health Research, 26(13), 1753–1760. https://doi.org/10.1177/1049732315617444
+Manzoor, J., Waleed, A., Jamali, A. F., & Masood, A. (2024). Cybersecurity on a budget: Evaluating security and performance of open-source SIEM solutions for SMEs. PLOS ONE, 19(3), e0301183. https://doi.org/10.1371/journal.pone.0301183
+Mishra, A., & Alzoubi, Y. I. (2023). Structured software development versus agile software development: A comparative analysis. International Journal of System Assurance Engineering and Management, 14(4), 1504–1522. https://doi.org/10.1007/s13198-023-01958-5
+Mohammad, A. (2022). Distributed authentication and authorization models in cloud computing systems: A literature review. Journal of Cybersecurity and Privacy, 2(1), 107–123. https://doi.org/10.3390/jcp2010008
+Morgan, D. L. (2013). Integrating qualitative and quantitative methods: A pragmatic approach. SAGE Publications.
+Nagahawatta, R., Warren, M., Salzman, S., & Lokuge, S. (2024). Towards an understanding of cloud computing adoption in SMEs: The role of security and privacy factors. International Journal of Cyber Warfare and Terrorism, 14(1), 1–13. https://doi.org/10.4018/IJCWT.343315
+Nasir, W., & Martha, F. (2024). From data to decisions: Integrating IoT and predictive analytics to optimize SME inventory systems. Journal of Industrial Management. https://doi.org/10.13140/RG.2.2.12490.48323
+Nevalga, M. A., & Ramos, M. (2022). Readiness of micro, small, and medium enterprises (MSMEs) to adopt cloud accounting technology [Bachelor’s thesis, Malayan Colleges Laguna]. https://librarythesis.mcl.edu.ph/133F65u870l4l2/ACT_Nevalga_02877_Readiness%20of%20micro,%20small,%20and%20medium%20enterprises%20(MSMEs)%20to%20adopt%20cloud%20accounting%20technology.pdf.pdf
+Nguyen, G. P., & Hoang, T. H. (2025). The impact of cloud computing technology on cloud accounting adoption and financial management of businesses. Humanities and Social Sciences Communications, 12, Article 803. https://doi.org/10.1057/s41599-025-05190-3
+Nowell, L. S., Norris, J. M., White, D. E., & Moules, N. J. (2017). Thematic analysis: Striving to meet the trustworthiness criteria. International Journal of Qualitative Methods, 16, 1–13. https://doi.org/10.1177/1609406917733847
+Palinkas, L. A., Horwitz, S. M., Green, C. A., Wisdom, J. P., Duan, N., & Hoagwood, K. (2015). Purposeful sampling for qualitative data collection and analysis in mixed method implementation research. Administration and Policy in Mental Health and Mental Health Services Research, 42(5), 533–544. https://doi.org/10.1007/s10488-013-0528-y
+Rahaman, M. S., Tisha, S. N., Song, E., & Cerny, T. (2023). Access control design practice and solutions in cloud-native architecture: A systematic mapping study. Sensors, 23(7), 3413. https://doi.org/10.3390/s23073413
+Raihanto, M. S., Febrianti, M. A., Qurtubi, Q., Setiawan, D., & Auliana, W. (2023). Designing business intelligence dashboards to support decision-making in a fishery business. Buletin Ilmiah Sarjana Teknik Elektro, 5(4), 515–524. https://doi.org/10.12928/biste.v5i4.9207
+Rashid, M., Hassan, N., & Ahmad, F. (2024). Investigating the factors affecting the adoption of cloud accounting in Saudi Arabia small and medium-sized enterprises (SMEs). Journal of Open Innovation: Technology, Market, and Complexity, 10(2), Article 100241. https://doi.org/10.1016/j.joitmc.2024.100314
+Septiawan, B., Mohamed, I. S., & Zakaria, Y. (2025). A systematic review of cloud accounting adoption in SMEs: A thematic synthesis of factors, impacts and research directions. Asia-Pacific Management Accounting Journal. https://doi.org/10.24191/apmaj.v20i3-04
+Shabani, A., Maroti, G., de Leeuw, S., & Dullaert, W. (2021). Inventory record inaccuracy and store-level performance. International Journal of Production Economics, 235, 108111. https://doi.org/10.1016/j.ijpe.2021.108111
+Strode, D., Dingsøyr, T., & Lindsjørn, Y. (2022). A teamwork effectiveness model for agile software development. Empirical Software Engineering, 27, Article 56. https://doi.org/10.1007/s10664-021-10115-0
+Unicommerce. (2026, January 12). Inventory management challenges in the Philippines: Problems of manual systems and solutions. https://unicommerce.com/blog/top-manual-inventory-management-challenges-solutions-in-philippines/
+Vo Van, H., Abu Afifa, M., & Saleh, I. (2026). Accounting information systems and organizational performance in the cloud computing era: Evidence from SMEs. Accounting, Management and Policy Journal. https://doi.org/10.1108/SAMPJ-01-2024-0044

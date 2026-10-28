@@ -1,0 +1,85 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/fwi1jn",
+    "index": 11,
+    "layout": {
+      "id": "ly/4v2ps7ql",
+      "name": "OBJECT"
+    },
+    "backgroundColor": "rgba(255,255,255,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "elements": [
+    {
+      "id": "im/0zil8jih",
+      "kind": "image",
+      "position": {
+        "left": 690,
+        "top": 25,
+        "width": 235,
+        "height": 80
+      },
+      "fit": "contain",
+      "alt": "Original PHINMA Education wordmark retained from the defense template"
+    },
+    {
+      "id": "sh/6d8ne5wz",
+      "kind": "textbox",
+      "position": {
+        "left": 56,
+        "top": 48,
+        "width": 605,
+        "height": 58
+      },
+      "text": "Results and findings of RQ1",
+      "style": {
+        "fontSize": 33.6,
+        "typeface": "Raleway",
+        "color": "#0070C0",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/reh47qxk",
+      "kind": "textbox",
+      "position": {
+        "left": 298,
+        "top": 496,
+        "width": 604,
+        "height": 22
+      },
+      "text": "Interview themes  2 / 2",
+      "style": {
+        "fontSize": 15,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "tb/14fa9c36",
+      "kind": "table",
+      "position": {
+        "left": 56,
+        "top": 130,
+        "width": 846,
+        "height": 352
+      },
+      "text": "Theme\tCore sub-themes\tIllustrative quote\tMeaning for operations\nManual reconciliation shifts effort from operations to error correction\tRepeated recounting; after-hours verification; coordination strain.\t\"Sometimes it ends up in an argument because I am already loaded with work.\" (Interviewee 1)\tLabor is redirected from serving customers and planning toward repetitive correction.\nWhen records conflict, trust shifts to physical proof\tPhysical count as truth; signed slips and receipts preferred; slow confirmation.\t\"We usually check the actual physical stock first because that is the most reliable basis.\" (Interviewee 2)\tRecord systems have not earned enough trust to support fast decisions on their own.",
+      "rows": 3,
+      "cols": 4
+    }
+  ]
+}

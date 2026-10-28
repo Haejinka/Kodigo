@@ -1,0 +1,222 @@
+{
+  "final_sha256": "3b0151a51a7c821a86aeee98869e773c4bc048b2dc11f1e30c50f7a92b1b8fb1",
+  "source_snapshot_sha256": "a9440c5ef90d4490de9216593446b62333522801768577c8f260d2443c22f241",
+  "pages": 105,
+  "all_untargeted_paragraphs_preserved": true,
+  "original_data_tables_preserved": true,
+  "original_media_preserved": 35,
+  "caption_page_references_verified": [
+    {
+      "kind": "Figure",
+      "number": "3.1",
+      "page": 44
+    },
+    {
+      "kind": "Figure",
+      "number": "3.2",
+      "page": 46
+    },
+    {
+      "kind": "Figure",
+      "number": "3.3",
+      "page": 56
+    },
+    {
+      "kind": "Figure",
+      "number": "3.4",
+      "page": 57
+    },
+    {
+      "kind": "Figure",
+      "number": "3.5",
+      "page": 58
+    },
+    {
+      "kind": "Figure",
+      "number": "3.6",
+      "page": 59
+    },
+    {
+      "kind": "Figure",
+      "number": "3.7",
+      "page": 60
+    },
+    {
+      "kind": "Figure",
+      "number": "3.8",
+      "page": 61
+    },
+    {
+      "kind": "Figure",
+      "number": "3.9",
+      "page": 62
+    },
+    {
+      "kind": "Figure",
+      "number": "3.10",
+      "page": 62
+    },
+    {
+      "kind": "Figure",
+      "number": "3.11",
+      "page": 63
+    },
+    {
+      "kind": "Figure",
+      "number": "3.12",
+      "page": 64
+    },
+    {
+      "kind": "Figure",
+      "number": "3.13",
+      "page": 65
+    },
+    {
+      "kind": "Figure",
+      "number": "3.14",
+      "page": 65
+    },
+    {
+      "kind": "Figure",
+      "number": "3.15",
+      "page": 66
+    },
+    {
+      "kind": "Figure",
+      "number": "3.16",
+      "page": 67
+    },
+    {
+      "kind": "Figure",
+      "number": "3.17",
+      "page": 68
+    },
+    {
+      "kind": "Figure",
+      "number": "3.18",
+      "page": 69
+    },
+    {
+      "kind": "Figure",
+      "number": "3.19",
+      "page": 70
+    },
+    {
+      "kind": "Figure",
+      "number": "3.20",
+      "page": 71
+    },
+    {
+      "kind": "Figure",
+      "number": "3.21",
+      "page": 72
+    },
+    {
+      "kind": "Figure",
+      "number": "3.22",
+      "page": 74
+    },
+    {
+      "kind": "Figure",
+      "number": "3.23",
+      "page": 74
+    },
+    {
+      "kind": "Figure",
+      "number": "4.1",
+      "page": 77
+    },
+    {
+      "kind": "Figure",
+      "number": "4.2",
+      "page": 80
+    },
+    {
+      "kind": "Figure",
+      "number": "4.3",
+      "page": 81
+    },
+    {
+      "kind": "Figure",
+      "number": "4.4",
+      "page": 82
+    },
+    {
+      "kind": "Figure",
+      "number": "4.5",
+      "page": 85
+    },
+    {
+      "kind": "Table",
+      "number": "3.1",
+      "page": 34
+    },
+    {
+      "kind": "Table",
+      "number": "3.2",
+      "page": 42
+    },
+    {
+      "kind": "Table",
+      "number": "3.3",
+      "page": 43
+    },
+    {
+      "kind": "Table",
+      "number": "3.4",
+      "page": 50
+    },
+    {
+      "kind": "Table",
+      "number": "3.5",
+      "page": 54
+    },
+    {
+      "kind": "Table",
+      "number": "4.1",
+      "page": 79
+    },
+    {
+      "kind": "Table",
+      "number": "4.2",
+      "page": 82
+    },
+    {
+      "kind": "Table",
+      "number": "4.3",
+      "page": 84
+    },
+    {
+      "kind": "Table",
+      "number": "4.4",
+      "page": 86
+    },
+    {
+      "kind": "Table",
+      "number": "4.5",
+      "page": 90
+    },
+    {
+      "kind": "Table",
+      "number": "4.6",
+      "page": 92
+    },
+    {
+      "kind": "Table",
+      "number": "4.7",
+      "page": 95
+    }
+  ],
+  "source_current_paragraph_text_matches_snapshot": true,
+  "source_file_not_overwritten_by_this_workflow": true,
+  "source_metadata_or_formatting_changed_since_snapshot": true,
+  "review_method": "AI-assisted technical assessment; no human evaluator ratings",
+  "tests": {
+    "unit_passed": 17,
+    "controlled_database_passed": 20,
+    "controlled_database_failed": 2,
+    "browser_routes_passed": 4,
+    "network_checks_passed": 4
+  },
+  "render_method": "Microsoft Word export and packaged render_docx.py rasterization; LibreOffice absent"
+}

@@ -1,0 +1,85 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/h5kdxb",
+    "index": 10,
+    "layout": {
+      "id": "ly/4v2ps7ql",
+      "name": "OBJECT"
+    },
+    "backgroundColor": "rgba(255,255,255,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "elements": [
+    {
+      "id": "im/t4z698nm",
+      "kind": "image",
+      "position": {
+        "left": 690,
+        "top": 25,
+        "width": 235,
+        "height": 80
+      },
+      "fit": "contain",
+      "alt": "Original PHINMA Education wordmark retained from the defense template"
+    },
+    {
+      "id": "sh/3ipwfahs",
+      "kind": "textbox",
+      "position": {
+        "left": 56,
+        "top": 48,
+        "width": 605,
+        "height": 58
+      },
+      "text": "Results and findings of RQ1",
+      "style": {
+        "fontSize": 33.6,
+        "typeface": "Raleway",
+        "color": "#0070C0",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/2xgfm507",
+      "kind": "textbox",
+      "position": {
+        "left": 298,
+        "top": 496,
+        "width": 604,
+        "height": 22
+      },
+      "text": "Interview themes  1 / 2",
+      "style": {
+        "fontSize": 15,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "tb/8j61g3mh",
+      "kind": "table",
+      "position": {
+        "left": 56,
+        "top": 130,
+        "width": 846,
+        "height": 352
+      },
+      "text": "Theme\tCore sub-themes\tIllustrative quote\tMeaning for operations\nFragmented recordkeeping creates no single source of truth\tManual and hybrid recording; person-dependent updates; informal workarounds.\t\"So far, we do not have a system for tracking our sales and inventory...\" (Interviewee 1)\tOperations depend on scattered records rather than a unified live record.\nDelayed updates make the accurate picture arrive too late\tUnposted movement; next-day correction; decisions made under uncertainty.\t\"The deeper issue is that the real situation becomes visible too late.\" (Interviewee 3)\tEven when the truth is eventually reconstructed, it often arrives after the decision window.\nInaccurate records disrupt service, fulfillment, and restocking\tCustomer promise failure; partial release; conservative or delayed restocking.\t\"This can disappoint customers and reduce sales.\" (Interviewee 2)\tWeak records quickly become visible as stockouts, delays, and missed sales.",
+      "rows": 4,
+      "cols": 4
+    }
+  ]
+}

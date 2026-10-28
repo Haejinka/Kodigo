@@ -1,0 +1,21 @@
+{
+  "slide_count": 16,
+  "changed_content_slides": [
+    3,
+    10,
+    11,
+    14
+  ],
+  "unchanged_content_and_notes_elsewhere": true,
+  "UML_native_ellipses": 12,
+  "native_diagrams": [
+    10,
+    11,
+    14
+  ],
+  "source_manuscript_framework": "Figure 3.2, layout and groups preserved; shorter presentation wording",
+  "native_baseline_table": 8,
+  "no_application_or_database_changes": true,
+  "new_sha256": "9e340ab6a659fec1fa4603c17f5c9bcfcbe81064994e78929b5b46b3050d4cbe",
+  "before_sha256": "31cc05d1272d77f0dffa7a1298d443989b33185bdc929333b5dd31e232086362"
+}

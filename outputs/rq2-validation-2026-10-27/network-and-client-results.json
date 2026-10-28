@@ -1,0 +1,64 @@
+{
+  "network": [
+    {
+      "id": "NET01",
+      "test": "Backend HTTPS certificate and encrypted connection",
+      "passed": true,
+      "protocol": "TLSv1.3",
+      "validTo": "Jan 22 14:22:32 2027 GMT"
+    },
+    {
+      "id": "NET02",
+      "test": "Anonymous direct product request denied",
+      "path": "/rest/v1/products",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "id": "NET03",
+      "test": "Unauthenticated privileged Edge Function denied",
+      "path": "/functions/v1/admin-users",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "id": "NET04",
+      "test": "Unauthenticated privileged Edge Function denied",
+      "path": "/functions/v1/generate-invite",
+      "status": 401,
+      "passed": true
+    }
+  ],
+  "clientSecretScan": {
+    "passed": true,
+    "filesScanned": 105,
+    "matchingFiles": [],
+    "scope": "Concrete private keys, Supabase secret keys and JWT service-role credentials in source/public/built artifacts; no credential values recorded"
+  },
+  "browser": [
+    {
+      "route": "/dashboard",
+      "expected": "/login",
+      "actual": "/login",
+      "passed": true
+    },
+    {
+      "route": "/inventory",
+      "expected": "/login",
+      "actual": "/login",
+      "passed": true
+    },
+    {
+      "route": "/pos",
+      "expected": "/login",
+      "actual": "/login",
+      "passed": true
+    },
+    {
+      "route": "/super-admin",
+      "expected": "/login",
+      "actual": "/login",
+      "passed": true
+    }
+  ]
+}

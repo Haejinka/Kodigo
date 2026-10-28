@@ -1,0 +1,9 @@
+{"schema":"openai.presentation.layout/v5","unit":"px","slide":{"id":"sl/xq29of","index":21,"layout":{"id":"ly/4v2ps7ql","name":"OBJECT"},"backgroundColor":"rgba(255,255,255,1)","position":{"left":0,"top":0,"width":960,"height":540}},
+"elements":[
+{"id":"im/2dgfmp4z","kind":"image","position":{"left":690,"top":25,"width":235,"height":80},"fit":"contain","alt":"Original PHINMA Education wordmark retained from the defense template"},
+{"id":"sh/k721gfqp","kind":"textbox","position":{"left":56,"top":48,"width":605,"height":58},"text":"Results and findings of RQ2","style":{"fontSize":33.6,"typeface":"Raleway","color":"#0070C0","bold":true,"alignment":"left"},"geometry":"rect","lineWidth":0},
+{"id":"sh/l8b29kra","kind":"textbox","position":{"left":56,"top":119,"width":846,"height":29},"text":"Two issues found during the system checks","style":{"fontSize":22,"typeface":"Arial","color":"#202C61","bold":true,"alignment":"left"},"geometry":"rect","lineWidth":0},
+{"id":"tb/vups7u54","kind":"table","position":{"left":56,"top":162,"width":846,"height":240},"text":"Area\tWhat was found\tWhat needs to change\nStore creation\tThe extra identity check could be bypassed.\tRequire the check before allowing store creation.\nActivity history\tSomeone who was not signed in could add an activity record.\tOnly authorized users should add these records.","rows":3,"cols":3},
+{"id":"sh/7atkbu9g","kind":"textbox","position":{"left":56,"top":418,"width":846,"height":37},"text":"Two security gaps still need fixing","style":{"fontSize":29,"typeface":"Raleway","color":"#202C61","bold":true,"alignment":"left"},"geometry":"rect","lineWidth":0},
+{"id":"sh/8v2lkzq1","kind":"textbox","position":{"left":56,"top":458,"width":846,"height":29},"text":"Fix both gaps and test again before giving a full security pass.","style":{"fontSize":22,"typeface":"Arial","color":"#171717","alignment":"left"},"geometry":"rect","lineWidth":0}
+]}

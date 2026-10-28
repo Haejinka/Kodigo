@@ -1,0 +1,172 @@
+{
+  "participation": [
+    [
+      "Data source",
+      "Target\nparticipants",
+      "Completed",
+      "Response rate"
+    ],
+    [
+      "Pre-survey respondents",
+      "18",
+      "18",
+      "100.0%"
+    ],
+    [
+      "Interview transcripts analyzed",
+      "5",
+      "5",
+      "100.0%"
+    ]
+  ],
+  "roles": {
+    "categories": [
+      "Owner/Manager",
+      "Stock Custodian",
+      "Cashier/Sales Encoder",
+      "Operations Staff"
+    ],
+    "counts": [
+      6,
+      2,
+      3,
+      7
+    ]
+  },
+  "years": {
+    "categories": [
+      "Less than 1 year",
+      "1–2 years",
+      "3–5 years",
+      "More than 5 years"
+    ],
+    "counts": [
+      5,
+      2,
+      6,
+      5
+    ]
+  },
+  "tasks": {
+    "categories": [
+      "Stock receiving",
+      "Stock issuance / sales logging",
+      "Stock counts",
+      "Reconciliation",
+      "Reporting",
+      "Approvals"
+    ],
+    "counts": [
+      10,
+      10,
+      12,
+      4,
+      13,
+      2
+    ]
+  },
+  "themes": [
+    [
+      "Theme",
+      "Core sub-themes",
+      "Illustrative quote",
+      "Meaning for operations"
+    ],
+    [
+      "Fragmented recordkeeping creates no single source of truth",
+      "Manual and hybrid recording; person-dependent updates; informal workarounds.",
+      "\"So far, we do not have a system for tracking our sales and inventory...\" (Interviewee 1)",
+      "Operations depend on scattered records rather than a unified live record."
+    ],
+    [
+      "Delayed updates make the accurate picture arrive too late",
+      "Unposted movement; next-day correction; decisions made under uncertainty.",
+      "\"The deeper issue is that the real situation becomes visible too late.\" (Interviewee 3)",
+      "Even when the truth is eventually reconstructed, it often arrives after the decision window."
+    ],
+    [
+      "Inaccurate records disrupt service, fulfillment, and restocking",
+      "Customer promise failure; partial release; conservative or delayed restocking.",
+      "\"This can disappoint customers and reduce sales.\" (Interviewee 2)",
+      "Weak records quickly become visible as stockouts, delays, and missed sales."
+    ],
+    [
+      "Manual reconciliation shifts effort from operations to error correction",
+      "Repeated recounting; after-hours verification; coordination strain.",
+      "\"Sometimes it ends up in an argument because I am already loaded with work.\" (Interviewee 1)",
+      "Labor is redirected from serving customers and planning toward repetitive correction."
+    ],
+    [
+      "When records conflict, trust shifts to physical proof",
+      "Physical count as truth; signed slips and receipts preferred; slow confirmation.",
+      "\"We usually check the actual physical stock first because that is the most reliable basis.\" (Interviewee 2)",
+      "Record systems have not earned enough trust to support fast decisions on their own."
+    ]
+  ],
+  "rq2_results": [
+    [
+      "Evidence family",
+      "Result",
+      "Interpretation"
+    ],
+    [
+      "Compilation and build",
+      "Passed",
+      "TypeScript, lint, and production build completed. Build-size warnings remain."
+    ],
+    [
+      "Existing unit tests",
+      "17 of 17 passed",
+      "Reporting and consignment calculation tests; no user acceptability inference."
+    ],
+    [
+      "Controlled database scenarios",
+      "20 of 22 passed",
+      "Two confirmed authorization failures require remediation."
+    ],
+    [
+      "Anonymous browser routes",
+      "4 of 4 passed",
+      "Dashboard, inventory, POS, and Super Admin routes redirected to login."
+    ],
+    [
+      "HTTPS and anonymous API checks",
+      "4 of 4 passed",
+      "TLS 1.3 certificate verification succeeded; protected endpoints returned HTTP 401."
+    ],
+    [
+      "Client credential scan",
+      "105 files checked",
+      "No matching private key, secret-key, or service-role JWT format was detected in scanned client artifacts."
+    ],
+    [
+      "Live database inspection",
+      "36 tables and 8 views",
+      "All 36 public tables had RLS enabled; all 8 public views used security_invoker=true."
+    ]
+  ],
+  "rq2_failures": [
+    [
+      "Scenario",
+      "Priority",
+      "Observed failure and required action"
+    ],
+    [
+      "DB17 MFA assurance for store creation",
+      "High",
+      "An enrolled account at AAL1 created a store. Enforce the intended MFA assurance in the privileged function and retest."
+    ],
+    [
+      "DB20 Anonymous audit event creation",
+      "Medium",
+      "An anonymous caller inserted an audit event through an RPC. Restrict direct execution and validate callers before accepting audit writes."
+    ]
+  ],
+  "assessment_date": "27 October 2026",
+  "data_sources": [
+    "Current manuscript Figure 4.1 and Table 4.4",
+    "User-provided reference screenshots",
+    "RQ2 Technical Review Tables 4.6–4.7",
+    "Kodigo_RQ2_Technical_Validation_Report.md"
+  ]
+}

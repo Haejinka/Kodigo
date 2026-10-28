@@ -1,0 +1,125 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/misz5e",
+    "index": 21,
+    "layout": {
+      "id": "ly/4v2ps7ql",
+      "name": "OBJECT"
+    },
+    "backgroundColor": "rgba(255,255,255,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "elements": [
+    {
+      "id": "im/cv2h0ret",
+      "kind": "image",
+      "position": {
+        "left": 690,
+        "top": 25,
+        "width": 235,
+        "height": 80
+      },
+      "fit": "contain",
+      "alt": "Original PHINMA Education wordmark retained from the defense template"
+    },
+    {
+      "id": "sh/ipsvqh0r",
+      "kind": "textbox",
+      "position": {
+        "left": 56,
+        "top": 48,
+        "width": 605,
+        "height": 58
+      },
+      "text": "Results and findings of RQ2",
+      "style": {
+        "fontSize": 33.6,
+        "typeface": "Raleway",
+        "color": "#0070C0",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/jq1wz21c",
+      "kind": "textbox",
+      "position": {
+        "left": 56,
+        "top": 119,
+        "width": 846,
+        "height": 29
+      },
+      "text": "Authorization failures observed on 27 October 2026",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "tb/9gfa5obm",
+      "kind": "table",
+      "position": {
+        "left": 56,
+        "top": 162,
+        "width": 846,
+        "height": 240
+      },
+      "text": "Finding\tPriority\tObserved behavior and required action\nMFA assurance for store creation\tHigh\tAn MFA-enrolled account at AAL1 created a store.\nEnforce assurance in the privileged function and retest.\nAnonymous audit-event creation\tMedium\tAn anonymous caller inserted an audit event through an RPC.\nRestrict execution, validate the caller and retest.",
+      "rows": 3,
+      "cols": 3
+    },
+    {
+      "id": "sh/tw3epwju",
+      "kind": "textbox",
+      "position": {
+        "left": 56,
+        "top": 418,
+        "width": 846,
+        "height": 37
+      },
+      "text": "Conditional technical suitability",
+      "style": {
+        "fontSize": 29,
+        "typeface": "Raleway",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/6tsvuh03",
+      "kind": "textbox",
+      "position": {
+        "left": 56,
+        "top": 458,
+        "width": 846,
+        "height": 29
+      },
+      "text": "Remediation and retesting are required for a full security pass.",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    }
+  ]
+}

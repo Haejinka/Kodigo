@@ -75,12 +75,10 @@ For a new, empty project:
 
 1. Run [`supabase_schema.sql`](supabase_schema.sql) once as the baseline snapshot.
 2. Run the root migrations in numeric order from [`migration_01_invite_codes.sql`](migration_01_invite_codes.sql) through [`migration_28_member_account_rbac_hardening.sql`](migration_28_member_account_rbac_hardening.sql). Follow any execution notes inside each file; migration 02, for example, separates the enum change from the remaining statements.
-3. Run the dated migrations in [`supabase/migrations/`](supabase/migrations/) in filename order:
-   - `20260803013739_fix_admin_supplier_inventory_workflows.sql`
-   - `20260803022414_hide_notifications_from_super_admin.sql`
-   - `20260803023252_enforce_mfa_assurance.sql`
-4. Run [`migration_29_base_unit_inventory_margin_velocity.sql`](migration_29_base_unit_inventory_margin_velocity.sql), [`migration_30_supplier_facebook_link.sql`](migration_30_supplier_facebook_link.sql), [`migration_31_receive_po_status_only.sql`](migration_31_receive_po_status_only.sql), [`migration_32_sales_velocity.sql`](migration_32_sales_velocity.sql), [`migration_34_bulk_purchase_base_units.sql`](migration_34_bulk_purchase_base_units.sql), [`migration_35_product_suppliers.sql`](migration_35_product_suppliers.sql), [`migration_36_owner_scoped_categories.sql`](migration_36_owner_scoped_categories.sql), [`migration_37_unit_aware_inventory_workflow.sql`](migration_37_unit_aware_inventory_workflow.sql), [`migration_38_product_archiving.sql`](migration_38_product_archiving.sql), and [`migration_39_repair_sale_item_category_snapshot.sql`](migration_39_repair_sale_item_category_snapshot.sql) in order.
-5. Review the resulting RLS policies, functions, triggers, grants, Storage configuration, and Auth settings before using real data.
+3. Run the existing dated migrations in [`supabase/migrations/`](supabase/migrations/) in filename order, except for the new post-root-40 hardening migration described in step 5.
+4. Run the root migrations from [`migration_29_base_unit_inventory_margin_velocity.sql`](migration_29_base_unit_inventory_margin_velocity.sql) through [`migration_40_inventory_consumption_history.sql`](migration_40_inventory_consumption_history.sql) in numeric order, including the available migrations 30, 31, 32, and 34–39.
+5. After root migration 40, run [`20261027191635_harden_store_creation_and_audit_logging.sql`](supabase/migrations/20261027191635_harden_store_creation_and_audit_logging.sql). Migration 36 redefines `create_store_with_owner`, so this forward hardening patch must run after the full root migration chain.
+6. Review the resulting RLS policies, functions, triggers, grants, Storage configuration, and Auth settings before using real data.
 
 The ordered migration chain is the source of truth for the current database. `supabase_schema.sql` is only a starting snapshot; later migrations intentionally replace earlier policies and functions. Existing environments should apply only migrations that have not already been recorded as applied. Do not rerun the baseline over a populated database.
 

@@ -1,0 +1,277 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/gnmp4jqx",
+    "index": 6,
+    "layout": {
+      "id": "ly/4v2ps7ql",
+      "name": "OBJECT"
+    },
+    "backgroundColor": "rgba(255,255,255,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "elements": [
+    {
+      "id": "im/lozex8zq",
+      "kind": "image",
+      "name": "Picture 14",
+      "position": {
+        "left": 690,
+        "top": 27.38,
+        "width": 235,
+        "height": 75.24
+      }
+    },
+    {
+      "id": "sh/cb2tkvap",
+      "kind": "textbox",
+      "name": "current-content-12",
+      "position": {
+        "left": 56,
+        "top": 48,
+        "width": 605,
+        "height": 58
+      },
+      "text": "Research methodology",
+      "style": {
+        "fontSize": 33.6,
+        "typeface": "Raleway",
+        "color": "#0070C0",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/ydkbm5sv",
+      "kind": "textbox",
+      "name": "current-content-75",
+      "position": {
+        "left": 56,
+        "top": 132,
+        "width": 846,
+        "height": 43
+      },
+      "text": "Exploratory sequential mixed methods",
+      "style": {
+        "fontSize": 29,
+        "typeface": "Raleway",
+        "color": "#202C61",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/zedcfa9g",
+      "kind": "textbox",
+      "name": "current-content-76",
+      "position": {
+        "left": 56,
+        "top": 204,
+        "width": 85,
+        "height": 38
+      },
+      "text": "RQ1",
+      "style": {
+        "fontSize": 27,
+        "typeface": "Arial",
+        "color": "#0070C0",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/kzmdova1",
+      "kind": "textbox",
+      "name": "current-content-77",
+      "position": {
+        "left": 180,
+        "top": 204,
+        "width": 710,
+        "height": 34
+      },
+      "text": "Interviews + baseline questionnaire",
+      "style": {
+        "fontSize": 24,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/l0vuh0rm",
+      "kind": "textbox",
+      "name": "current-content-78",
+      "position": {
+        "left": 180,
+        "top": 239,
+        "width": 710,
+        "height": 30
+      },
+      "text": "Operational bottlenecks",
+      "style": {
+        "fontSize": 20,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/eh0ba1sr",
+      "kind": "textbox",
+      "name": "current-content-79",
+      "position": {
+        "left": 56,
+        "top": 281,
+        "width": 85,
+        "height": 38
+      },
+      "text": "RQ2",
+      "style": {
+        "fontSize": 27,
+        "typeface": "Arial",
+        "color": "#0070C0",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/fi9c369c",
+      "kind": "textbox",
+      "name": "current-content-80",
+      "position": {
+        "left": 180,
+        "top": 281,
+        "width": 710,
+        "height": 34
+      },
+      "text": "Quantitative technical validation",
+      "style": {
+        "fontSize": 24,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/baxkjqlk",
+      "kind": "textbox",
+      "name": "current-content-81",
+      "position": {
+        "left": 180,
+        "top": 316,
+        "width": 710,
+        "height": 30
+      },
+      "text": "Framework and security",
+      "style": {
+        "fontSize": 20,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/a9ojq5kz",
+      "kind": "textbox",
+      "name": "current-content-82",
+      "position": {
+        "left": 56,
+        "top": 358,
+        "width": 85,
+        "height": 38
+      },
+      "text": "RQ3",
+      "style": {
+        "fontSize": 27,
+        "typeface": "Arial",
+        "color": "#0070C0",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/xcz2l03q",
+      "kind": "textbox",
+      "name": "current-content-83",
+      "position": {
+        "left": 180,
+        "top": 358,
+        "width": 710,
+        "height": 34
+      },
+      "text": "Quantitative acceptability survey",
+      "style": {
+        "fontSize": 24,
+        "typeface": "Arial",
+        "color": "#171717",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/cbq1sv25",
+      "kind": "textbox",
+      "name": "current-content-84",
+      "position": {
+        "left": 180,
+        "top": 393,
+        "width": 710,
+        "height": 30
+      },
+      "text": "After prototype interaction",
+      "style": {
+        "fontSize": 20,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/n6x0fqlo",
+      "kind": "textbox",
+      "name": "current-content-85",
+      "position": {
+        "left": 56,
+        "top": 437,
+        "width": 846,
+        "height": 50
+      },
+      "text": "Sampling: criterion-based purposive, with maximum variation\nDevelopment methodology: Agile Scrum",
+      "style": {
+        "fontSize": 20,
+        "typeface": "Arial",
+        "color": "#595959",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    }
+  ]
+}

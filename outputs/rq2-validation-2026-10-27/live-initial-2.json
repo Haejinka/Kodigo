@@ -1,0 +1,10 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"functions\":[{\"id\":\"c6014e0d-35b0-4fa7-ad91-7c11efc27def\",\"slug\":\"Admin-Verify\",\"name\":\"Admin-Verify\",\"status\":\"ACTIVE\",\"version\":1,\"created_at\":1774680246326,\"updated_at\":1774680246326,\"verify_jwt\":true,\"import_map\":false,\"entrypoint_path\":\"file:///tmp/user_fn_vlnucrbsgxnetdiejnwt_c6014e0d-35b0-4fa7-ad91-7c11efc27def_1/source/index.ts\",\"ezbr_sha256\":\"c6531d9a052d26ea3d1fb6224aeef963ea8fbc943fb0155ebc8d77e2bb55165f\"},{\"id\":\"e0cc4379-befd-4c4c-9fa8-743886a3f6b9\",\"slug\":\"admin-users\",\"name\":\"admin-users\",\"status\":\"ACTIVE\",\"version\":6,\"created_at\":1777484031944,\"updated_at\":1790137224558,\"verify_jwt\":true,\"import_map\":false,\"entrypoint_path\":\"file:///tmp/user_fn_vlnucrbsgxnetdiejnwt_e0cc4379-befd-4c4c-9fa8-743886a3f6b9_6/source/supabase/functions/admin-users/index.ts\",\"ezbr_sha256\":\"772f680710753711adc869ef7a8a977e029345463cb69bd4beb5d484fd98ca73\"},{\"id\":\"34508c4f-5ca5-4d8a-b829-3cec3cd285a3\",\"slug\":\"generate-invite\",\"name\":\"generate-invite\",\"status\":\"ACTIVE\",\"version\":2,\"created_at\":1785722439696,\"updated_at\":1785724295266,\"verify_jwt\":true,\"import_map\":false,\"entrypoint_path\":\"file:///tmp/user_fn_vlnucrbsgxnetdiejnwt_34508c4f-5ca5-4d8a-b829-3cec3cd285a3_2/source/supabase/functions/generate-invite/index.ts\",\"ezbr_sha256\":\"d2b98eb6b42cab0e75e4db93bc2404f04d2a2fd18f5d56cd00daa5bd16ebcf2d\"}]}"
+    }
+  ],
+  "structuredContent": null,
+  "isError": false
+}

@@ -1,0 +1,14 @@
+{
+  "slides": 23,
+  "changedSlides": [
+    21,
+    22
+  ],
+  "unchangedSlidesVisuallyIdentical": 21,
+  "chartDataPreserved": true,
+  "editableCharts": 3,
+  "embeddedWorkbooks": 3,
+  "PowerPointOpen": "passed",
+  "rq2PlainLanguage": "passed",
+  "remainingIssues": 2
+}

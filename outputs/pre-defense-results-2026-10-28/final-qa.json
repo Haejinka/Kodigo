@@ -1,0 +1,16 @@
+{
+  "finalFile": "C:\\Kodigo v0.1.0\\deliverables\\pre-defense\\Kodigo_Pre_Defense_Updated.pptx",
+  "sha256": "2ab2eae6b255a921e23eb16413ea051c8f914ec5998863baa0c6a5b2bbbab60c",
+  "slides": 23,
+  "targetSpeakingSeconds": 900,
+  "nativePowerPointOpen": "passed",
+  "editableCharts": 3,
+  "embeddedWorkbooks": 3,
+  "themeCellsMatched": 20,
+  "sourceRetained": true,
+  "sourceContentTextPreserved": true,
+  "sourceBrandingAndDiagrams": "retained",
+  "visualQA": "Native PowerPoint renders reviewed; pie labels corrected; all five themes visible without cut-off rows.",
+  "rq2AssessmentDate": "2026-10-27",
+  "rq2Findings": "20/22 database scenarios passed; two unresolved authorization failures, conditional conclusion."
+}

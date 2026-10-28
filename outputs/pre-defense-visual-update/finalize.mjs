@@ -1,0 +1,13 @@
+import fs from 'node:fs/promises';
+import crypto from 'node:crypto';
+import {pathToFileURL} from 'node:url';
+import {PresentationFile,FileBlob} from '@oai/artifact-tool';
+const ROOT='C:/Kodigo v0.1.0', B=ROOT+'/outputs/pre-defense-visual-update';
+const SOURCE=ROOT+'/deliverables/pre-defense/Kodigo_Pre_Defense_SWU_Refined.pptx';
+const SK='C:/Users/verga/.codex/plugins/cache/openai-primary-runtime/presentations/26.1025.11240/skills/presentations';
+process.env.RUNTIME_NODE_MODULES='C:/Users/verga/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules';
+process.env.RUNTIME_NODE=process.execPath;
+const sourceBytes=await fs.readFile(SOURCE);await fs.writeFile(B+'/before.pptx',sourceBytes);
+const {finalizePresentation}=await import(pathToFileURL(SK+'/container_tools/artifact_tool_utils.mjs').href);
+const result=await finalizePresentation({workspaceDir:ROOT,candidatePath:B+'/candidate.pptx',finalPath:ROOT+'/deliverables/pre-defense/Kodigo_Pre_Defense_SWU_Visual_Revision_v2.pptx',pythonExecutable:'C:/Users/verga/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe',integrityValidatorPath:SK+'/container_tools/inspect_presentation_package_integrity.py',layoutValidatorPath:SK+'/container_tools/inspect_presentation_layout_geometry.py',layoutArgs:['--expected-slide-size-emu','9144000,5143500','--validate-heading-fit','--require-native-table-slide','8'],explicitTotalSlideCount:16,requiredNativeTableOwnerSlides:[8],requiredNativeChartOwnerSlides:[],fontPolicy:{basis:'reference',families:['Raleway','Cambria','Arial'],referencePath:SOURCE,referenceSha256:crypto.createHash('sha256').update(sourceBytes).digest('hex')},verifyArtifactToolImport:true,receiptPath:B+'/validation-v3.json'});
+console.log('Finalized',result.finalPath);

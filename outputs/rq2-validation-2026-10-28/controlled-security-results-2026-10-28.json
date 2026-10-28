@@ -1,0 +1,83 @@
+{
+  "assessment_date": "2026-10-28",
+  "timezone": "Asia/Manila",
+  "environment": {
+    "name": "KodiGo Database",
+    "postgres_version": "17.6.1.084",
+    "migration": {
+      "file": "supabase/migrations/20261027191635_harden_store_creation_and_audit_logging.sql",
+      "database_version": "20261027192054",
+      "database_name": "harden_store_creation_and_audit_logging",
+      "applied": true
+    }
+  },
+  "before_fix": {
+    "source": "Rerun of outputs/rq2-validation-2026-10-27/controlled-security-checks.sql before migration",
+    "passed": 20,
+    "failed": 2,
+    "failures": [
+      {
+        "id": "DB17",
+        "observed": "MFA-enrolled admin at AAL1 created a store"
+      },
+      {
+        "id": "DB20",
+        "observed": "Anonymous role inserted an audit event"
+      }
+    ],
+    "fixture_transaction_rolled_back": true
+  },
+  "after_fix": {
+    "focused_regression": "PASS",
+    "controlled_scenarios": {
+      "total": 22,
+      "passed": 22,
+      "failed": 0,
+      "fixture_transaction_rolled_back": true,
+      "remaining_fixture_auth_users": 0
+    },
+    "key_scenarios": [
+      {
+        "id": "DB16",
+        "passed": true,
+        "observation": "Enrolled MFA AAL1 user fails store authorization"
+      },
+      {
+        "id": "DB17",
+        "passed": true,
+        "observation": "Store create rejected with SQLSTATE 42501; no store or owner membership left"
+      },
+      {
+        "id": "DB18",
+        "passed": true,
+        "observation": "Enrolled MFA AAL2 user passes store authorization"
+      },
+      {
+        "id": "DB20",
+        "passed": true,
+        "observation": "Anonymous direct audit RPC rejected with permission denied"
+      },
+      {
+        "id": "POS audit",
+        "passed": true,
+        "observation": "Valid nested POS sale wrote an audit event with the authenticated cashier as actor"
+      },
+      {
+        "id": "service-role audit",
+        "passed": true,
+        "observation": "Trusted service_role can still write a system event with a null end-user actor"
+      }
+    ],
+    "cleanup_counts": {
+      "auth_users": 0,
+      "profiles": 0,
+      "stores": 0,
+      "store_memberships": 0,
+      "categories": 0,
+      "products": 0,
+      "sales": 0,
+      "audit_events": 0
+    }
+  },
+  "execution_context": "Database role and JWT-claim simulation; not a real sign-in, signed-JWT validation, TOTP challenge, or HTTP gateway test"
+}

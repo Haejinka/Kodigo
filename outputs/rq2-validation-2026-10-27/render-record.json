@@ -1,0 +1,7 @@
+{
+  "pages": 105,
+  "conversion": "Microsoft Word native PDF export",
+  "rasterization": "packaged render_docx.py, 96 DPI",
+  "fallback_reason": "LibreOffice soffice.exe unavailable",
+  "contact_sheets": 7
+}

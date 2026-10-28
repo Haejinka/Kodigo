@@ -1,0 +1,222 @@
+{
+  "schema": "openai.presentation.layout/v5",
+  "unit": "px",
+  "slide": {
+    "id": "sl/dcbhti",
+    "index": 12,
+    "layout": {
+      "id": "ly/4v2ps7ql",
+      "name": "OBJECT"
+    },
+    "backgroundColor": "rgba(255,255,255,1)",
+    "position": {
+      "left": 0,
+      "top": 0,
+      "width": 960,
+      "height": 540
+    }
+  },
+  "elements": [
+    {
+      "id": "im/n2l4jylo",
+      "kind": "image",
+      "position": {
+        "left": 690,
+        "top": 25,
+        "width": 235,
+        "height": 80
+      },
+      "fit": "contain",
+      "alt": "Original PHINMA Education wordmark retained from the defense template"
+    },
+    {
+      "id": "sh/tg7u5cn2",
+      "kind": "textbox",
+      "position": {
+        "left": 56,
+        "top": 48,
+        "width": 605,
+        "height": 58
+      },
+      "text": "Results and findings of RQ1",
+      "style": {
+        "fontSize": 33.6,
+        "typeface": "Raleway",
+        "color": "#0070C0",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/8fetw76h",
+      "kind": "shape",
+      "position": {
+        "left": 56,
+        "top": 143,
+        "width": 846,
+        "height": 333
+      },
+      "geometry": "rect",
+      "fillColor": "#171717",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/vipc7m58",
+      "kind": "textbox",
+      "position": {
+        "left": 75,
+        "top": 154,
+        "width": 808,
+        "height": 25
+      },
+      "text": "Operational bottlenecks",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#FFFFFF",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/uhgbyhon",
+      "kind": "textbox",
+      "position": {
+        "left": 75,
+        "top": 182,
+        "width": 808,
+        "height": 43
+      },
+      "text": "Delayed updates and discrepancies slow restocking and disrupt customer service.",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#FFFFFF",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/hk7u9cne",
+      "kind": "textbox",
+      "position": {
+        "left": 75,
+        "top": 233,
+        "width": 808,
+        "height": 25
+      },
+      "text": "Data inconsistency",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#FFFFFF",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/gjyd0r6t",
+      "kind": "textbox",
+      "position": {
+        "left": 75,
+        "top": 261,
+        "width": 808,
+        "height": 43
+      },
+      "text": "Staff compare several records before deciding which figures to trust.",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#FFFFFF",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/3mpcbm54",
+      "kind": "textbox",
+      "position": {
+        "left": 75,
+        "top": 312,
+        "width": 808,
+        "height": 25
+      },
+      "text": "Financial impact",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#FFFFFF",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/ilgv2hoz",
+      "kind": "textbox",
+      "position": {
+        "left": 75,
+        "top": 340,
+        "width": 808,
+        "height": 43
+      },
+      "text": "Recounting, overtime and emergency purchases add work and avoidable costs.",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#FFFFFF",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/ormxkrup",
+      "kind": "textbox",
+      "position": {
+        "left": 75,
+        "top": 391,
+        "width": 808,
+        "height": 25
+      },
+      "text": "Overall finding",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#FFFFFF",
+        "bold": true,
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    },
+    {
+      "id": "sh/psvydcba",
+      "kind": "textbox",
+      "position": {
+        "left": 75,
+        "top": 419,
+        "width": 808,
+        "height": 43
+      },
+      "text": "Routine decisions need a shared, timely and auditable record.",
+      "style": {
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#FFFFFF",
+        "alignment": "left"
+      },
+      "geometry": "rect",
+      "lineWidth": 0
+    }
+  ]
+}

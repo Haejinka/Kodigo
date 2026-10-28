@@ -1,0 +1,59 @@
+{
+  "nativeCharts": [
+    {
+      "linked": false,
+      "values": [
+        6.0,
+        2.0,
+        3.0,
+        7.0
+      ],
+      "categories": [
+        "Owner /\nManager",
+        "Stock\nCustodian",
+        "Cashier / Sales\nEncoder",
+        "Operations\nStaff"
+      ],
+      "slide": 8
+    },
+    {
+      "linked": false,
+      "values": [
+        5.0,
+        2.0,
+        6.0,
+        5.0
+      ],
+      "categories": [
+        "Less than\n1 year",
+        "1–2 years",
+        "3–5 years",
+        "More than\n5 years"
+      ],
+      "slide": 8
+    },
+    {
+      "linked": false,
+      "values": [
+        2.0,
+        13.0,
+        4.0,
+        12.0,
+        10.0,
+        10.0
+      ],
+      "categories": [
+        "Approvals",
+        "Reporting",
+        "Reconciliation",
+        "Stock counts",
+        "Stock issuance / sales logging",
+        "Stock receiving"
+      ],
+      "slide": 9
+    }
+  ],
+  "existingPresentations": 1,
+  "openedReadOnly": true,
+  "slideCount": 23
+}

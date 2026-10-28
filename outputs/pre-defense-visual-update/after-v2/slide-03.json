@@ -1,0 +1,13 @@
+{"schema":"openai.presentation.layout/v5","unit":"px","slide":{"id":"sl/ofy9wn61","index":2,"layout":{"id":"ly/4v2ps7ql","name":"OBJECT"},"backgroundColor":"rgba(255,255,255,1)","position":{"left":0,"top":0,"width":960,"height":540}},
+"elements":[
+{"id":"im/ipw7elwr","kind":"image","name":"Picture 11","position":{"left":690,"top":27.38,"width":235,"height":75.24}},
+{"id":"sh/cza94vmx","kind":"textbox","name":"current-content-4","position":{"left":56,"top":48,"width":605,"height":58},"text":"Background and case scenario","style":{"fontSize":33.6,"typeface":"Raleway","color":"#0070C0","bold":true,"alignment":"left"},"geometry":"rect","lineWidth":0},
+{"id":"sh/83ulovat","kind":"textbox","position":{"left":56,"top":123,"width":846,"height":36},"text":"One sale, three separate records","style":{"fontSize":27,"typeface":"Raleway","color":"#202C61","bold":true,"alignment":"left"},"geometry":"rect","lineWidth":0},
+{"id":"im/gne5cvel","kind":"image","position":{"left":43,"top":168,"width":874,"height":291},"fit":"contain","alt":"AI-generated vector-style illustrative story: a cashier records a sale, inventory staff update stock later, and an owner reconciles records before ordering. Not actual study participants."},
+{"id":"sh/a5c3ql8z","kind":"textbox","position":{"left":56,"top":414,"width":268,"height":28},"text":"1  A sale is written down","style":{"fontSize":20,"typeface":"Arial","color":"#202C61","bold":true,"alignment":"left"},"geometry":"rect","lineWidth":0},
+{"id":"sh/x8nml0ra","kind":"textbox","position":{"left":56,"top":445,"width":270,"height":37},"text":"The cashier records it in a notebook.","style":{"fontSize":17,"typeface":"Arial","color":"#595959","alignment":"left"},"geometry":"rect","lineWidth":0},
+{"id":"sh/w7ulsvqp","kind":"textbox","position":{"left":345,"top":414,"width":268,"height":28},"text":"2  Stock waits for an update","style":{"fontSize":20,"typeface":"Arial","color":"#202C61","bold":true,"alignment":"left"},"geometry":"rect","lineWidth":0},
+{"id":"sh/ja54na9g","kind":"textbox","position":{"left":345,"top":445,"width":270,"height":37},"text":"A separate count is encoded later.","style":{"fontSize":17,"typeface":"Arial","color":"#595959","alignment":"left"},"geometry":"rect","lineWidth":0},
+{"id":"sh/i9w3u58v","kind":"textbox","position":{"left":634,"top":414,"width":268,"height":28},"text":"3  The owner checks again","style":{"fontSize":20,"typeface":"Arial","color":"#202C61","bold":true,"alignment":"left"},"geometry":"rect","lineWidth":0},
+{"id":"sh/e10f2twf","kind":"textbox","position":{"left":634,"top":445,"width":270,"height":37},"text":"Ordering waits for reconciliation.","style":{"fontSize":17,"typeface":"Arial","color":"#595959","alignment":"left"},"geometry":"rect","lineWidth":0}
+]}

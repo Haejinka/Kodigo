@@ -1,0 +1,25 @@
+✔ keeps a fully paid, unsold consignment at zero sales recovery and zero profit (2.0808ms)
+✔ allocates revenue and historical COGS across receipts with different costs (0.3359ms)
+✔ uses discounted net line revenue and preserves a loss when selling below cost (0.2185ms)
+✔ removes returned units and excludes voided sale allocations (0.2518ms)
+✔ keeps regular inventory out of consignment metrics when lots are separate (0.2098ms)
+✔ applies receipt and sale dates consistently to a selected reporting scope (1.2526ms)
+✔ supports a zero selling price without inventing a break-even quantity (0.3327ms)
+✔ rounds reorder quantities upward to supplier packs (0.1362ms)
+✔ honors a supplier minimum order quantity before pack rounding (0.181ms)
+✔ does not suggest a reorder when there is no recent demand history (0.2048ms)
+✔ allocates captured amounts after discounts and assigns cent remainders consistently (23.5671ms)
+✔ allocates item return refunds to the matching line and manual refunds across remaining paid lines (0.2964ms)
+✔ supports partial captures and excludes voided payment events (0.1732ms)
+✔ returns Monday-to-Sunday weeks and full calendar month and year boundaries (2.2781ms)
+✔ ranks monthly products by net base units, aggregates products, and excludes voided or canceled sales (0.5475ms)
+✔ keeps receipt printing and cash drawer controls independent (1.1876ms)
+✔ normalizes package line values to historical base-unit prices (28.4985ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 248.8562
