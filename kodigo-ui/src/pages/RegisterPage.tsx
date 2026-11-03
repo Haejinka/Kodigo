@@ -93,7 +93,7 @@ export function RegisterPage() {
             {confirmationEmail}
           </p>
           <p className="text-xs text-gray-500 mb-5">
-            Confirm your email address before signing in. If you do not see the message, check your spam folder.
+            Confirm your email address before signing in. After signing in, we’ll help you create your first store and add products. If you do not see the message, check your spam folder.
           </p>
 
           {resendMessage && (

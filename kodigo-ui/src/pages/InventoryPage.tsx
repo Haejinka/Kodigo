@@ -930,8 +930,8 @@ export function InventoryPage() {
               onUpdateSuggestedPrice={(sellingPrice) => updateSellingPrice(product.id, sellingPrice, undefined, true)}
             />
           )}
-          emptyTitle="No products found"
-          emptyDescription="Try adjusting your filters or add a new product."
+          emptyTitle={products.length === 0 ? "Add your first products" : "No products found"}
+          emptyDescription={products.length === 0 ? "Use Add Product to enter prices and opening stock, or Bulk add to import a product list." : "Try adjusting your filters or add a new product."}
         />
         </>
       )}

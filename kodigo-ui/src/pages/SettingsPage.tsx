@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Settings, Users, Store, Bell, Shield, X,
+  Users, Store, Bell, Shield, X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
@@ -31,9 +31,9 @@ const inputCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg f
 type ManagedRole = 'admin' | 'cashier' | 'inventory';
 
 const settingsSections = [
-  { label: 'General', path: '/settings', icon: Settings, end: true },
+  { label: 'Stores & POS', path: '/settings', icon: Store, end: true },
   { label: 'User Management', path: '/settings/users', icon: Users },
-  { label: 'Notifications', path: '/settings/notifications', icon: Bell },
+  { label: 'Notification Preferences', path: '/settings/notifications', icon: Bell },
   { label: 'Security', path: '/settings/security', icon: Shield },
 ];
 
@@ -82,7 +82,7 @@ export function SettingsLayout() {
   );
 }
 
-// ─── General Settings ────────────────────────────────────────────────────────
+// ─── Stores & POS ────────────────────────────────────────────────────────
 
 interface EditStoreModalProps {
   store: StoreType;
@@ -142,7 +142,8 @@ function EditStoreModal({ store, onSave, onClose }: EditStoreModalProps) {
   );
 }
 
-export function GeneralSettingsPage() {
+export function StoresPosSettingsPage({ setup = false }: { setup?: boolean }) {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { stores, activeStoreId, addStore, updateStore, deleteStore, role } = useAuthStore();
 
@@ -188,6 +189,7 @@ export function GeneralSettingsPage() {
         setNewStoreName('');
         setNewStoreAddress('');
         setNewTaxRate('');
+        if (stores.length === 0 && !setup) navigate('/setup');
       } else {
         toast('error', 'Failed to create store');
       }
@@ -199,13 +201,13 @@ export function GeneralSettingsPage() {
 
   return (
     <div className="space-y-6">
-      {isOwner && activeBrandingStore && (
-        <>
-          <StoreBrandingEditor store={activeBrandingStore} />
-          <PosHardwareSettings store={activeBrandingStore} />
-        </>
+      {!setup && (
+        <div>
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">Stores &amp; POS</h2>
+          <p className="mt-1 text-sm text-[var(--muted-foreground)]">Manage stores, then customize branding and POS hardware for the selected store.</p>
+        </div>
       )}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      {!setup && <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Store className="w-5 h-5 text-gray-500" /> My Stores
         </h3>
@@ -215,12 +217,13 @@ export function GeneralSettingsPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {stores.map(store => (
-              <div key={store.id} className="border border-gray-100 bg-gray-50 rounded-lg p-4 relative group hover:border-blue-200 transition-colors">
+              <div key={store.id} className="border border-gray-100 bg-gray-50 rounded-lg p-4 hover:border-blue-200 transition-colors">
                 {isOwner && (
-                  <div className="absolute top-4 right-4 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="mb-3 flex flex-wrap gap-2">
                     <button
                       onClick={() => setEditingStore(store as StoreType)}
-                      className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                      className="min-h-10 rounded-lg border border-blue-200 px-3 text-sm font-medium text-blue-600 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-600"
+                      aria-label={`Edit ${store.name}`}
                     >
                       Edit
                     </button>
@@ -234,21 +237,22 @@ export function GeneralSettingsPage() {
                             });
                           }
                         }}
-                        className="text-xs font-medium text-red-600 hover:text-red-800"
+                        className="min-h-10 rounded-lg border border-red-200 px-3 text-sm font-medium text-red-600 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-red-600"
+                        aria-label={`Delete ${store.name}`}
                       >
                         Delete
                       </button>
                     )}
                   </div>
                 )}
-                <div className="font-medium text-gray-900 mb-1 pr-20 hover:text-blue-700 cursor-default">{store.name}</div>
+                <div className="font-medium text-gray-900 mb-1 break-words">{store.name}</div>
                 <div className="text-sm text-gray-500">{store.address || 'No address provided'}</div>
                 <div className="text-xs text-gray-400 mt-2">Tax Rate: {store.taxRate}%</div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
       {editingStore && (
         <EditStoreModal
@@ -261,12 +265,14 @@ export function GeneralSettingsPage() {
       {isOwner && (
         <div className="bg-white rounded-xl border border-blue-100 shadow-sm p-5">
           <h3 className="font-semibold text-blue-900 mb-4 flex items-center gap-2">
-            Add New Store
+            {stores.length === 0 ? 'Create your first store' : 'Add New Store'}
           </h3>
-          <div className="space-y-4">
+          <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); void handleAddStore(); }}>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Name</label>
+              <label htmlFor="new-store-name" className="block text-sm font-medium text-gray-700 mb-1.5">Store Name</label>
               <input 
+                id="new-store-name"
+                required
                 className={inputCls} 
                 value={newStoreName} 
                 onChange={(e) => setNewStoreName(e.target.value)} 
@@ -274,8 +280,9 @@ export function GeneralSettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Store Address</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="new-store-address">Store Address</label>
               <textarea
+                id="new-store-address"
                 className={inputCls + ' resize-none'}
                 rows={2}
                 value={newStoreAddress}
@@ -284,8 +291,9 @@ export function GeneralSettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Tax Rate (%)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="new-store-tax">Tax Rate (%)</label>
               <input
+                id="new-store-tax"
                 type="number"
                 className={inputCls + ' w-32 font-mono'}
                 value={newTaxRate}
@@ -298,12 +306,18 @@ export function GeneralSettingsPage() {
             </div>
             
             <div className="pt-2">
-              <Button variant="primary" loading={addingStore} onClick={handleAddStore}>        
+              <Button type="submit" variant="primary" loading={addingStore}>
                 Create Store
               </Button>
             </div>
-          </div>
+          </form>
         </div>
+      )}
+      {isOwner && activeBrandingStore && (
+        <>
+          <StoreBrandingEditor store={activeBrandingStore} />
+          <PosHardwareSettings store={activeBrandingStore} />
+        </>
       )}
     </div>
   );}
@@ -947,6 +961,7 @@ export function NotificationsSettingsPage() {
       <h3 className="font-semibold text-gray-900 mb-5 flex items-center gap-2">
         <Bell className="w-4 h-4" /> Notification Preferences
       </h3>
+      <p className="mb-5 text-sm text-gray-500">Choose which alerts you receive. To read store activity and system events, open <Link to="/notifications" className="text-blue-600 underline">Notifications</Link>.</p>
       {loading && <p className="text-sm text-gray-500 py-4">Loading preferences...</p>}
       {!loading && loadError && (
         <div className="text-sm text-red-600 py-4">
@@ -964,9 +979,10 @@ export function NotificationsSettingsPage() {
               onClick={() => void toggleSetting(key)}
               disabled={savingKey !== null}
               className={cn(
-                'relative w-10 h-6 rounded-full transition-colors focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed',
+                'relative w-10 h-6 rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-blue-600 disabled:opacity-60 disabled:cursor-not-allowed',
                 enabled ? 'bg-blue-600' : 'bg-gray-200'
               )}
+              aria-label={labels[key].title}
               aria-pressed={enabled}
             >
               <span

@@ -50,7 +50,7 @@ import { AddSupplierPage } from '@/pages/AddSupplierPage';
 import { EditSupplierPage } from '@/pages/EditSupplierPage';
 import {
   SettingsLayout,
-  GeneralSettingsPage,
+  StoresPosSettingsPage,
   UserManagementPage,
   NotificationsSettingsPage,
   SecuritySettingsPage,
@@ -58,6 +58,7 @@ import {
 } from '@/pages/SettingsPage';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
+import { AdminDashboard, ProductStoreRequirement, StoreSetupPage } from '@/components/onboarding/StoreSetup';
 
 // Route guards
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -323,11 +324,12 @@ function AppRoutes() {
               <AppShell>
                 <Routes>
                   <Route path="/" element={<DefaultAdminRoute />} />
-                  <Route path="/dashboard" element={<RequireAdmin><DashboardPage /></RequireAdmin>} />
+                  <Route path="/dashboard" element={<RequireAdmin><AdminDashboard><DashboardPage /></AdminDashboard></RequireAdmin>} />
                   <Route path="/notifications" element={<RequireAdmin><NotificationsPage /></RequireAdmin>} />
-                  <Route path="/inventory" element={<InventoryPage />} />
-                  <Route path="/inventory/products/new" element={<AddProductPage />} />
-                  <Route path="/inventory/products/:id" element={<EditProductPage />} />
+                  <Route path="/setup" element={<RequireAdmin><StoreSetupPage /></RequireAdmin>} />
+                  <Route path="/inventory" element={<ProductStoreRequirement><InventoryPage /></ProductStoreRequirement>} />
+                  <Route path="/inventory/products/new" element={<ProductStoreRequirement><AddProductPage /></ProductStoreRequirement>} />
+                  <Route path="/inventory/products/:id" element={<ProductStoreRequirement><EditProductPage /></ProductStoreRequirement>} />
                   <Route path="/restocking" element={<RequireAdmin><RestockingPage /></RequireAdmin>} />
                   <Route path="/suppliers" element={<RequireAdmin><SuppliersPage /></RequireAdmin>} />
                   <Route path="/suppliers/new" element={<RequireAdmin><AddSupplierPage /></RequireAdmin>} />
@@ -337,7 +339,7 @@ function AppRoutes() {
                   <Route path="/rankings" element={<RequireAdmin><RankingsPage /></RequireAdmin>} />
                   <Route path="/reports" element={<ReportsPage />} />
                   <Route path="/settings" element={<RequireAdmin><SettingsLayout /></RequireAdmin>}>
-                    <Route index element={<GeneralSettingsPage />} />
+                    <Route index element={<StoresPosSettingsPage />} />
                     <Route path="users" element={<UserManagementPage />} />
                     <Route path="notifications" element={<NotificationsSettingsPage />} />
                     <Route path="security" element={<SecuritySettingsPage />} />

@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { Button as LinkButton } from '@/components/ui/button';
 import { AlertTriangle, Bell, Check, CheckCheck, CircleCheck, CircleX, Info, RefreshCw, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
@@ -188,9 +190,10 @@ export function NotificationsPage() {
     <div>
       <PageHeader
         title="Notifications"
-        subtitle={subtitle}
+        subtitle={`Store activity and system events · ${subtitle}`}
         actions={
           <div className="flex flex-wrap gap-2">
+            <LinkButton asChild variant="outline"><Link to="/settings/notifications">Notification preferences</Link></LinkButton>
             <Button
               variant="secondary"
               icon={<RefreshCw />}
