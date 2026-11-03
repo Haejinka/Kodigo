@@ -26,8 +26,7 @@ export interface InventoryImportRow {
   unit: string;
   purchaseUnit: string;
   conversionFactor: number;
-  purchaseQuantity: number;
-  totalPurchasePrice: number;
+  purchasePrice: number;
   currentStock: number;
   costPrice: number;
   sellingPrice: number;
@@ -62,8 +61,8 @@ const columns = [
   'Base Unit *',
   'Purchase Unit *',
   'Base Units per Purchase Unit *',
-  'Quantity Purchased *',
-  'Total Purchase Price (PHP) *',
+  'Starting Stock (Base Units) *',
+  'Purchase Price per Package (PHP) *',
   'Selling Price per Base Unit *',
   'Low Stock Alert',
   'Safety Stock',
@@ -100,17 +99,17 @@ export function InventoryImportPanel({ storeId, categories, products, onCreateCa
       ['Inventory import template'],
       ['Fill the Products sheet. Keep the first row and column headers unchanged.'],
       ['Each data row creates a new product with its starting stock. Existing products are never overwritten.'],
-      ['Required fields are marked with *. Use plain numbers for purchase quantities and prices.'],
+      ['Required fields are marked with *. Use plain numbers for stock quantities and prices.'],
       ['New category names in the Category column are created in the selected store during import.'],
       ['Base Unit is what customers buy, such as piece, bottle, or kg. Purchase Unit is how the vendor sells it, such as tie, tray, or sack.'],
-      ['Enter the number of base units inside one purchase unit and how many purchase units were bought.'],
-      ['Starting stock and cost per base unit are calculated from package quantity, units per package, and total purchase price.'],
+      ['Enter the number of base units inside one purchase unit, current starting stock in base units, and the price of one purchase unit.'],
+      ['Cost per base unit is calculated from purchase price per package divided by base units per purchase unit. Starting stock is the value you enter directly.'],
       ['Leave optional stock thresholds blank to use 0. Lead Time Days defaults to 1.'],
       ['Existing SKUs in this store and duplicate SKUs in this file will be skipped.'],
       ['Optional: add one row per selling bundle on the Selling Options sheet. Bundles are linked to a product by SKU and imported with that product.'],
       ['Each selling bundle has its own name, base-unit quantity, and bundle price. For example, a 24-can case can cost less than 24 cans sold individually.'],
       ['Optional: add one row per way you buy a product on the Purchase Options sheet. For example, eggs can be restocked as 1 piece or 1 tray = 30 pieces.'],
-      ['Mark only one purchase option per SKU as Yes in Use by Default. The Products sheet purchase unit and quantity still describe the initial stock purchase.'],
+      ['Mark only one purchase option per SKU as Yes in Use by Default. The Products sheet purchase unit and package price describe the default supplier package.'],
       ['Categories available in this store:'],
       ...(categories.length > 0 ? categories.map((category) => [category.name]) : [['No saved categories yet. Type a new category in Products; it will be created during import.']]),
     ];
@@ -137,7 +136,7 @@ export function InventoryImportPanel({ storeId, categories, products, onCreateCa
     try {
       if (!file.name.toLowerCase().endsWith('.xlsx')) throw new Error('Choose an .xlsx workbook.');
       const sheets = await readXlsxFile(file);
-      const productHeaders = ['product name', 'sku', 'category', 'base unit', 'purchase unit', 'base units per purchase unit', 'quantity purchased', 'total purchase price (php)', 'selling price per base unit'];
+      const productHeaders = ['product name', 'sku', 'category', 'base unit', 'purchase unit', 'base units per purchase unit', 'starting stock (base units)', 'purchase price per package (php)', 'selling price per base unit'];
       const productSheet = sheets.find((sheet) => normalizedName(sheet.sheet) === 'products') ?? sheets.find((sheet) => findHeaderRow(sheet.data as unknown as unknown[][], productHeaders) >= 0) ?? sheets[0];
       const rows = productSheet?.data as unknown as Array<Array<unknown>> | undefined;
       const productHeaderRowIndex = findHeaderRow(rows, productHeaders);
@@ -226,8 +225,8 @@ export function InventoryImportPanel({ storeId, categories, products, onCreateCa
         const barcode = String(valueAt(row, 'barcode') ?? '').trim();
         const purchaseUnit = String(valueAt(row, 'purchase unit') ?? '').trim().toLowerCase();
         const unitsPerPurchaseUnit = numericValue(valueAt(row, 'base units per purchase unit'));
-        const purchaseQuantity = numericValue(valueAt(row, 'quantity purchased'));
-        const totalPurchasePrice = numericValue(valueAt(row, 'total purchase price (php)'));
+        const startingStock = numericValue(valueAt(row, 'starting stock (base units)'));
+        const purchasePrice = numericValue(valueAt(row, 'purchase price per package (php)'));
         const sellingPrice = numericValue(valueAt(row, 'selling price per base unit'));
         const minStock = numericValue(valueAt(row, 'low stock alert'), 0);
         const safetyStock = numericValue(valueAt(row, 'safety stock'), 0);
@@ -252,10 +251,9 @@ export function InventoryImportPanel({ storeId, categories, products, onCreateCa
             if (bundle.sellingPrice >= sellingPrice * bundle.unitsPerBundle) errors.push(`${bundle.label} should be priced below buying ${bundle.unitsPerBundle} base units separately.`);
           }
         }
-        const baseStock = unitsPerPurchaseUnit !== undefined && purchaseQuantity !== undefined
-          ? unitsPerPurchaseUnit * purchaseQuantity
+        const cost = unitsPerPurchaseUnit && purchasePrice !== undefined
+          ? purchasePrice / unitsPerPurchaseUnit
           : undefined;
-        const cost = baseStock && totalPurchasePrice !== undefined ? totalPurchasePrice / baseStock : totalPurchasePrice === 0 ? 0 : undefined;
 
         if (!name) errors.push('Product name is required.');
         if (!sku) errors.push('SKU is required.');
@@ -266,10 +264,9 @@ export function InventoryImportPanel({ storeId, categories, products, onCreateCa
         if (!unit) errors.push('Base unit is required.');
         if (!purchaseUnit) errors.push('Purchase unit is required.');
         if (unitsPerPurchaseUnit === undefined || unitsPerPurchaseUnit < 1 || !Number.isInteger(unitsPerPurchaseUnit)) errors.push('Base units per purchase unit must be a whole number of at least 1.');
-        if (purchaseQuantity === undefined || purchaseQuantity < 0 || !Number.isInteger(purchaseQuantity)) errors.push('Quantity purchased must be a whole number at least 0.');
-        if (totalPurchasePrice === undefined || totalPurchasePrice < 0) errors.push('Total purchase price must be a number at least 0.');
-        if (baseStock === undefined || !Number.isSafeInteger(baseStock)) errors.push('Calculated starting stock must be a whole number.');
-        if (cost === undefined || !Number.isFinite(cost) || cost < 0) errors.push('Cost per base unit cannot be calculated from these purchase details.');
+        if (startingStock === undefined || startingStock < 0 || !Number.isSafeInteger(startingStock)) errors.push('Starting stock must be a whole number at least 0.');
+        if (purchasePrice === undefined || purchasePrice < 0) errors.push('Purchase price per package must be a number at least 0.');
+        if (cost === undefined || !Number.isFinite(cost) || cost < 0) errors.push('Cost per base unit cannot be calculated from package price and package size.');
         if (sellingPrice === undefined || sellingPrice < 0) errors.push('Selling price per base unit must be a number at least 0.');
         for (const [label, value] of [['Low stock alert', minStock], ['Safety stock', safetyStock], ['Reorder level', reorderLevel]] as const) {
           if (value === undefined || value < 0) errors.push(`${label} must be a number at least 0.`);
@@ -288,9 +285,8 @@ export function InventoryImportPanel({ storeId, categories, products, onCreateCa
             unit,
             purchaseUnit,
             conversionFactor: unitsPerPurchaseUnit ?? 1,
-            purchaseQuantity: purchaseQuantity ?? 0,
-            totalPurchasePrice: totalPurchasePrice ?? 0,
-            currentStock: baseStock ?? 0,
+            purchasePrice: purchasePrice ?? 0,
+            currentStock: startingStock ?? 0,
             costPrice: cost ?? 0,
             sellingPrice: sellingPrice ?? 0,
             minStockLevel: minStock ?? 0,

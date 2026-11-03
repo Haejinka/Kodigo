@@ -589,7 +589,7 @@ export function InventoryPage() {
       unit: row.unit,
       purchaseUnit: row.purchaseUnit,
       conversionFactor: row.conversionFactor,
-      bulkPurchasePrice: row.purchaseQuantity > 0 ? row.totalPurchasePrice / row.purchaseQuantity : 0,
+      bulkPurchasePrice: row.purchasePrice,
       costPrice: row.costPrice,
       sellingPrice: row.sellingPrice,
       currentStock: row.currentStock,
