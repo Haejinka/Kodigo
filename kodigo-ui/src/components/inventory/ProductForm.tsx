@@ -190,8 +190,6 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     // Base-unit costs retain six decimals; reconstructed package prices use centavos.
     return Math.round((packagePrice + Number.EPSILON) * 100) / 100;
   });
-  const [purchaseQuantity, setPurchaseQuantity] = useState(mode === 'create' ? 0 : 1);
-  const [startingStockAutoFill, setStartingStockAutoFill] = useState(mode === 'create');
   const [purchaseRestockingOptionId, setPurchaseRestockingOptionId] = useState(
     initial?.restockingOptions?.find((option) => option.isDefault)?.id ?? initial?.restockingOptions?.[0]?.id ?? '',
   );
@@ -284,14 +282,12 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   useEffect(() => {
     const packageSize = Math.max(1, Number(purchaseRestockingOption?.conversionFactor) || 1);
     const calculatedCost = Math.round((purchaseTotal / packageSize + Number.EPSILON) * 1_000_000) / 1_000_000;
-    const calculatedStartingStock = Math.max(0, purchaseQuantity * packageSize);
     setForm((prev) => {
-      const nextStock = mode === 'create' && startingStockAutoFill ? calculatedStartingStock : prev.currentStock;
-      return prev.costPrice === calculatedCost && prev.currentStock === nextStock
+      return prev.costPrice === calculatedCost
         ? prev
-        : { ...prev, costPrice: calculatedCost, currentStock: nextStock };
+        : { ...prev, costPrice: calculatedCost };
     });
-  }, [mode, purchaseQuantity, purchaseRestockingOption?.conversionFactor, purchaseTotal, startingStockAutoFill]);
+  }, [purchaseRestockingOption?.conversionFactor, purchaseTotal]);
 
   useEffect(() => {
     if (mode !== 'create') return;
@@ -370,15 +366,8 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     });
   };
 
-  const updatePurchaseCost = (total: number, quantity: number) => {
+  const updatePurchaseCost = (total: number) => {
     setPurchaseTotal(total);
-    setPurchaseQuantity(quantity);
-    setErrors((prev) => {
-      if (!prev.purchaseQuantity) return prev;
-      const next = { ...prev };
-      delete next.purchaseQuantity;
-      return next;
-    });
   };
 
   const setBaseUnit = (unit: string) => {
@@ -593,7 +582,6 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
     if (!form.categoryId) nextErrors.categoryId = 'Category is required';
     if (storeCategories.length === 0 && form.storeId) nextErrors.categoryId = 'No categories are available for this store yet';
     if (form.costPrice < 0) nextErrors.costPrice = 'Purchase price cannot be negative';
-    if (purchaseQuantity <= 0) nextErrors.purchaseQuantity = 'Quantity purchased must be greater than zero';
     if (form.sellingPrice <= 0) nextErrors.sellingPrice = 'Selling price must be greater than zero';
     if (form.currentStock < 0) nextErrors.currentStock = 'Stock cannot be negative';
     if (!form.restockingOptions || form.restockingOptions.length === 0) nextErrors.restockingOptions = 'Add at least one way you receive this product';
@@ -827,9 +815,8 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
             </div>
             <div className="mt-5 grid grid-cols-1 gap-4 border-t border-[var(--border)] pt-5 md:grid-cols-2">
 
-              <Field id="product-purchase-total" label="How much did you pay per package? (PHP)" required hint={`Enter the price for one ${purchaseRestockingOption?.label || 'package'}.`}><input id="product-purchase-total" type="number" min={0} step="0.01" className={`${inputCls} font-mono`} value={purchaseTotal || ''} onChange={(event) => updatePurchaseCost(Number(event.target.value) || 0, purchaseQuantity)} /></Field>
+              <Field id="product-purchase-total" label="How much did you pay per package? (PHP)" required hint={`Enter the price for one ${purchaseRestockingOption?.label || 'package'}.`}><input id="product-purchase-total" type="number" min={0} step="0.01" className={`${inputCls} font-mono`} value={purchaseTotal || ''} onChange={(event) => updatePurchaseCost(Number(event.target.value) || 0)} /></Field>
               <Field id="product-purchase-unit" label="Purchased as"><select id="product-purchase-unit" className={inputCls} value={purchaseRestockingOption?.id ?? ''} onChange={(event) => setPurchaseRestockingOptionId(event.target.value)}>{(form.restockingOptions || []).map((option) => <option key={option.id} value={option.id}>{option.label || baseUnit} ({option.conversionFactor} {baseUnit}{option.conversionFactor === 1 ? '' : 's'})</option>)}</select></Field>
-              <Field id="product-purchase-quantity" label={`How many ${purchaseRestockingOption?.label || baseUnit}${purchaseQuantity === 1 ? '' : 's'} did you buy?`} required hint={mode === 'create' ? `This sets starting stock using the package size (${purchaseRestockingOption?.conversionFactor || 1} ${baseUnit}${(purchaseRestockingOption?.conversionFactor || 1) === 1 ? '' : 's'} per package).` : 'Used to record the purchase quantity; changing it will not change current stock.'}><input id="product-purchase-quantity" type="number" min={0.01} step="0.01" className={`${inputCls} font-mono`} value={purchaseQuantity || ''} onChange={(event) => updatePurchaseCost(purchaseTotal, Number(event.target.value) || 0)} />{errors.purchaseQuantity && <p className="text-xs text-red-500">{errors.purchaseQuantity}</p>}</Field>
               <div className="rounded-lg bg-[var(--muted)] px-3 py-2 text-xs text-[var(--muted-foreground)] md:mt-6">Calculated cost per {baseUnit}: <span className="font-mono font-semibold">PHP {form.costPrice.toFixed(2)}</span></div>
               <Field id="product-price" label={`Regular selling price per ${baseUnit}`} required hint="Enter the price the customer pays. VAT is included for VAT-registered stores."><input id="product-price" type="number" min={0} step="0.01" className={`${inputCls} font-mono disabled:bg-gray-100`} value={form.sellingPrice || ''} disabled={form.autoPricingEnabled} onChange={(event) => { const sellingPrice = Number(event.target.value) || 0; setForm((prev) => ({ ...prev, sellingPrice })); }} />{errors.sellingPrice && <p className="text-xs text-red-500">{errors.sellingPrice}</p>}</Field>
               <div className="rounded-lg bg-[var(--muted)] px-3 py-2 text-xs text-[var(--muted-foreground)] md:mt-6">Profit per {baseUnit}: <span className="font-mono font-semibold">PHP {margin.toFixed(2)}</span>{' '}<span className={marginPct < 0 ? 'text-red-600' : 'text-green-700'}>({marginPct.toFixed(1)}%)</span></div>
@@ -871,14 +858,9 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
 
           <div className={cardCls}>
             <h2 className={`${titleCls} mb-4`}>Inventory levels</h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><Field id="product-stock" label={`Starting stock (${baseUnit}s)`} hint={mode === 'edit' ? 'Use Adjust Stock from Product Management to change stock.' : startingStockAutoFill ? 'Auto-filled from purchase quantity and package size. You can edit it or refill it below.' : 'Manual value. Use the button below to recalculate from the purchase.'}><input id="product-stock" type="number" min={0} step={1} disabled={mode === 'edit'} className={`${inputCls} font-mono`} value={form.currentStock || ''} onChange={(event) => {
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><Field id="product-stock" label={`Starting stock (${baseUnit}s)`} hint={mode === 'edit' ? 'Use Adjust Stock from Product Management to change stock.' : 'Enter the number of individual units currently on hand.'}><input id="product-stock" type="number" min={0} step={1} disabled={mode === 'edit'} className={`${inputCls} font-mono`} value={form.currentStock || ''} onChange={(event) => {
               set('currentStock', Number(event.target.value) || 0);
-              if (mode === 'create') setStartingStockAutoFill(false);
-            }} />{mode === 'create' && <button type="button" onClick={() => {
-              const packageSize = Math.max(1, Number(purchaseRestockingOption?.conversionFactor) || 1);
-              setForm((prev) => ({ ...prev, currentStock: Math.max(0, purchaseQuantity * packageSize) }));
-              setStartingStockAutoFill(true);
-            }} className="mt-1 text-xs font-semibold text-blue-700 hover:text-blue-900">Auto-fill from purchase</button>}</Field><Field id="product-low-stock" label={`Low stock alert (${baseUnit}s)`} hint="Shows a warning when stock reaches this level. It is not the amount to order."><input id="product-low-stock" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.minStockLevel || ''} onChange={(event) => set('minStockLevel', Number(event.target.value) || 0)} placeholder="e.g. 24" /></Field><Field id="product-safety-stock" label={`Safety stock (${baseUnit}s)`} hint="Reserve kept for demand changes or delivery delays. A high value can keep the product in a restock state."><input id="product-safety-stock" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.safetyStock || ''} onChange={(event) => set('safetyStock', Number(event.target.value) || 0)} /></Field><Field id="product-reorder-level" label={`Reorder level (${baseUnit}s)`} hint="The stock level that can trigger replenishment. The order quantity is rounded to the purchase package."><input id="product-reorder-level" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.reorderLevel || ''} onChange={(event) => {
+            }} /></Field><Field id="product-low-stock" label={`Low stock alert (${baseUnit}s)`} hint="Shows a warning when stock reaches this level. It is not the amount to order."><input id="product-low-stock" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.minStockLevel || ''} onChange={(event) => set('minStockLevel', Number(event.target.value) || 0)} placeholder="e.g. 24" /></Field><Field id="product-safety-stock" label={`Safety stock (${baseUnit}s)`} hint="Reserve kept for demand changes or delivery delays. A high value can keep the product in a restock state."><input id="product-safety-stock" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.safetyStock || ''} onChange={(event) => set('safetyStock', Number(event.target.value) || 0)} /></Field><Field id="product-reorder-level" label={`Reorder level (${baseUnit}s)`} hint="The stock level that can trigger replenishment. The order quantity is rounded to the purchase package."><input id="product-reorder-level" type="number" min={0} step={1} className={`${inputCls} font-mono`} value={form.reorderLevel || ''} onChange={(event) => {
               set('reorderLevel', Number(event.target.value) || 0);
             }} /></Field><Field id="product-lead-time" label="Lead time (days)" hint="Typical supplier delivery time. Recent sales can make the system flag stock before this many days remain."><input id="product-lead-time" type="number" min={1} step={1} className={`${inputCls} font-mono`} value={leadTimeDraft ?? String(form.leadTimeDays)} onChange={(event) => {
               const normalized = event.target.value.replace(/^0+(?=\d)/, '');
