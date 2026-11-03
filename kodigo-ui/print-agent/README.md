@@ -41,7 +41,7 @@ Automatic receipt jobs and drawer pulses are idempotent per sale ID on that comp
 ## Limits
 
 - Windows x64 only for this first version.
-- A successful spooler response means Windows accepted the print job; it cannot prove that the receipt physically printed. Check the first job at the printer.
+- The agent checks Windows printer status before submitting jobs and reports printers marked offline, paused, or unavailable. A successful spooler response means Windows accepted the print job; it cannot prove that the receipt physically printed or that the cash drawer opened.
 - The XP-58 driver must accept RAW spool jobs for direct thermal printing. If it does not, use the browser's standard print flow or adjust the Windows driver/printer configuration.
 - If the drawer needs pin 5, a nonstandard pulse duration, or the printer driver does not accept RAW spool data, the printer/drawer model's documentation is needed to adjust the fixed command safely.
 - Public websites connecting to loopback may trigger a browser Local Network Access permission prompt. That browser permission is separate from the agent's pairing token.

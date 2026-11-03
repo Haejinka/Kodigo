@@ -24,6 +24,7 @@ export function PosHardwareSettings({ store }: { store: Store }) {
   const [receiptPrintingEnabled, setReceiptPrintingEnabled] = useState(store.receiptPrintingEnabled !== false);
   const [cashDrawerIntegrationEnabled, setCashDrawerIntegrationEnabled] = useState(store.cashDrawerIntegrationEnabled !== false);
   const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
+  const [unavailablePrinters, setUnavailablePrinters] = useState<string[]>([]);
   const [selectedPrinter, setSelectedPrinter] = useState(() => getConfiguredDrawerPrinter(store.id));
   const [savedPrinter, setSavedPrinter] = useState(() => getConfiguredDrawerPrinter(store.id));
   const [searchingPrinters, setSearchingPrinters] = useState(false);
@@ -38,6 +39,7 @@ export function PosHardwareSettings({ store }: { store: Store }) {
     setSelectedPrinter(getConfiguredDrawerPrinter(store.id));
     setSavedPrinter(getConfiguredDrawerPrinter(store.id));
     setAvailablePrinters([]);
+    setUnavailablePrinters([]);
     setPrinterMessage('');
   }, [store.cashDrawerIntegrationEnabled, store.id, store.receiptPrintingEnabled]);
 
@@ -65,21 +67,29 @@ export function PosHardwareSettings({ store }: { store: Store }) {
     setPrinterMessage('');
     try {
       const token = hasLocalPrintAgentToken() ? undefined : await pairLocalPrintAgent();
-      const printers = await findLocalPrinters(token);
+      const { printers, unavailablePrinters: unavailable } = await findLocalPrinters(token);
       setPairingTokenSaved(true);
       setAvailablePrinters(printers);
+      setUnavailablePrinters(unavailable);
       if (printers.length === 0) {
         setPrinterMessage('Connected, but Windows has no installed printers. Install the printer driver, then reconnect.');
       } else {
-        const preferredPrinter = printers.find((printer) => /xprinter\s*xp\s*[- ]?58/i.test(printer))
+        const preferredPrinter = printers.find((printer) => !unavailable.includes(printer) && /xprinter\s*xp\s*[- ]?58/i.test(printer))
+          ?? printers.find((printer) => !unavailable.includes(printer))
           ?? (printers.length === 1 ? printers[0] : '');
         const currentPrinter = selectedPrinter && printers.includes(selectedPrinter) ? selectedPrinter : '';
         const nextPrinter = currentPrinter || preferredPrinter;
-        if (nextPrinter) {
+        if (nextPrinter && unavailable.includes(nextPrinter)) {
+          setSelectedPrinter(nextPrinter);
+          setPrinterMessage(`Windows reports ${nextPrinter} is offline or unavailable. Check its USB cable or port and the Windows print queue, then reconnect this computer.`);
+        } else if (nextPrinter) {
           saveConfiguredDrawerPrinter(store.id, nextPrinter);
           setSelectedPrinter(nextPrinter);
           setSavedPrinter(nextPrinter);
           setPrinterMessage(`Connected and saved ${nextPrinter} for this store on this computer.`);
+        } else if (printers.length > 0 && unavailable.length === printers.length) {
+          setSelectedPrinter('');
+          setPrinterMessage('Windows reports all installed printers are offline or unavailable. Check their connections and Windows print queues, then reconnect this computer.');
         } else {
           setSelectedPrinter('');
           setPrinterMessage(`Connected. Found ${printers.length} printers; choose the one connected to the receipt paper and drawer.`);
@@ -88,6 +98,7 @@ export function PosHardwareSettings({ store }: { store: Store }) {
     } catch (error) {
       setPairingTokenSaved(hasLocalPrintAgentToken());
       setAvailablePrinters([]);
+      setUnavailablePrinters([]);
       setPrinterMessage(error instanceof Error
         ? `${error.message} If setup is not installed yet, download and open Kodigo Print Setup, then try again.`
         : 'Could not connect. Download and open Kodigo Print Setup, then try again.');
@@ -203,15 +214,15 @@ export function PosHardwareSettings({ store }: { store: Store }) {
               disabled={!pairingTokenSaved || availablePrinters.length === 0}
             >
               <option value="">Choose a printer</option>
-              {availablePrinters.map((printer) => <option key={printer} value={printer}>{printer}</option>)}
+              {availablePrinters.map((printer) => <option key={printer} value={printer} disabled={unavailablePrinters.includes(printer)}>{printer}{unavailablePrinters.includes(printer) ? ' (offline)' : ''}</option>)}
             </select>
           </label>
-          <Button type="button" variant="outline" loading={testingDrawer} disabled={!pairingTokenSaved || !selectedPrinter || testingDrawer} onClick={() => void runDrawerTest()}>
+          <Button type="button" variant="outline" loading={testingDrawer} disabled={!pairingTokenSaved || !selectedPrinter || testingDrawer || unavailablePrinters.includes(selectedPrinter)} onClick={() => void runDrawerTest()}>
             Test drawer
           </Button>
         </div>
         <p role="status" aria-live="polite" aria-atomic="true" className="mt-2 min-h-5 text-xs text-gray-500">{printerMessage}</p>
-        {savedPrinter && <p className="mt-2 text-xs text-green-700">Saved for this computer: {savedPrinter}</p>}
+        {savedPrinter && <p className={`mt-2 text-xs ${unavailablePrinters.includes(savedPrinter) ? 'text-amber-700' : 'text-green-700'}`}>Saved for this computer: {savedPrinter}{unavailablePrinters.includes(savedPrinter) ? ' (offline)' : ''}</p>}
       </div>
     </section>
   );

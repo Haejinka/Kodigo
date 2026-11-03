@@ -1,7 +1,8 @@
 const LOCAL_PRINT_AGENT_URL = 'http://127.0.0.1:17831';
 const LOCAL_PRINT_AGENT_TOKEN_KEY = 'kodigo.local-print-agent.pairing-token';
 
-type PrinterListResponse = { printers: string[] };
+type PrinterListResponse = { printers: string[]; unavailablePrinters?: string[] };
+export type PrinterScanResult = { printers: string[]; unavailablePrinters: string[] };
 type DrawerResponse = { opened: boolean; duplicate?: boolean; message?: string };
 export type ReceiptPrintResponse = { submitted: boolean; duplicate?: boolean; message?: string };
 type AgentErrorResponse = { error?: string; detail?: string; title?: string };
@@ -96,10 +97,13 @@ export async function pairLocalPrintAgent() {
   return result.token;
 }
 
-export async function findLocalPrinters(token = getLocalPrintAgentToken()): Promise<string[]> {
+export async function findLocalPrinters(token = getLocalPrintAgentToken()): Promise<PrinterScanResult> {
   if (!token) throw new Error('Pair this computer with Kodigo Print Agent before finding printers.');
   const result = await requestLocalPrintAgent<PrinterListResponse>('/v1/printers', token);
-  return Array.isArray(result.printers) ? result.printers : [];
+  return {
+    printers: Array.isArray(result.printers) ? result.printers : [],
+    unavailablePrinters: Array.isArray(result.unavailablePrinters) ? result.unavailablePrinters : [],
+  };
 }
 
 export function getConfiguredDrawerPrinter(storeId: string): string {

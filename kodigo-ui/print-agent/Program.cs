@@ -118,7 +118,7 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.MapGet("/v1/health", () => Results.Ok(new { ok = true, name = "Kodigo Print Agent", version = "1.0.0" }));
+app.MapGet("/v1/health", () => Results.Ok(new { ok = true, name = "Kodigo Print Agent", version = "1.0.1" }));
 
 app.MapPost("/v1/pair", () => Results.Ok(new { token = PairingTokenStore.Create() }));
 
@@ -126,7 +126,9 @@ app.MapGet("/v1/printers", () =>
 {
     try
     {
-        return Results.Ok(new { printers = WindowsPrinter.GetInstalledPrinters() });
+        var printers = WindowsPrinter.GetInstalledPrinters();
+        var unavailablePrinters = printers.Where(WindowsPrinter.IsUnavailable).ToArray();
+        return Results.Ok(new { printers, unavailablePrinters });
     }
     catch (Exception)
     {
@@ -166,6 +168,8 @@ app.MapPost("/v1/receipts/print", async (HttpContext context) =>
             return Results.BadRequest(new ApiError("That printer is not installed on this computer. Find printers again and choose an installed printer."));
         }
 
+        WindowsPrinter.EnsureAvailable(printerName);
+
         var alreadyAttempted = !request.Reprint && await ReceiptPrintLedger.TryClaimAsync(saleId);
         if (alreadyAttempted)
         {
@@ -183,6 +187,10 @@ app.MapPost("/v1/receipts/print", async (HttpContext context) =>
         }
 
         return Results.Ok(new { submitted = true, duplicate = false, message = "Windows accepted the receipt job. Check the printer for output." });
+    }
+    catch (PrinterUnavailableException exception)
+    {
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
     }
     catch (OperationCanceledException)
     {
@@ -214,6 +222,8 @@ app.MapPost("/v1/drawer/pulse", async (HttpContext context) =>
             return Results.BadRequest(new ApiError("That printer is not installed on this computer. Find printers again and choose an installed printer."));
         }
 
+        WindowsPrinter.EnsureAvailable(printerName);
+
         var alreadyAttempted = await DrawerPulseLedger.TryClaimAsync(saleId);
         if (alreadyAttempted)
         {
@@ -230,7 +240,11 @@ app.MapPost("/v1/drawer/pulse", async (HttpContext context) =>
             PrinterCommandGate.Release();
         }
 
-        return Results.Ok(new { opened = true, duplicate = false, message = "Drawer pulse sent to the printer." });
+        return Results.Ok(new { opened = true, duplicate = false, message = "Windows accepted the drawer pulse request. Check whether the drawer opened." });
+    }
+    catch (PrinterUnavailableException exception)
+    {
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
     }
     catch (OperationCanceledException)
     {
@@ -259,6 +273,8 @@ app.MapPost("/v1/drawer/test", async (HttpContext context) =>
             return Results.BadRequest(new ApiError("That printer is not installed on this computer."));
         }
 
+        WindowsPrinter.EnsureAvailable(printerName);
+
         await PrinterCommandGate.WaitAsync(context.RequestAborted);
         try
         {
@@ -269,7 +285,11 @@ app.MapPost("/v1/drawer/test", async (HttpContext context) =>
             PrinterCommandGate.Release();
         }
 
-        return Results.Ok(new { opened = true, message = "Drawer test pulse sent to the printer." });
+        return Results.Ok(new { opened = true, message = "Windows accepted the drawer pulse request. Check whether the drawer opened." });
+    }
+    catch (PrinterUnavailableException exception)
+    {
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
     }
     catch (OperationCanceledException)
     {

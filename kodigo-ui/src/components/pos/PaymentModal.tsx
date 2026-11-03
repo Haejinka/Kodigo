@@ -62,8 +62,8 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const [receiptSnapshot, setReceiptSnapshot] = useState<ReceiptSnapshot | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [receiptPrintStatus, setReceiptPrintStatus] = useState<{ tone: 'success' | 'warning'; message: string } | null>(null);
-  const [cashDrawerStatus, setCashDrawerStatus] = useState<{ tone: 'success' | 'warning'; message: string } | null>(null);
+  const [receiptPrintStatus, setReceiptPrintStatus] = useState<{ tone: 'warning'; message: string } | null>(null);
+  const [cashDrawerStatus, setCashDrawerStatus] = useState<{ tone: 'warning'; message: string } | null>(null);
 
   const orderSubtotal = subtotal();
   const orderDiscount = discountAmount();
@@ -231,7 +231,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         } else {
           void openCashDrawer(printerName, recordedSale.id).then((result) => {
             setCashDrawerStatus(result.opened || result.duplicate
-              ? { tone: 'success', message: result.duplicate ? 'This sale has already sent its drawer pulse.' : 'Cash drawer pulse sent.' }
+              ? { tone: 'warning', message: result.duplicate ? 'A drawer pulse was already queued for this sale. Check whether the drawer opened.' : result.message || 'Windows accepted the drawer pulse request. Check whether the drawer opened.' }
               : { tone: 'warning', message: 'Sale saved, but the drawer pulse was not sent. Check the printer and drawer connection.' });
           }).catch((error) => {
             setCashDrawerStatus({
@@ -273,9 +273,9 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
           setReceiptPrintStatus({ tone: 'warning', message: 'Sending receipt to the Windows printer…' });
           void printReceipt(nextReceiptSnapshot, 'thermal').then((result) => {
             setReceiptPrintStatus({
-              tone: 'success',
+              tone: 'warning',
               message: result.duplicate
-                ? 'This sale already has a receipt print job.'
+                ? 'A receipt job was already queued for this sale.'
                 : result.message || 'Windows accepted the receipt job. Check the printer for output.',
             });
           }).catch((err) => {
@@ -547,7 +547,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                   setReceiptPrintStatus({ tone: 'warning', message: 'Sending receipt to the Windows printer…' });
                   void printReceipt(receiptSnapshot, 'thermal', { reprint: true }).then((result) => {
                     setReceiptPrintStatus({
-                      tone: 'success',
+                      tone: 'warning',
                       message: result.message || 'Windows accepted the receipt job. Check the printer for output.',
                     });
                   }).catch((error) => {
