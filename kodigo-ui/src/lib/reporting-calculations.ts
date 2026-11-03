@@ -138,10 +138,16 @@ export function getMonthlyTopProducts(lines: MonthlySalesLine[], month: string, 
     .slice(0, Math.max(0, limit));
 }
 
-export function getPosHardwareActions(preferences: PosHardwarePreferences, paymentMethod: string) {
+export function getPosHardwareActions(
+  preferences: PosHardwarePreferences,
+  paymentMethod: string,
+  cashDrawerSigningConfigured = false,
+) {
   return {
     printReceipt: preferences.receiptPrintingEnabled !== false,
-    openCashDrawer: preferences.cashDrawerIntegrationEnabled !== false && paymentMethod === 'cash',
+    openCashDrawer: preferences.cashDrawerIntegrationEnabled !== false
+      && paymentMethod === 'cash'
+      && cashDrawerSigningConfigured,
   };
 }
 

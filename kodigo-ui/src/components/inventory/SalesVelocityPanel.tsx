@@ -275,7 +275,7 @@ export function SalesVelocityPanel({ products }: Props) {
       </section>
 
       {error && (
-        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--destructive-border)] bg-[var(--destructive-soft)] px-4 py-3 text-sm text-[var(--destructive)]">
           <span>{error}</span>
           <button
             type="button"

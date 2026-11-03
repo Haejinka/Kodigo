@@ -469,19 +469,19 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
       ) : (
         <>
           {/* Alert banner */}
-          {!restockAlertDismissed && <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 flex items-start gap-3">
-            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+          {!restockAlertDismissed && <div role="status" className="bg-[var(--warning-soft)] border border-[var(--warning)] rounded-xl px-4 py-3 mb-5 flex items-start gap-3 text-[var(--warning-foreground)]">
+            <AlertTriangle className="w-4 h-4 text-[var(--warning)] mt-0.5 shrink-0" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-amber-800">
+              <p className="text-sm font-medium">
                 {items.filter((i) => i.urgency === 'high').length} item{items.filter((i) => i.urgency === 'high').length !== 1 ? 's' : ''} need immediate restocking
               </p>
-              <p className="text-xs text-amber-600 mt-0.5">
+              <p className="text-xs mt-0.5">
                 {consumptionHistoryFailed
                   ? 'Inventory history is unavailable, so estimates use reorder thresholds. Costs use current unit cost and round up to full supplier packages.'
                   : 'Uses recorded sales and stock losses since inventory tracking began, plus supplier lead time and stock buffers. Estimated costs use current unit cost and round up to full supplier packages.'}
               </p>
             </div>
-            <button type="button" onClick={() => setRestockAlertDismissed(true)} aria-label="Dismiss restocking notice" className="shrink-0 rounded-md p-1 text-amber-700 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
+            <button type="button" onClick={() => setRestockAlertDismissed(true)} aria-label="Dismiss restocking notice" className="shrink-0 rounded-md p-1 text-[var(--warning-foreground)] hover:bg-[var(--warning-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--warning)]">
               <X className="size-4" aria-hidden="true" />
             </button>
           </div>}
@@ -768,8 +768,8 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
           {Object.entries(priceReviews).map(([productId, review]) => {
             const product = products.find((candidate) => candidate.id === productId);
             return (
-              <div key={productId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                <p className="text-xs text-amber-900">{product?.name || 'Product'} cost per unit changed from {formatCurrency(review.previousCostPerBaseUnit)} to {formatCurrency(review.newCostPerBaseUnit)}. Suggested selling price: {formatCurrency(review.suggestedSellingPrice)}.</p>
+              <div key={productId} role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--warning)] bg-[var(--warning-soft)] px-4 py-3 text-[var(--warning-foreground)]">
+                <p className="text-xs">{product?.name || 'Product'} cost per unit changed from {formatCurrency(review.previousCostPerBaseUnit)} to {formatCurrency(review.newCostPerBaseUnit)}. Suggested selling price: {formatCurrency(review.suggestedSellingPrice)}.</p>
                 <div className="flex gap-2">
                   <Button size="sm" variant="secondary" onClick={() => setPriceReviews((previous) => { const next = { ...previous }; delete next[productId]; return next; })}>Keep current price</Button>
                   <Button size="sm" variant="primary" onClick={async () => { try { await updateSellingPrice(productId, review.suggestedSellingPrice, undefined, true); setPriceReviews((previous) => { const next = { ...previous }; delete next[productId]; return next; }); toast('success', `Selling price updated for ${product?.name || 'product'}.`); } catch (error) { toast('error', error instanceof Error ? error.message : 'Failed to update selling price.'); } }}>Update price</Button>

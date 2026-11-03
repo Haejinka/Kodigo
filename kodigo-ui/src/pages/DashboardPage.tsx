@@ -170,7 +170,7 @@ export function DashboardPage() {
       </Card>
 
       {dashboardQuery.isError && (
-        <div role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <div role="alert" className="mb-6 rounded-xl border border-[var(--destructive-border)] bg-[var(--destructive-soft)] px-4 py-3 text-sm text-[var(--destructive)]">
           Could not load dashboard sales data. Check the connection and refresh to try again.
         </div>
       )}

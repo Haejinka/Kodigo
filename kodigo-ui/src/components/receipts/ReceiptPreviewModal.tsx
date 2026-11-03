@@ -39,7 +39,7 @@ export function ReceiptPreviewModal({
     setWorking('print');
     try {
       await record('print');
-      printReceipt(snapshot, layout);
+      await printReceipt(snapshot, layout);
     } catch (error) {
       toast('error', error instanceof Error ? error.message : 'Unable to print receipt.');
     } finally {

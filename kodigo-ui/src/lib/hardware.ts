@@ -1,41 +1,16 @@
-import qz from 'qz-tray';
+export const QZ_TRUST_SETUP_MESSAGE = 'Cash drawer integration is paused until a trusted QZ Tray certificate and server-side signer are configured.';
 
-interface QzTrayApi {
-  websocket: {
-    connect: () => Promise<void>;
-    isActive: () => boolean;
-  };
-  printers: {
-    find: () => Promise<string[] | string>;
-  };
-  configs: {
-    create: (printerName: string, options?: Record<string, unknown>) => unknown;
-  };
-  print: (config: unknown, data: Array<Record<string, unknown>>) => Promise<unknown>;
+/** QZ calls stay disabled until the application has a trusted signer. */
+export function isQzTraySigningConfigured() {
+  return false;
 }
-
-const printBridge = qz as unknown as QzTrayApi;
-let connectingToPrintBridge: Promise<void> | null = null;
 
 function getPrinterPreferenceKey(storeId: string) {
   return `kodigo.pos.receipt-printer.${storeId}`;
 }
 
-async function connectToPrintBridge() {
-  if (printBridge.websocket.isActive()) return;
-  if (!connectingToPrintBridge) {
-    connectingToPrintBridge = printBridge.websocket.connect().finally(() => {
-      connectingToPrintBridge = null;
-    });
-  }
-  await connectingToPrintBridge;
-}
-
 export async function findLocalReceiptPrinters(): Promise<string[]> {
-  await connectToPrintBridge();
-  const result = await printBridge.printers.find();
-  const printers = Array.isArray(result) ? result : [result];
-  return printers.filter((printer) => typeof printer === 'string' && printer.length > 0).sort((a, b) => a.localeCompare(b));
+  throw new Error(QZ_TRUST_SETUP_MESSAGE);
 }
 
 export function getConfiguredReceiptPrinter(storeId: string): string {
@@ -59,23 +34,7 @@ export function saveConfiguredReceiptPrinter(storeId: string, printerName: strin
   }
 }
 
-/** Sends the ESC/POS drawer pulse through the selected printer using QZ Tray. */
+/** Sends a drawer pulse only after trusted QZ signing has been implemented. */
 export async function openCashDrawer(printerName: string): Promise<boolean> {
-  if (!printerName) return false;
-
-  try {
-    await connectToPrintBridge();
-    const config = printBridge.configs.create(printerName, { jobName: 'Open cash drawer' });
-    await printBridge.print(config, [{
-      type: 'raw',
-      format: 'command',
-      flavor: 'hex',
-      data: '1B700019FA',
-      options: { language: 'ESCPOS' },
-    }]);
-    return true;
-  } catch (error) {
-    console.error('Failed to send the drawer pulse through the receipt printer:', error);
-    return false;
-  }
+  return Boolean(printerName) && isQzTraySigningConfigured();
 }

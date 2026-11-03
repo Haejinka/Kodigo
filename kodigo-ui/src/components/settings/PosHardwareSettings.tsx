@@ -3,7 +3,13 @@ import { DoorOpen, Printer, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { useToast } from '@/components/shared/Toast';
 import { useAuthStore } from '@/stores/authStore';
-import { findLocalReceiptPrinters, getConfiguredReceiptPrinter, saveConfiguredReceiptPrinter } from '@/lib/hardware';
+import {
+  findLocalReceiptPrinters,
+  getConfiguredReceiptPrinter,
+  isQzTraySigningConfigured,
+  QZ_TRUST_SETUP_MESSAGE,
+  saveConfiguredReceiptPrinter,
+} from '@/lib/hardware';
 import type { Store } from '@/types';
 
 export function PosHardwareSettings({ store }: { store: Store }) {
@@ -47,6 +53,10 @@ export function PosHardwareSettings({ store }: { store: Store }) {
   };
 
   const discoverPrinters = async () => {
+    if (!isQzTraySigningConfigured()) {
+      setPrinterMessage(QZ_TRUST_SETUP_MESSAGE);
+      return;
+    }
     setSearchingPrinters(true);
     setPrinterMessage('');
     try {
@@ -104,12 +114,18 @@ export function PosHardwareSettings({ store }: { store: Store }) {
             id="enable-cash-drawer-integration"
             type="checkbox"
             checked={cashDrawerIntegrationEnabled}
-            onChange={(event) => setCashDrawerIntegrationEnabled(event.target.checked)}
+            onChange={(event) => {
+              if (event.target.checked && !isQzTraySigningConfigured()) {
+                toast('warning', QZ_TRUST_SETUP_MESSAGE);
+                return;
+              }
+              setCashDrawerIntegrationEnabled(event.target.checked);
+            }}
             className="mt-0.5 size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-2 text-sm font-medium text-gray-900"><DoorOpen className="size-4 text-gray-500" />Enable Cash Drawer Integration</span>
-            <span className="mt-1 block text-xs leading-5 text-gray-500">Send a drawer pulse through the selected receipt printer after a cash sale. Cash payments stay available when this is off.</span>
+            <span className="mt-1 block text-xs leading-5 text-gray-500">Send a drawer pulse after a cash sale. This remains unavailable until the trusted QZ Tray signing setup is configured.</span>
           </span>
         </label>
       </div>
@@ -119,8 +135,9 @@ export function PosHardwareSettings({ store }: { store: Store }) {
       <div className="mt-5 border-t border-gray-100 pt-5">
         <div className="mb-3">
           <h4 className="text-sm font-semibold text-gray-900">Printer for the cash drawer on this computer</h4>
-          <p className="mt-1 text-xs leading-5 text-gray-500">This device-only selection routes drawer pulses to the XP-58IIH. Receipts still use the browser print flow, so set the Xprinter as the Windows default printer. Install and open QZ Tray and the Xprinter driver first; the browser may ask to allow local network access or QZ Tray.</p>
+          <p className="mt-1 text-xs leading-5 text-gray-500">This device-only selection is for cash drawer pulses only. Receipts use the browser print flow. QZ Tray is currently paused because this deployment has no trusted certificate or server-side signer. Do not approve unsigned QZ requests.</p>
         </div>
+        {!isQzTraySigningConfigured() && <p role="note" className="mb-3 rounded-lg border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-2 text-sm text-[var(--warning-foreground)]">{QZ_TRUST_SETUP_MESSAGE} Receipt printing remains available through the browser print dialog.</p>}
         <div className="grid gap-3 sm:grid-cols-[minmax(12rem,1fr)_auto_auto] sm:items-end">
           <label htmlFor="pos-receipt-printer" className="block text-xs font-medium text-gray-600">
             Printer that drives the drawer
@@ -129,16 +146,16 @@ export function PosHardwareSettings({ store }: { store: Store }) {
               value={selectedPrinter}
               onChange={(event) => setSelectedPrinter(event.target.value)}
               className="report-input mt-1"
-              disabled={availablePrinters.length === 0}
+              disabled={!isQzTraySigningConfigured() || availablePrinters.length === 0}
             >
               <option value="">Choose a printer</option>
               {availablePrinters.map((printer) => <option key={printer} value={printer}>{printer}</option>)}
             </select>
           </label>
-          <Button type="button" variant="outline" loading={searchingPrinters} icon={<RefreshCw className="size-4" />} onClick={() => void discoverPrinters()}>
+          <Button type="button" variant="outline" loading={searchingPrinters} disabled={!isQzTraySigningConfigured()} icon={<RefreshCw className="size-4" />} onClick={() => void discoverPrinters()}>
             Find printers
           </Button>
-          <Button type="button" variant="secondary" disabled={!selectedPrinter && !savedPrinter} onClick={saveLocalPrinter}>
+          <Button type="button" variant="secondary" disabled={!isQzTraySigningConfigured() || (!selectedPrinter && !savedPrinter)} onClick={saveLocalPrinter}>
             Save on this computer
           </Button>
         </div>

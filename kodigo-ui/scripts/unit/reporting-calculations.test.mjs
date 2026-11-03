@@ -83,21 +83,25 @@ test('ranks monthly products by net base units, aggregates products, and exclude
 });
 
 test('keeps receipt printing and cash drawer controls independent', () => {
-  assert.deepEqual(getPosHardwareActions({ receiptPrintingEnabled: false, cashDrawerIntegrationEnabled: true }, 'cash'), {
+  assert.deepEqual(getPosHardwareActions({ receiptPrintingEnabled: false, cashDrawerIntegrationEnabled: true }, 'cash', false), {
     printReceipt: false,
+    openCashDrawer: false,
+  });
+  assert.deepEqual(getPosHardwareActions({ receiptPrintingEnabled: true, cashDrawerIntegrationEnabled: false }, 'cash', false), {
+    printReceipt: true,
+    openCashDrawer: false,
+  });
+  assert.deepEqual(getPosHardwareActions({ receiptPrintingEnabled: false, cashDrawerIntegrationEnabled: false }, 'cash', false), {
+    printReceipt: false,
+    openCashDrawer: false,
+  });
+  assert.deepEqual(getPosHardwareActions({ receiptPrintingEnabled: true, cashDrawerIntegrationEnabled: true }, 'gcash', true), {
+    printReceipt: true,
+    openCashDrawer: false,
+  });
+  assert.deepEqual(getPosHardwareActions({ receiptPrintingEnabled: true, cashDrawerIntegrationEnabled: true }, 'cash', true), {
+    printReceipt: true,
     openCashDrawer: true,
-  });
-  assert.deepEqual(getPosHardwareActions({ receiptPrintingEnabled: true, cashDrawerIntegrationEnabled: false }, 'cash'), {
-    printReceipt: true,
-    openCashDrawer: false,
-  });
-  assert.deepEqual(getPosHardwareActions({ receiptPrintingEnabled: false, cashDrawerIntegrationEnabled: false }, 'cash'), {
-    printReceipt: false,
-    openCashDrawer: false,
-  });
-  assert.deepEqual(getPosHardwareActions({ receiptPrintingEnabled: true, cashDrawerIntegrationEnabled: true }, 'gcash'), {
-    printReceipt: true,
-    openCashDrawer: false,
   });
 });
 

@@ -702,7 +702,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="min-w-0 space-y-4">
           {mode === 'create' && !selectedStoreId && (
-            <div role="status" aria-live="polite" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+            <div role="status" aria-live="polite" className="rounded-lg border border-[var(--warning)] bg-[var(--warning-soft)] px-4 py-3 text-sm leading-6 text-[var(--warning-foreground)]">
               <p className="font-semibold">Choose a store before adding inventory</p>
               <p className="mt-1">
                 {activeStoreId === 'all'
@@ -713,12 +713,12 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
             </div>
           )}
           {mode === 'create' && selectedStoreId && !canUseSelectedStore && (
-            <p role="status" className="rounded-lg bg-blue-50 px-4 py-2 text-sm text-blue-900">
+            <p role="status" className="rounded-lg bg-[var(--primary-soft)] px-4 py-2 text-sm text-[var(--foreground)]">
               Loading {selectedStoreName || 'the selected store'}…
             </p>
           )}
           {mode === 'create' && canUseSelectedStore && selectedStoreName && (
-            <p role="status" className="rounded-lg bg-blue-50 px-4 py-2 text-sm text-blue-900">
+            <p role="status" className="rounded-lg bg-[var(--primary-soft)] px-4 py-2 text-sm text-[var(--foreground)]">
               This product will be added to <strong>{selectedStoreName}</strong> only.
             </p>
           )}
@@ -867,7 +867,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
 })} />{errors[`${prefix}-units`] && <p className="text-xs text-red-600">{errors[`${prefix}-units`]}</p>}</Field></div><div className="mt-3 max-w-sm"><Field id={`${prefix}-price`} label={`Sell this ${option.label || 'bundle'} for`} hint="Enter the price customers actually pay."><input id={`${prefix}-price`} type="number" min={0} step="0.01" className={`${inputCls} font-mono`} value={pricingMethod === 'fixed' ? (option.manualSellingPrice ?? option.sellingPrice) || '' : selling || ''} onChange={(event) => updateBulkOption(index, { pricingMethod: 'fixed', manualSellingPrice: Number(event.target.value) || 0, sellingPrice: Number(event.target.value) || 0 })} />{errors[`${prefix}-discount`] && <p className="text-xs text-red-600">{errors[`${prefix}-discount`]}</p>}</Field></div><button type="button" onClick={() => setAdvancedPricing((current) => ({ ...current, [option.id]: !advancedOpen }))} className="mt-3 inline-flex min-h-10 items-center gap-2 text-xs font-semibold text-blue-700 hover:text-blue-900"><ChevronDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} />Advanced pricing</button>{advancedOpen && <div className="mt-2 grid grid-cols-1 gap-3 rounded-lg border border-blue-100 bg-white p-3 sm:grid-cols-2"><Field id={`${prefix}-method`} label="Pricing method"><select id={`${prefix}-method`} className={inputCls} value={pricingMethod} onChange={(event) => updateBulkOption(index, { pricingMethod: event.target.value as PricingMethod })}><option value="fixed">Fixed bundle price</option><option value="percent">Percentage discount</option><option value="amount">Fixed amount discount</option></select></Field>{pricingMethod !== 'fixed' && <Field id={`${prefix}-discount`} label={pricingMethod === 'amount' ? 'Discount amount (PHP)' : 'Discount (%)'}><input id={`${prefix}-discount`} type="number" min={0} max={pricingMethod === 'percent' ? 100 : undefined} step="0.01" className={`${inputCls} font-mono`} value={option.discountValue || ''} onChange={(event) => updateBulkOption(index, { discountValue: Number(event.target.value) || 0 })} />{errors[`${prefix}-discount`] && <p className="text-xs text-red-600">{errors[`${prefix}-discount`]}</p>}</Field>}</div>}<div className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-blue-100 bg-white p-3 text-sm sm:grid-cols-7"><div><p className="text-xs text-gray-500">Regular value</p><p className="font-mono font-semibold text-gray-900">PHP {regular.toFixed(2)}</p></div><div><p className="text-xs text-gray-500">Bundle price</p><p className="font-mono font-bold text-blue-700">PHP {selling.toFixed(2)}</p></div><div><p className="text-xs text-gray-500">Customer saves</p><p className="font-mono font-semibold text-green-700">PHP {savings.toFixed(2)}</p></div><div><p className="text-xs text-gray-500">Equivalent discount</p><p className="font-mono font-semibold text-green-700">{regular > 0 ? ((savings / regular) * 100).toFixed(2) : '0.00'}%</p></div><div><p className="text-xs text-gray-500">Effective price</p><p className="font-mono font-semibold text-gray-900">PHP {(unitsPerBulk > 0 ? selling / unitsPerBulk : 0).toFixed(2)} / {baseUnit}</p></div><div><p className="text-xs text-gray-500">Effective profit</p><p className={`font-mono font-semibold ${bundleProfit < 0 ? 'text-red-600' : 'text-green-700'}`}>PHP {bundleProfit.toFixed(2)}</p></div><div><p className="text-xs text-gray-500">Profit per {baseUnit}</p><p className={`font-mono font-semibold ${profitPerBaseUnit < 0 ? 'text-red-600' : 'text-green-700'}`}>PHP {profitPerBaseUnit.toFixed(2)}</p></div></div></div>; })}<button type="button" onClick={addBulkOption} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-blue-300 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"><Plus className="h-4 w-4" />Add another selling option</button></div>}
           </div>
 
-          {bulkOptions.some((option) => option.pricingMethod === 'fixed' && (option.manualSellingPrice ?? option.sellingPrice) < form.costPrice * (option.quantityValue ?? option.inventoryMultiplier)) && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800"><p className="font-semibold">Bundle price warning</p><p className="mt-1">Some fixed bundle prices are below the current supplier cost. Review them before selling.</p></div>}
+          {bulkOptions.some((option) => option.pricingMethod === 'fixed' && (option.manualSellingPrice ?? option.sellingPrice) < form.costPrice * (option.quantityValue ?? option.inventoryMultiplier)) && <div role="status" className="rounded-xl border border-[var(--warning)] bg-[var(--warning-soft)] p-4 text-xs text-[var(--warning-foreground)]"><p className="font-semibold">Bundle price warning</p><p className="mt-1">Some fixed bundle prices are below the current supplier cost. Review them before selling.</p></div>}
 
           <div className={cardCls}>
             <h2 className={`${titleCls} mb-4`}>Inventory levels</h2>
@@ -905,7 +905,7 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
                   <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">{isAtOrBelowEffectiveTrigger ? 'At or below the floor: this product will be shown as at risk.' : 'Above the static alert floor.'}</p>
                 </div>
               </div>
-              {safetyStockSetsTrigger && <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm leading-6 text-amber-900 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-100"><AlertTriangle className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" /><p><span className="font-semibold">Safety stock is setting the alert floor.</span> Stock at or below {formatInventoryLevel(safetyStockLevel)} will remain in a restock state until it rises above that reserve.</p></div>}
+              {safetyStockSetsTrigger && <div role="status" className="mt-3 flex items-start gap-2 rounded-lg border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-3 text-sm leading-6 text-[var(--warning-foreground)]"><AlertTriangle className="mt-1 h-4 w-4 shrink-0 text-[var(--warning)]" aria-hidden="true" /><p><span className="font-semibold">Safety stock is setting the alert floor.</span> Stock at or below {formatInventoryLevel(safetyStockLevel)} will remain in a restock state until it rises above that reserve.</p></div>}
             </div>
           </div>
         </div>
