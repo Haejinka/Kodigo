@@ -264,6 +264,7 @@ interface SaleItemRow {
   final_selling_price: number | null;
   base_unit_label: string | null;
   cost_per_base_unit: number | null;
+  allocated_cogs: number | null;
   quantity: number;
   unit_price: number;
   cost_price: number | null;
@@ -661,15 +662,29 @@ export async function fetchSalesReport(
   if (sales.length === 0) return empty;
 
   const saleIds = sales.map((sale) => sale.id);
-  const [items, payments, returnedItems, cashierNames] = await Promise.all([
+  const [items, allocations, payments, returnedItems, cashierNames] = await Promise.all([
     fetchSaleItems(saleIds, requestContext),
+    fetchSaleItemAllocations(saleIds, requestContext),
     fetchSalePayments(saleIds, requestContext),
     fetchReturnedItems(saleIds, requestContext),
     fetchCashierNames(sales.map((sale) => sale.cashier_id).filter(Boolean) as string[], requestContext),
   ]);
 
+  const allocatedCogsByItem = new Map<string, number>();
+  for (const allocation of allocations) {
+    const remainingQuantity = Math.max(0, allocation.quantity_base_units - allocation.quantity_returned);
+    allocatedCogsByItem.set(
+      allocation.sale_item_id,
+      (allocatedCogsByItem.get(allocation.sale_item_id) ?? 0) + remainingQuantity * allocation.unit_cost,
+    );
+  }
+  const saleItems = items.map((item) => ({
+    ...item,
+    allocated_cogs: allocatedCogsByItem.has(item.id) ? allocatedCogsByItem.get(item.id)! : null,
+  }));
+
   const aggregationStarted = performance.now();
-  const report = buildSalesReport(normalizedFilters, sales, items, payments, returnedItems, cashierNames);
+  const report = buildSalesReport(normalizedFilters, sales, saleItems, payments, returnedItems, cashierNames);
   if (import.meta.env.DEV) {
     console.debug('[Reporting Performance]', {
       operation: 'aggregate_sales_report',
@@ -1257,9 +1272,12 @@ function mapSaleLine(
   const unitsPerPackage = Math.max(1, toNumber(item.units_per_package ?? item.package_size ?? 1));
   const baseUnitQuantity = Math.max(0, toNumber(item.base_unit_quantity ?? item.quantity * unitsPerPackage));
   const returnedBaseUnitQuantity = returnedQuantity * unitsPerPackage;
-  const costPerBaseUnit = item.cost_per_base_unit == null
-    ? (item.cost_price || 0) / unitsPerPackage
-    : toNumber(item.cost_per_base_unit);
+  const netBaseUnitQuantity = Math.max(0, baseUnitQuantity - returnedBaseUnitQuantity);
+  const costPerBaseUnit = netBaseUnitQuantity > 0
+    ? cost / netBaseUnitQuantity
+    : item.cost_per_base_unit == null
+      ? (item.cost_price || 0) / unitsPerPackage
+      : toNumber(item.cost_per_base_unit);
   const regularUnitPrice = toNumber(item.regular_unit_price ?? item.unit_price);
   const regularValue = toNumber(item.regular_value ?? regularUnitPrice * baseUnitQuantity);
   const finalSellingPrice = toNumber(item.final_selling_price ?? item.unit_price);
@@ -1289,7 +1307,7 @@ function mapSaleLine(
     returnedQuantity,
     returnedBaseUnitQuantity,
     netQuantity: Math.max(0, item.quantity - returnedQuantity),
-    netBaseUnitQuantity: Math.max(0, baseUnitQuantity - returnedBaseUnitQuantity),
+    netBaseUnitQuantity,
     unitPrice: item.unit_price,
     costPrice: item.cost_price || 0,
     costPerBaseUnit,
@@ -1410,10 +1428,25 @@ async function fetchSaleItems(saleIds: string[], context: ReportingRequestContex
     bulk_discount_amount: row.bulk_discount_amount == null ? null : toNumber(row.bulk_discount_amount),
     final_selling_price: row.final_selling_price == null ? null : toNumber(row.final_selling_price),
     cost_per_base_unit: row.cost_per_base_unit == null ? null : toNumber(row.cost_per_base_unit),
+    allocated_cogs: null,
     quantity: toNumber(row.quantity),
     unit_price: toNumber(row.unit_price),
     cost_price: toNumber(row.cost_price),
     line_total: toNumber(row.line_total),
+  }));
+}
+
+async function fetchSaleItemAllocations(saleIds: string[], context: ReportingRequestContext) {
+  const data = await fetchAllReportPages('fetch_sale_item_stock_allocations', 'sale_item_stock_allocations', context, (from, to) => supabase
+    .from('sale_item_stock_allocations')
+    .select('sale_item_id,quantity_base_units,quantity_returned,unit_cost')
+    .in('sale_item_id', saleIds)
+    .range(from, to));
+  return (data ?? []).map((row: any) => ({
+    sale_item_id: String(row.sale_item_id),
+    quantity_base_units: toNumber(row.quantity_base_units),
+    quantity_returned: toNumber(row.quantity_returned),
+    unit_cost: toNumber(row.unit_cost),
   }));
 }
 
@@ -1569,6 +1602,7 @@ function getReturnedBaseUnitQuantity(item: SaleItemRow, returnedPackages: number
 }
 
 function getNetCogs(item: SaleItemRow, returnedPackages: number): number {
+  if (item.allocated_cogs != null) return item.allocated_cogs;
   const netBaseUnits = Math.max(0, getBaseUnitQuantity(item) - getReturnedBaseUnitQuantity(item, returnedPackages));
   if (item.cost_per_base_unit != null) return toNumber(item.cost_per_base_unit) * netBaseUnits;
   return toNumber(item.cost_price) * Math.max(0, item.quantity - returnedPackages);
