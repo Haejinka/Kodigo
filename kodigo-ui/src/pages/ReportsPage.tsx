@@ -52,7 +52,7 @@ function downloadCsv(fileName: string, rows: Array<Array<string | number>>) {
 
 function salesCsvRows(lines: SalesLineReportRow[]) {
   return [
-    ['Date', 'Product', 'Base Unit', 'Quantity', 'Unit Price', 'Amount Paid'],
+    ['Date', 'Product', 'Base Unit', 'Quantity', 'Unit Price', 'Amount Paid', 'Gross Profit'],
     ...lines.map((line) => [
       formatSalesReportDate(line.dateTime),
       line.productName,
@@ -60,8 +60,10 @@ function salesCsvRows(lines: SalesLineReportRow[]) {
       line.netBaseUnitQuantity,
       formatCurrency(getSalesReportBaseUnitPrice(line)),
       formatCurrency(line.amountPaid),
+      formatCurrency(line.grossProfit),
     ]),
-    ['', '', '', '', 'Total Amount Paid:', formatCurrency(getSalesReportPaidTotal(lines))],
+    ['', '', '', '', '', 'Total Amount Paid:', formatCurrency(getSalesReportPaidTotal(lines))],
+    ['', '', '', '', '', 'Total Gross Profit:', formatCurrency(lines.reduce((total, line) => total + line.grossProfit, 0))],
   ];
 }
 
@@ -128,6 +130,7 @@ export function ReportsPage() {
 
   const saleLines = report?.saleLines ?? [];
   const totalAmountPaid = getSalesReportPaidTotal(saleLines);
+  const totalGrossProfit = saleLines.reduce((total, line) => total + line.grossProfit, 0);
   const pageCount = Math.max(1, Math.ceil(saleLines.length / pageSize));
   const displayedPage = Math.min(page, pageCount);
   const visibleLines = saleLines.slice((displayedPage - 1) * pageSize, displayedPage * pageSize);
@@ -345,7 +348,7 @@ export function ReportsPage() {
                 <p className="text-xs text-[var(--muted-foreground)]">Historical prices and base-unit quantities</p>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[850px] text-left text-sm">
+                <table className="w-full min-w-[1000px] text-left text-sm">
                   <thead className="bg-[var(--app-surface-elevated)] text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
                     <tr>
                       <th className="px-4 py-3">Date</th>
@@ -354,6 +357,7 @@ export function ReportsPage() {
                       <th className="px-4 py-3 text-right">Quantity</th>
                       <th className="px-4 py-3 text-right">Unit Price</th>
                       <th className="px-4 py-3 text-right">Amount Paid</th>
+                      <th className="px-4 py-3 text-right">Gross Profit</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--app-border-subtle)]">
@@ -365,13 +369,15 @@ export function ReportsPage() {
                         <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums">{Number(line.netBaseUnitQuantity).toLocaleString('en-PH', { maximumFractionDigits: 3 })}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums">{formatCurrency(getSalesReportBaseUnitPrice(line))}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-medium tabular-nums">{formatCurrency(line.amountPaid)}</td>
+                        <td className={`whitespace-nowrap px-4 py-3 text-right font-mono font-medium tabular-nums ${line.grossProfit < 0 ? 'text-red-600' : 'text-green-700'}`}>{formatCurrency(line.grossProfit)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-[var(--app-border)] bg-[var(--app-surface-elevated)] font-semibold text-[var(--foreground)]">
-                      <td colSpan={5} className="px-4 py-3 text-right">Total Amount Paid:</td>
+                      <td colSpan={5} className="px-4 py-3 text-right">Total:</td>
                       <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums">{formatCurrency(totalAmountPaid)}</td>
+                      <td className={`whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums ${totalGrossProfit < 0 ? 'text-red-600' : 'text-green-700'}`}>{formatCurrency(totalGrossProfit)}</td>
                     </tr>
                   </tfoot>
                 </table>

@@ -893,11 +893,12 @@ export async function exportSalesReportPdf(report: SalesReportData, fileName?: s
   const bottom = pageHeight - margin - 8;
   const columns = [
     { label: 'Date', width: 30, align: 'left' as const },
-    { label: 'Product', width: 83, align: 'left' as const },
+    { label: 'Product', width: 68, align: 'left' as const },
     { label: 'Base Unit', width: 29, align: 'left' as const },
     { label: 'Quantity', width: 30, align: 'right' as const },
-    { label: 'Unit Price', width: 43, align: 'right' as const },
-    { label: 'Amount Paid', width: contentWidth - 215, align: 'right' as const },
+    { label: 'Unit Price', width: 36, align: 'right' as const },
+    { label: 'Amount Paid', width: contentWidth - 231, align: 'right' as const },
+    { label: 'Gross Profit', width: 38, align: 'right' as const },
   ];
   let y = margin;
 
@@ -943,9 +944,10 @@ export async function exportSalesReportPdf(report: SalesReportData, fileName?: s
     Number(line.netBaseUnitQuantity || 0).toLocaleString('en-PH', { maximumFractionDigits: 3 }),
     formatSalesReportPdfCurrency(getSalesReportBaseUnitPrice(line)),
     formatSalesReportPdfCurrency(line.amountPaid),
+    formatSalesReportPdfCurrency(line.grossProfit),
   ]);
 
-  for (const row of rows.length ? rows : [['', 'No matching sales records.', '', '', '', '']]) {
+  for (const row of rows.length ? rows : [['', 'No matching sales records.', '', '', '', '', '']]) {
     const cellLines = columns.map((column, index) => doc.splitTextToSize(row[index] || '', column.width - 4) as string[]);
     const rowHeight = Math.max(7, ...cellLines.map((lines) => lines.length * 3.5 + 2));
     if (y + rowHeight > bottom) {
@@ -975,13 +977,13 @@ export async function exportSalesReportPdf(report: SalesReportData, fileName?: s
     y += rowHeight;
   }
 
-  if (y + 10 > bottom) {
+  if (y + 18 > bottom) {
     doc.addPage();
     y = margin;
     drawPageHeading(true);
     drawTableHeader();
   }
-  const totalHeight = 9;
+  const totalHeight = 18;
   doc.setFillColor(239, 246, 255);
   doc.rect(margin, y, contentWidth, totalHeight, 'F');
   doc.setDrawColor(191, 219, 254);
@@ -990,7 +992,9 @@ export async function exportSalesReportPdf(report: SalesReportData, fileName?: s
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text('Total Amount Paid:', margin + 2, y + 6);
-  doc.text(formatSalesReportPdfCurrency(getSalesReportPaidTotal(report.saleLines)), pageWidth - margin - 2, y + 6, { align: 'right' });
+  doc.text(formatSalesReportPdfCurrency(getSalesReportPaidTotal(report.saleLines)), margin + columns.slice(0, 6).reduce((total, column) => total + column.width, 0) - 2, y + 6, { align: 'right' });
+  doc.text('Total Gross Profit:', margin + 2, y + 14);
+  doc.text(formatSalesReportPdfCurrency(report.summary.grossProfit), pageWidth - margin - 2, y + 14, { align: 'right' });
 
   const pageCount = doc.getNumberOfPages();
   for (let page = 1; page <= pageCount; page += 1) {
