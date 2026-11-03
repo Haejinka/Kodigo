@@ -7,8 +7,17 @@ using Kodigo.PrintAgent;
 if (args.Contains("--help", StringComparer.OrdinalIgnoreCase))
 {
     Console.WriteLine("Kodigo Print Agent");
+    Console.WriteLine("  Kodigo-Print-Setup-win-x64.exe Install and start the agent for this Windows user.");
+    Console.WriteLine("  --install               Install and start the agent for this Windows user.");
+    Console.WriteLine("  --run                   Run the already-installed local API.");
     Console.WriteLine("  --pair                  Create a pairing token for this Windows account.");
     Console.WriteLine("  --rotate-pairing-token  Replace the current pairing token.");
+    return;
+}
+
+if (args.Length == 0 || args.Contains("--install", StringComparer.OrdinalIgnoreCase))
+{
+    WindowsAgentInstaller.InstallAndOpenKodigo();
     return;
 }
 
@@ -38,13 +47,6 @@ if (!OperatingSystem.IsWindows())
     return;
 }
 
-if (!PairingTokenStore.Exists)
-{
-    Console.Error.WriteLine("This computer has not been paired. Run Kodigo.PrintAgent.exe --pair first.");
-    Environment.ExitCode = 1;
-    return;
-}
-
 using var instanceMutex = new Mutex(initiallyOwned: true, name: "Local\\KodigoPrintAgent", createdNew: out var isFirstInstance);
 if (!isFirstInstance)
 {
@@ -53,7 +55,7 @@ if (!isFirstInstance)
 }
 
 var allowedOrigins = AgentConfiguration.GetAllowedOrigins();
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder([]);
 builder.WebHost.ConfigureKestrel(server =>
 {
     server.Limits.MaxRequestBodySize = 128 * 1024;
@@ -69,9 +71,18 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
 
     var origin = context.Request.Headers["Origin"].ToString();
+    var isPairingRequest = string.Equals(context.Request.Path.Value, "/v1/pair", StringComparison.OrdinalIgnoreCase)
+        && HttpMethods.IsPost(context.Request.Method);
+    if (isPairingRequest && !AgentOriginPolicy.IsAllowed(origin, allowedOrigins))
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.Response.WriteAsJsonAsync(new ApiError("Pair this computer from the Kodigo website."));
+        return;
+    }
+
     if (!string.IsNullOrWhiteSpace(origin))
     {
-        if (!allowedOrigins.Contains(origin))
+        if (!AgentOriginPolicy.IsAllowed(origin, allowedOrigins))
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await context.Response.WriteAsJsonAsync(new ApiError("This website is not allowed to use this computer's print agent."));
@@ -91,6 +102,12 @@ app.Use(async (context, next) =>
         return;
     }
 
+    if (isPairingRequest)
+    {
+        await next();
+        return;
+    }
+
     if (!PairingTokenStore.IsValid(context.Request.Headers["Authorization"].ToString()))
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -102,6 +119,8 @@ app.Use(async (context, next) =>
 });
 
 app.MapGet("/v1/health", () => Results.Ok(new { ok = true, name = "Kodigo Print Agent", version = "1.0.0" }));
+
+app.MapPost("/v1/pair", () => Results.Ok(new { token = PairingTokenStore.Create() }));
 
 app.MapGet("/v1/printers", () =>
 {

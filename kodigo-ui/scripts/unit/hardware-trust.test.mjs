@@ -5,6 +5,7 @@ import {
   getLocalPrintAgentToken,
   hasLocalPrintAgentToken,
   openCashDrawer,
+  pairLocalPrintAgent,
   printThermalReceipt,
   testCashDrawer,
 } from '../../src/lib/hardware.ts';
@@ -57,6 +58,46 @@ test('thermal receipts submit one structured sale payload to the paired local ag
       reprint: false,
       receipt,
     });
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalWindow === undefined) delete globalThis.window;
+    else Object.defineProperty(globalThis, 'window', { configurable: true, value: originalWindow });
+  }
+});
+
+test('one-click pairing asks the first-party local agent for a token and stores it without user copying', async () => {
+  const originalWindow = globalThis.window;
+  const originalFetch = globalThis.fetch;
+  const entries = new Map();
+  const calls = [];
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: (key) => entries.get(key) ?? null,
+        setItem: (key, value) => entries.set(key, value),
+        removeItem: (key) => entries.delete(key),
+      },
+      setTimeout: (callback) => setTimeout(callback, 5000),
+      clearTimeout: (timer) => clearTimeout(timer),
+    },
+  });
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, init });
+    return {
+      ok: true,
+      json: async () => ({ token: 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJK' }),
+    };
+  };
+
+  try {
+    const token = await pairLocalPrintAgent();
+    assert.equal(token, 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJK');
+    assert.equal(entries.get('kodigo.local-print-agent.pairing-token'), token);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'http://127.0.0.1:17831/v1/pair');
+    assert.equal(calls[0].init.method, 'POST');
+    assert.equal(calls[0].init.headers.Authorization, undefined);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalWindow === undefined) delete globalThis.window;

@@ -1,10 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <OutputType>WinExe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>Kodigo.PrintAgent</AssemblyName>
     <RootNamespace>Kodigo.PrintAgent</RootNamespace>
-    <DefaultItemExcludes>$(DefaultItemExcludes);publish/**;package-staging/**;Kodigo-Print-Agent-win-x64.zip</DefaultItemExcludes>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DefaultItemExcludes>$(DefaultItemExcludes);publish/**;package-staging/**;Kodigo-Print-Agent-win-x64/**;Kodigo-Print-Agent-win-x64.zip;Kodigo-Print-Setup-win-x64.exe</DefaultItemExcludes>
   </PropertyGroup>
 </Project>

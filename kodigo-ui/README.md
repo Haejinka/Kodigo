@@ -64,4 +64,4 @@ npm run dev
 
 ## Local printer and cash-drawer setup
 
-The Vercel site cannot send hardware commands to a printer attached to a user's computer. On Windows POS computers, install and run the companion service in [`print-agent/README.md`](./print-agent/README.md). The browser talks to its loopback-only API to list printers, send 58 mm thermal receipts directly to Windows, and send a fixed ESC/POS drawer pulse. It does not use QZ Tray. Standard page receipts remain available through the browser print dialog.
+The Vercel site cannot send hardware commands to a printer attached to a user's computer. Windows POS users run the one-click setup from [`print-agent/README.md`](./print-agent/README.md), then connect the computer in Settings. The browser talks to the agent's loopback-only API to list printers, send 58 mm thermal receipts directly to Windows, and send a fixed ESC/POS drawer pulse. It does not use QZ Tray. Standard page receipts remain available through the browser print dialog.

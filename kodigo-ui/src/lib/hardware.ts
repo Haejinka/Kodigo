@@ -14,7 +14,7 @@ function normalizeAgentError(message: string) {
   return message || 'The local print agent returned an unexpected response.';
 }
 
-async function requestLocalPrintAgent<T>(path: string, token: string, init: RequestInit = {}): Promise<T> {
+async function requestLocalPrintAgent<T>(path: string, token: string | undefined, init: RequestInit = {}): Promise<T> {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), 5000);
 
@@ -26,7 +26,7 @@ async function requestLocalPrintAgent<T>(path: string, token: string, init: Requ
       mode: 'cors',
       signal: controller.signal,
       headers: {
-        Authorization: `Bearer ${token}`,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(init.body ? { 'Content-Type': 'application/json' } : {}),
       },
     });
@@ -82,6 +82,18 @@ export function clearLocalPrintAgentToken() {
   } catch {
     // Pairing is already unavailable if browser storage cannot be cleared.
   }
+}
+
+export async function pairLocalPrintAgent() {
+  const result = await requestLocalPrintAgent<{ token: string }>('/v1/pair', undefined, {
+    method: 'POST',
+    body: '{}',
+  });
+  if (typeof result.token !== 'string') {
+    throw new Error('The local print agent returned an invalid pairing response.');
+  }
+  saveLocalPrintAgentToken(result.token);
+  return result.token;
 }
 
 export async function findLocalPrinters(token = getLocalPrintAgentToken()): Promise<string[]> {

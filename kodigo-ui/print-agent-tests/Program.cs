@@ -3,6 +3,11 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Kodigo.PrintAgent;
 
+var allowedOrigins = new HashSet<string>(["https://kodigo-blue.vercel.app", "http://localhost:5173"], StringComparer.OrdinalIgnoreCase);
+if (!AgentOriginPolicy.IsAllowed("https://kodigo-blue.vercel.app", allowedOrigins)) throw new Exception("The production Kodigo origin was rejected.");
+if (AgentOriginPolicy.IsAllowed("https://kodigo-blue.vercel.app.attacker.test", allowedOrigins)) throw new Exception("A lookalike domain was allowed to pair.");
+if (AgentOriginPolicy.IsAllowed("", allowedOrigins)) throw new Exception("A request without a browser origin was allowed to pair.");
+
 const string saleId = "71d3baf1-b2f3-4e3d-bbb3-7cab9348b541";
 var fixture = $$"""
 {

@@ -14,7 +14,9 @@ print-agent-tests/bin
 print-agent-tests/obj
 print-agent/publish
 print-agent/package-staging
+print-agent/Kodigo-Print-Agent-win-x64
 print-agent/Kodigo-Print-Agent-win-x64.zip
+print-agent/Kodigo-Print-Setup-win-x64.exe
 print-agent-build
 print-agent-dist
 dist

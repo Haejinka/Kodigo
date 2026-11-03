@@ -35,10 +35,18 @@ export function LoginPage() {
       if (role === 'super_admin') {
         navigate('/super-admin');
       } else {
-        navigate(role === 'cashier' ? '/pos' : role === 'inventory' ? '/inventory' : '/dashboard');
+        const from = (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from;
+        const isPrinterSetupReturn = role === 'admin'
+          && from?.pathname === '/settings'
+          && new URLSearchParams(from.search ?? '').get('setupPrinter') === '1';
+        if (isPrinterSetupReturn && from) {
+          navigate(`${from.pathname}${from.search ?? ''}${from.hash ?? ''}`);
+        } else {
+          navigate(role === 'cashier' ? '/pos' : role === 'inventory' ? '/inventory' : '/dashboard');
+        }
       }
     }
-  }, [isAuthenticated, role, navigate]);
+  }, [isAuthenticated, role, navigate, location.state]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

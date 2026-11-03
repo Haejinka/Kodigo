@@ -4,7 +4,7 @@ This small local companion API lets the Kodigo POS list Windows printers, print 
 
 Thermal receipts are formatted by the agent and submitted directly to the selected Windows printer, without opening the browser print preview. Standard page receipts and PDF downloads remain available through the browser flow.
 
-## Build a Windows package
+## Build the one-click Windows setup
 
 From the `kodigo-ui` directory, publish and package a self-contained Windows x64 build:
 
@@ -12,25 +12,24 @@ From the `kodigo-ui` directory, publish and package a self-contained Windows x64
 npm run publish:print-agent
 ```
 
-The command creates `print-agent/Kodigo-Print-Agent-win-x64.zip`.
+The command creates `print-agent/Kodigo-Print-Setup-win-x64.exe`.
 
 ## Install and pair a POS computer
 
 1. Install the Xprinter driver in Windows and print a Windows test page.
-2. Connect the cash drawer to the printer's drawer port. The drawer and printer must support the standard ESC/POS drawer pulse on pin 2.
-3. Extract the package to a stable folder, such as `C:\KodigoPrintAgent`.
-4. Right-click `Install-Agent.ps1` and run it with PowerShell. It creates a random one-time display token, installs a per-user startup shortcut, and starts the agent hidden.
-5. In Kodigo, open **Settings → POS hardware**, enter the token printed by the install script, and connect this computer. In Chromium-based browsers, allow the site's local network access prompt when asked.
-6. Find the XP-58, save it on this computer, and use **Test drawer**. A test pulse can open the drawer.
+2. Double-click `Kodigo-Print-Setup-win-x64.exe`. It installs under the current Windows account, starts at sign-in, and opens Kodigo. Administrator access and PowerShell are not required.
+3. When you are signed in as a store admin, Kodigo connects automatically. It selects the XP-58 when detected; otherwise choose the printer connected to the receipt paper and drawer. If the browser asks for local network access, choose Allow.
+4. Connect the cash drawer to the printer's drawer port, then click **Test drawer**. A test pulse can open the drawer.
 
-The pairing token is stored in Kodigo's local browser storage. The agent stores only its SHA-256 hash under the signed-in Windows user's Local AppData folder. The agent accepts browser requests only from `https://kodigo-blue.vercel.app` and the local Vite development origins by default. To use another trusted origin, set `KODIGO_PRINT_ALLOWED_ORIGINS` to a comma-separated exact-origin list before starting the agent.
+The browser receives a random pairing token from the local agent after the user clicks **Connect this computer**. The agent stores only its SHA-256 hash under the Windows user's Local AppData folder. Pairing requests require the exact Kodigo website origin; all printer commands also require the token. By default, the agent allows `https://kodigo-blue.vercel.app` and local Vite development origins.
 
-To replace a lost or compromised pairing token, run `Kodigo.PrintAgent.exe --rotate-pairing-token` from the extracted folder and enter the newly displayed token in Kodigo. The previous token stops working immediately.
+If the browser pairing is forgotten, click **Connect this computer** again. The agent creates a new token and invalidates the previous one.
 
 ## API
 
-All endpoints require `Authorization: Bearer <pairing-token>` and only accept the configured website origins:
+All endpoints only accept the configured website origins. Pairing is the sole endpoint that does not require a token; it returns one after a user starts setup from the Kodigo website. All device actions require `Authorization: Bearer <pairing-token>`:
 
+- `POST http://127.0.0.1:17831/v1/pair` returns `{ "token": "..." }` for the exact approved website origin.
 - `GET http://127.0.0.1:17831/v1/health`
 - `GET http://127.0.0.1:17831/v1/printers`
 - `POST http://127.0.0.1:17831/v1/receipts/print` with `{ "printerName": "Xprinter XP-58", "saleId": "<sale uuid>", "reprint": false, "receipt": { ...saved receipt snapshot... } }`

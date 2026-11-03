@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { ToastProvider } from '@/components/shared/Toast';
 import { AppShell } from '@/components/layout/AppShell';
@@ -62,6 +62,7 @@ import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 // Route guards
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, role } = useAuthStore();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -76,7 +77,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />;
   if (!role) return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--background)] px-4">
       <Alert variant="destructive" className="max-w-lg">

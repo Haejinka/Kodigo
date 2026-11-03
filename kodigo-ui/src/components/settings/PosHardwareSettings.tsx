@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { DoorOpen, Printer, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { useToast } from '@/components/shared/Toast';
@@ -6,10 +7,9 @@ import { useAuthStore } from '@/stores/authStore';
 import {
   clearLocalPrintAgentToken,
   findLocalPrinters,
-  getLocalPrintAgentToken,
+  pairLocalPrintAgent,
   getConfiguredDrawerPrinter,
   hasLocalPrintAgentToken,
-  saveLocalPrintAgentToken,
   saveConfiguredDrawerPrinter,
   testCashDrawer,
 } from '@/lib/hardware';
@@ -18,6 +18,9 @@ import type { Store } from '@/types';
 export function PosHardwareSettings({ store }: { store: Store }) {
   const updatePosHardwareSettings = useAuthStore((state) => state.updatePosHardwareSettings);
   const { toast } = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const autoSetupStarted = useRef(false);
   const [receiptPrintingEnabled, setReceiptPrintingEnabled] = useState(store.receiptPrintingEnabled !== false);
   const [cashDrawerIntegrationEnabled, setCashDrawerIntegrationEnabled] = useState(store.cashDrawerIntegrationEnabled !== false);
   const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
@@ -26,7 +29,6 @@ export function PosHardwareSettings({ store }: { store: Store }) {
   const [searchingPrinters, setSearchingPrinters] = useState(false);
   const [testingDrawer, setTestingDrawer] = useState(false);
   const [pairingTokenSaved, setPairingTokenSaved] = useState(() => hasLocalPrintAgentToken());
-  const [pairingToken, setPairingToken] = useState('');
   const [printerMessage, setPrinterMessage] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -58,41 +60,54 @@ export function PosHardwareSettings({ store }: { store: Store }) {
     }
   };
 
-  const discoverPrinters = async () => {
-    const token = pairingToken.trim() || getLocalPrintAgentToken();
-    if (!token) {
-      setPrinterMessage('Enter the pairing token shown by Kodigo Print Agent on this computer.');
-      return;
-    }
+  const connectAndFindPrinters = useCallback(async () => {
     setSearchingPrinters(true);
     setPrinterMessage('');
     try {
+      const token = hasLocalPrintAgentToken() ? undefined : await pairLocalPrintAgent();
       const printers = await findLocalPrinters(token);
-      saveLocalPrintAgentToken(token);
-      setPairingToken('');
       setPairingTokenSaved(true);
       setAvailablePrinters(printers);
       if (printers.length === 0) {
-        setPrinterMessage('Connected to Kodigo Print Agent, but Windows reported no printers. Install the printer driver and try again.');
-      } else if (selectedPrinter && !printers.includes(selectedPrinter)) {
-        setSelectedPrinter('');
-        setPrinterMessage('The previously selected printer is not available on this computer. Choose one from the list.');
+        setPrinterMessage('Connected, but Windows has no installed printers. Install the printer driver, then reconnect.');
       } else {
-        setPrinterMessage(`Connected. Found ${printers.length} printer${printers.length === 1 ? '' : 's'} on this computer.`);
+        const preferredPrinter = printers.find((printer) => /xprinter\s*xp\s*[- ]?58/i.test(printer))
+          ?? (printers.length === 1 ? printers[0] : '');
+        const currentPrinter = selectedPrinter && printers.includes(selectedPrinter) ? selectedPrinter : '';
+        const nextPrinter = currentPrinter || preferredPrinter;
+        if (nextPrinter) {
+          saveConfiguredDrawerPrinter(store.id, nextPrinter);
+          setSelectedPrinter(nextPrinter);
+          setSavedPrinter(nextPrinter);
+          setPrinterMessage(`Connected and saved ${nextPrinter} for this store on this computer.`);
+        } else {
+          setSelectedPrinter('');
+          setPrinterMessage(`Connected. Found ${printers.length} printers; choose the one connected to the receipt paper and drawer.`);
+        }
       }
     } catch (error) {
       setPairingTokenSaved(hasLocalPrintAgentToken());
       setAvailablePrinters([]);
-      setPrinterMessage(error instanceof Error ? error.message : 'Could not connect to Kodigo Print Agent. Start it on this computer and try again.');
+      setPrinterMessage(error instanceof Error
+        ? `${error.message} If setup is not installed yet, download and open Kodigo Print Setup, then try again.`
+        : 'Could not connect. Download and open Kodigo Print Setup, then try again.');
     } finally {
       setSearchingPrinters(false);
     }
-  };
+  }, [selectedPrinter, store.id]);
+
+  useEffect(() => {
+    if (autoSetupStarted.current || new URLSearchParams(location.search).get('setupPrinter') !== '1') return;
+    autoSetupStarted.current = true;
+    const query = new URLSearchParams(location.search);
+    query.delete('setupPrinter');
+    navigate({ pathname: location.pathname, search: query.size > 0 ? `?${query.toString()}` : '' }, { replace: true });
+    void connectAndFindPrinters();
+  }, [connectAndFindPrinters, location.pathname, location.search, navigate]);
 
   const unpairThisComputer = () => {
     clearLocalPrintAgentToken();
     setPairingTokenSaved(false);
-    setPairingToken('');
     setAvailablePrinters([]);
     setPrinterMessage('This browser is no longer paired with Kodigo Print Agent.');
   };
@@ -111,11 +126,12 @@ export function PosHardwareSettings({ store }: { store: Store }) {
     }
   };
 
-  const saveLocalPrinter = () => {
+  const selectLocalPrinter = (printerName: string) => {
     try {
-      saveConfiguredDrawerPrinter(store.id, selectedPrinter);
-      setSavedPrinter(selectedPrinter);
-      toast('success', selectedPrinter ? `Drawer printer saved for this computer: ${selectedPrinter}.` : 'Local drawer printer selection cleared.');
+      saveConfiguredDrawerPrinter(store.id, printerName);
+      setSelectedPrinter(printerName);
+      setSavedPrinter(printerName);
+      setPrinterMessage(`Saved ${printerName} for this store on this computer.`);
     } catch (error) {
       toast('error', error instanceof Error ? error.message : 'Could not save the local printer selection.');
     }
@@ -163,33 +179,26 @@ export function PosHardwareSettings({ store }: { store: Store }) {
           <h4 className="text-sm font-semibold text-gray-900">Printer for receipts and cash drawer on this computer</h4>
           <p className="mt-1 text-xs leading-5 text-gray-500">Kodigo Print Agent sends 58 mm receipts and drawer pulses directly to the selected Windows printer. Thermal receipts print without opening the browser preview; standard page receipts use the browser print dialog.</p>
         </div>
-        <div className="mb-3 grid gap-2 sm:grid-cols-[minmax(12rem,1fr)_auto_auto] sm:items-end">
-          <label htmlFor="print-agent-token" className="block text-xs font-medium text-gray-600">
-            Pair this checkout computer
-            <input
-              id="print-agent-token"
-              name="print-agent-pairing-token"
-              type="password"
-              autoComplete="off"
-              value={pairingToken}
-              onChange={(event) => setPairingToken(event.target.value)}
-              placeholder={pairingTokenSaved ? 'Token saved on this computer' : 'Paste the one-time token shown by the agent'}
-              className="report-input mt-1"
-            />
-          </label>
-          <Button type="button" variant="outline" loading={searchingPrinters} disabled={searchingPrinters} icon={<RefreshCw className="size-4" />} onClick={() => void discoverPrinters()}>
-            {pairingTokenSaved ? 'Reconnect and find printers' : 'Pair and find printers'}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <a
+            href="https://github.com/Haejinka/Kodigo/releases/latest/download/Kodigo-Print-Setup-win-x64.exe"
+            className="inline-flex min-h-10 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+          >
+            Download Windows setup (.exe)
+          </a>
+          <Button type="button" variant="primary" loading={searchingPrinters} disabled={searchingPrinters} icon={<RefreshCw className="size-4" />} onClick={() => void connectAndFindPrinters()}>
+            {pairingTokenSaved ? 'Reconnect this computer' : 'Connect this computer'}
           </Button>
           {pairingTokenSaved && <Button type="button" variant="secondary" disabled={searchingPrinters} onClick={unpairThisComputer}>Forget this browser</Button>}
         </div>
-        <p className="mb-3 text-xs leading-5 text-gray-500">Install and run Kodigo Print Agent on this computer first. Your browser may ask permission for Kodigo to access local devices; allow it to connect to the agent.</p>
+        <p className="mb-3 text-xs leading-5 text-gray-500">Open setup once. It returns here and connects automatically; click Connect this computer if you opened Settings later. Kodigo selects the XP-58 when detected. If the browser asks for local network access, choose Allow.</p>
         <div className="grid gap-3 sm:grid-cols-[minmax(12rem,1fr)_auto_auto] sm:items-end">
           <label htmlFor="pos-receipt-printer" className="block text-xs font-medium text-gray-600">
             Windows printer for receipts and drawer
             <select
               id="pos-receipt-printer"
               value={selectedPrinter}
-              onChange={(event) => setSelectedPrinter(event.target.value)}
+              onChange={(event) => selectLocalPrinter(event.target.value)}
               className="report-input mt-1"
               disabled={!pairingTokenSaved || availablePrinters.length === 0}
             >
@@ -197,9 +206,6 @@ export function PosHardwareSettings({ store }: { store: Store }) {
               {availablePrinters.map((printer) => <option key={printer} value={printer}>{printer}</option>)}
             </select>
           </label>
-          <Button type="button" variant="secondary" disabled={!pairingTokenSaved || (!selectedPrinter && !savedPrinter)} onClick={saveLocalPrinter}>
-            Save on this computer
-          </Button>
           <Button type="button" variant="outline" loading={testingDrawer} disabled={!pairingTokenSaved || !selectedPrinter || testingDrawer} onClick={() => void runDrawerTest()}>
             Test drawer
           </Button>
