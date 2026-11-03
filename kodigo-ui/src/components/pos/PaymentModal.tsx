@@ -193,6 +193,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     // is local UI/peripheral work and must not turn a completed sale into a
     // false failure (or encourage the cashier to charge the customer twice).
     setCompletedSale(recordedSale);
+    setReceiptPrintStatus(null);
     setCashDrawerStatus(null);
     completedSaleIdRef.current = recordedSale.id;
     setStep('confirmed');
@@ -231,7 +232,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         } else {
           void openCashDrawer(printerName, recordedSale.id).then((result) => {
             setCashDrawerStatus(result.opened || result.duplicate
-              ? { tone: 'warning', message: result.duplicate ? 'A drawer pulse was already queued for this sale. Check whether the drawer opened.' : result.message || 'Windows accepted the drawer pulse request. Check whether the drawer opened.' }
+              ? null
               : { tone: 'warning', message: 'Sale saved, but the drawer pulse was not sent. Check the printer and drawer connection.' });
           }).catch((error) => {
             setCashDrawerStatus({
@@ -270,15 +271,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       if (nextReceiptSnapshot) {
         setReceiptSnapshot(nextReceiptSnapshot);
         if (hardwareActions.printReceipt) {
-          setReceiptPrintStatus({ tone: 'warning', message: 'Sending receipt to the Windows printer…' });
-          void printReceipt(nextReceiptSnapshot, 'thermal').then((result) => {
-            setReceiptPrintStatus({
-              tone: 'warning',
-              message: result.duplicate
-                ? 'A receipt job was already queued for this sale.'
-                : result.message || 'Windows accepted the receipt job. Check the printer for output.',
-            });
-          }).catch((err) => {
+          void printReceipt(nextReceiptSnapshot, 'thermal').then(() => setReceiptPrintStatus(null)).catch((err) => {
             console.warn('Sale recorded, but receipt printing failed:', err);
             setReceiptPrintStatus({
               tone: 'warning',
@@ -516,8 +509,8 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
 
             {receiptPrintStatus && (
               <div
-                role={receiptPrintStatus.tone === 'warning' ? 'alert' : 'status'}
-                className={`mb-3 w-full rounded-lg border px-3 py-2 text-left text-sm ${receiptPrintStatus.tone === 'warning' ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-green-200 bg-green-50 text-green-800'}`}
+                role="alert"
+                className="mb-3 w-full rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-left text-sm text-amber-900"
               >
                 {receiptPrintStatus.message}
               </div>
@@ -525,8 +518,8 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
 
             {cashDrawerStatus && (
               <div
-                role={cashDrawerStatus.tone === 'warning' ? 'alert' : 'status'}
-                className={`mb-4 w-full rounded-lg border px-3 py-2 text-left text-sm ${cashDrawerStatus.tone === 'warning' ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-green-200 bg-green-50 text-green-800'}`}
+                role="alert"
+                className="mb-4 w-full rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-left text-sm text-amber-900"
               >
                 {cashDrawerStatus.message}
               </div>
@@ -544,13 +537,8 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
               <button
                 onClick={() => {
                   if (!receiptSnapshot) return;
-                  setReceiptPrintStatus({ tone: 'warning', message: 'Sending receipt to the Windows printer…' });
-                  void printReceipt(receiptSnapshot, 'thermal', { reprint: true }).then((result) => {
-                    setReceiptPrintStatus({
-                      tone: 'warning',
-                      message: result.message || 'Windows accepted the receipt job. Check the printer for output.',
-                    });
-                  }).catch((error) => {
+                  setReceiptPrintStatus(null);
+                  void printReceipt(receiptSnapshot, 'thermal', { reprint: true }).then(() => setReceiptPrintStatus(null)).catch((error) => {
                     setReceiptPrintStatus({
                       tone: 'warning',
                       message: error instanceof Error ? error.message : 'Unable to send the receipt to the printer.',
