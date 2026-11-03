@@ -8,6 +8,17 @@ import { useDisplayScaleStore, type DisplayScale } from '@/stores/displayScaleSt
 import { Button } from '@/components/shared/Button';
 import { supabase } from '@/lib/supabase';
 
+interface InviteCode {
+  id: string;
+  code: string;
+  created_at: string;
+  is_used: boolean;
+  used_by: string | null;
+  used_at: string | null;
+  redeemer_name: string | null;
+  redeemer_email: string | null;
+}
+
 export function SuperAdminPage() {
   const { role, user, profile, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -20,7 +31,9 @@ export function SuperAdminPage() {
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);      
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [inviteCodes, setInviteCodes] = useState<any[]>([]);
+  const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
+  const [codesLoading, setCodesLoading] = useState(true);
+  const [codesError, setCodesError] = useState<string | null>(null);
 
   useEffect(() => {
     if (role === 'super_admin') {
@@ -29,22 +42,19 @@ export function SuperAdminPage() {
   }, [role]);
 
   const fetchCodes = async () => {
+    setCodesLoading(true);
+    setCodesError(null);
     try {
       const { data, error } = await supabase
-        .from('invite_codes')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .rpc('list_invite_codes_with_redeemers');
 
-      if (error) {
-         console.error("fetchCodes error: ", error);
-         return;
-      }
-      
-      if (data) {
-         setInviteCodes(data);
-      }
+      if (error) throw error;
+      setInviteCodes(data ?? []);
     } catch (err) {
       console.error("fetchCodes exception: ", err);
+      setCodesError('Unable to load invite codes. Please try again.');
+    } finally {
+      setCodesLoading(false);
     }
   };
 
@@ -283,7 +293,18 @@ export function SuperAdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
-              {inviteCodes.length === 0 ? (
+              {codesLoading || codesError ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-[var(--muted-foreground)]">
+                    {codesLoading ? 'Loading invite codes…' : (
+                      <div role="alert">
+                        <p>{codesError}</p>
+                        <button type="button" onClick={() => void fetchCodes()} className="mt-2 underline">Try again</button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ) : inviteCodes.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-[var(--muted-foreground)]">No invite codes generated yet.</td>
                 </tr>
@@ -308,7 +329,21 @@ export function SuperAdminPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-[var(--muted-foreground)]">
-                      {invite.is_used ? 'Account Created' : '-'}
+                      {invite.is_used ? (
+                        <div className="space-y-1">
+                          <p className="font-medium text-[var(--foreground)]">
+                            {invite.redeemer_name || invite.redeemer_email || 'Redeemer unavailable'}
+                          </p>
+                          {invite.redeemer_name && invite.redeemer_email && (
+                            <p className="break-all text-xs">{invite.redeemer_email}</p>
+                          )}
+                          {invite.used_at && (
+                            <p className="text-xs">
+                              Redeemed <time dateTime={invite.used_at}>{new Date(invite.used_at).toLocaleString()}</time>
+                            </p>
+                          )}
+                        </div>
+                      ) : 'Not redeemed'}
                     </td>
                     <td className="px-4 py-3">
                       {!invite.is_used && (
