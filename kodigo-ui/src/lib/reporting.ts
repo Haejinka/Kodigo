@@ -662,13 +662,15 @@ export async function fetchSalesReport(
   if (sales.length === 0) return empty;
 
   const saleIds = sales.map((sale) => sale.id);
-  const [items, allocations, payments, returnedItems, cashierNames] = await Promise.all([
+  const [items, payments, returnedItems, cashierNames] = await Promise.all([
     fetchSaleItems(saleIds, requestContext),
-    fetchSaleItemAllocations(saleIds, requestContext),
     fetchSalePayments(saleIds, requestContext),
     fetchReturnedItems(saleIds, requestContext),
     fetchCashierNames(sales.map((sale) => sale.cashier_id).filter(Boolean) as string[], requestContext),
   ]);
+  const allocations = items.length > 0
+    ? await fetchSaleItemAllocations(items.map((item) => item.id), requestContext)
+    : [];
 
   const allocatedCogsByItem = new Map<string, number>();
   for (const allocation of allocations) {
@@ -1436,11 +1438,11 @@ async function fetchSaleItems(saleIds: string[], context: ReportingRequestContex
   }));
 }
 
-async function fetchSaleItemAllocations(saleIds: string[], context: ReportingRequestContext) {
+async function fetchSaleItemAllocations(saleItemIds: string[], context: ReportingRequestContext) {
   const data = await fetchAllReportPages('fetch_sale_item_stock_allocations', 'sale_item_stock_allocations', context, (from, to) => supabase
     .from('sale_item_stock_allocations')
     .select('sale_item_id,quantity_base_units,quantity_returned,unit_cost')
-    .in('sale_item_id', saleIds)
+    .in('sale_item_id', saleItemIds)
     .range(from, to));
   return (data ?? []).map((row: any) => ({
     sale_item_id: String(row.sale_item_id),
