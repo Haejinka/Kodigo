@@ -141,13 +141,13 @@ export function getMonthlyTopProducts(lines: MonthlySalesLine[], month: string, 
 export function getPosHardwareActions(
   preferences: PosHardwarePreferences,
   paymentMethod: string,
-  cashDrawerSigningConfigured = false,
+  cashDrawerAgentPaired = false,
 ) {
   return {
     printReceipt: preferences.receiptPrintingEnabled !== false,
     openCashDrawer: preferences.cashDrawerIntegrationEnabled !== false
       && paymentMethod === 'cash'
-      && cashDrawerSigningConfigured,
+      && cashDrawerAgentPaired,
   };
 }
 

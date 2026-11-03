@@ -51,7 +51,7 @@ npm run dev
 | `src/stores/` | Zustand stores for auth, products, suppliers, alerts, and cart state. |
 | `src/lib/supabase.ts` | Supabase browser client. |
 | `src/lib/offline-sync.ts` | IndexedDB product cache, sale queue, generic mutation queue, and replay logic. |
-| `src/lib/hardware.ts` | Web Serial cash-drawer helper. |
+| `src/lib/hardware.ts` | Kodigo Print Agent client for local printer discovery and cash-drawer pulses. |
 | `src/types/index.ts` | Shared domain types and stock-status helper. |
 
 ## Implementation Notes
@@ -61,3 +61,7 @@ npm run dev
 - Product, supplier, category, purchase order, and alert flows use Supabase-backed stores with optimistic updates in selected paths.
 - The `all` store view is for admin aggregation screens only. POS and create/edit flows require a specific active store.
 - User management and password update screens are still UI scaffolds and should be wired to server-side Supabase Auth admin operations before release.
+
+## Local printer and cash-drawer setup
+
+The Vercel site cannot send hardware commands to a printer attached to a user's computer. On Windows POS computers, install and run the companion service in [`print-agent/README.md`](./print-agent/README.md). The browser talks to its loopback-only API to list printers, send 58 mm thermal receipts directly to Windows, and send a fixed ESC/POS drawer pulse. It does not use QZ Tray. Standard page receipts remain available through the browser print dialog.

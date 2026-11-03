@@ -8,6 +8,15 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+print-agent/bin
+print-agent/obj
+print-agent-tests/bin
+print-agent-tests/obj
+print-agent/publish
+print-agent/package-staging
+print-agent/Kodigo-Print-Agent-win-x64.zip
+print-agent-build
+print-agent-dist
 dist
 dist-ssr
 *.local

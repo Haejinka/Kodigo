@@ -4,6 +4,7 @@ import { getStoreLogoUrl } from '@/lib/branding';
 import { buildReceiptMarkup, dateTime, money, quantityWithUnit } from '@/lib/receipt-markup';
 import type { ReceiptLayout } from '@/lib/receipt-markup';
 import { printReceiptHtml } from '@/lib/receipt-print';
+import { getConfiguredDrawerPrinter, printThermalReceipt } from '@/lib/hardware';
 import type { ReceiptRecord, ReceiptSnapshot, Sale } from '@/types';
 
 export type { ReceiptLayout } from '@/lib/receipt-markup';
@@ -118,8 +119,24 @@ export function buildReceiptHtml(snapshot: ReceiptSnapshot, layout: ReceiptLayou
   return buildReceiptMarkup(snapshot, layout, getStoreLogoUrl(snapshot.store.logoPath));
 }
 
-export function printReceipt(snapshot: ReceiptSnapshot, layout: ReceiptLayout = 'thermal'): Promise<void> {
-  return printReceiptHtml(buildReceiptHtml(snapshot, layout), layout);
+export async function printReceipt(
+  snapshot: ReceiptSnapshot,
+  layout: ReceiptLayout = 'thermal',
+  options: { reprint?: boolean } = {},
+) {
+  if (layout === 'standard') {
+    await printReceiptHtml(buildReceiptHtml(snapshot, layout), layout);
+    return {
+      submitted: true as const,
+      duplicate: false,
+      message: 'Browser print request submitted.',
+      method: 'browser' as const,
+    };
+  }
+
+  const printerName = getConfiguredDrawerPrinter(snapshot.store.id);
+  const result = await printThermalReceipt(printerName, snapshot.sale.id, snapshot, options.reprint === true);
+  return { ...result, method: 'local-agent' as const };
 }
 async function imageAsDataUrl(url: string): Promise<string | null> {
   try {

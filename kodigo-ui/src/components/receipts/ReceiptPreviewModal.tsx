@@ -39,7 +39,7 @@ export function ReceiptPreviewModal({
     setWorking('print');
     try {
       await record('print');
-      await printReceipt(snapshot, layout);
+      await printReceipt(snapshot, layout, { reprint: true });
     } catch (error) {
       toast('error', error instanceof Error ? error.message : 'Unable to print receipt.');
     } finally {
@@ -84,7 +84,7 @@ export function ReceiptPreviewModal({
             PDF
           </Button>
           <Button variant="primary" onClick={handlePrint} loading={working === 'print'} icon={<Printer className="h-4 w-4" />}>
-            Print
+            {layout === 'thermal' ? 'Print to POS printer' : 'Print with browser'}
           </Button>
           <button type="button" onClick={onClose} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700">
             <X className="h-5 w-5" />

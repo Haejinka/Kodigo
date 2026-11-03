@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { CheckCircle, X, User, CreditCard, Smartphone, Banknote, Landmark, Eye, Printer } from 'lucide-react';
 import { formatCurrency, formatDateTime, formatErrorMessage } from '@/lib/utils';
-import { getConfiguredReceiptPrinter, isQzTraySigningConfigured, openCashDrawer, QZ_TRUST_SETUP_MESSAGE } from '@/lib/hardware';
+import { getConfiguredDrawerPrinter, hasLocalPrintAgentToken, openCashDrawer } from '@/lib/hardware';
 import { getPosHardwareActions } from '@/lib/reporting-calculations';
 import { Button } from '@/components/shared/Button';
 import { useToast } from '@/components/shared/Toast';
@@ -62,6 +62,8 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const [receiptSnapshot, setReceiptSnapshot] = useState<ReceiptSnapshot | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [receiptPrintStatus, setReceiptPrintStatus] = useState<{ tone: 'success' | 'warning'; message: string } | null>(null);
+  const [cashDrawerStatus, setCashDrawerStatus] = useState<{ tone: 'success' | 'warning'; message: string } | null>(null);
 
   const orderSubtotal = subtotal();
   const orderDiscount = discountAmount();
@@ -191,6 +193,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     // is local UI/peripheral work and must not turn a completed sale into a
     // false failure (or encourage the cashier to charge the customer twice).
     setCompletedSale(recordedSale);
+    setCashDrawerStatus(null);
     completedSaleIdRef.current = recordedSale.id;
     setStep('confirmed');
     setProcessing(false);
@@ -214,21 +217,36 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         }),
       }));
       const activeStore = stores.find((store) => store.id === storeId);
-      const hardwareActions = getPosHardwareActions(activeStore ?? {}, paymentMethod, isQzTraySigningConfigured());
+      const hardwareActions = getPosHardwareActions(activeStore ?? {}, paymentMethod, hasLocalPrintAgentToken());
       const cashDrawerWasRequested = Boolean(activeStore
         && activeStore.cashDrawerIntegrationEnabled !== false
         && paymentMethod === 'cash');
       if (hardwareActions.openCashDrawer) {
-        const printerName = getConfiguredReceiptPrinter(storeId);
+        const printerName = getConfiguredDrawerPrinter(storeId);
         if (!printerName) {
-          toast('warning', 'Sale completed, but no drawer printer is selected on this computer. Ask the owner to configure it in Settings → POS hardware.');
+          setCashDrawerStatus({
+            tone: 'warning',
+            message: 'Sale saved, but this computer has no drawer printer selected. Ask an admin to configure it in Settings → POS hardware.',
+          });
         } else {
-          void openCashDrawer(printerName).then((opened) => {
-            if (!opened) toast('warning', 'Sale completed, but the drawer pulse failed. Check that QZ Tray is running and the selected printer is connected.');
-          }).catch(() => toast('warning', 'Sale completed, but the cash drawer could not be opened. Check the printer and drawer connection.'));
+          void openCashDrawer(printerName, recordedSale.id).then((result) => {
+            setCashDrawerStatus(result.opened || result.duplicate
+              ? { tone: 'success', message: result.duplicate ? 'This sale has already sent its drawer pulse.' : 'Cash drawer pulse sent.' }
+              : { tone: 'warning', message: 'Sale saved, but the drawer pulse was not sent. Check the printer and drawer connection.' });
+          }).catch((error) => {
+            setCashDrawerStatus({
+              tone: 'warning',
+              message: error instanceof Error
+                ? `Sale saved, but the drawer could not be opened. ${error.message}`
+                : 'Sale saved, but the drawer could not be opened. Check the printer and drawer connection.',
+            });
+          });
         }
-      } else if (cashDrawerWasRequested && !isQzTraySigningConfigured()) {
-        toast('warning', `Sale completed. The cash drawer was not opened. ${QZ_TRUST_SETUP_MESSAGE}`);
+      } else if (cashDrawerWasRequested && !hasLocalPrintAgentToken()) {
+        setCashDrawerStatus({
+          tone: 'warning',
+          message: 'Sale saved, but this computer is not paired with Kodigo Print Agent. Pair it in Settings → POS hardware.',
+        });
       }
       let nextReceiptSnapshot: ReceiptSnapshot | null = activeStore ? receiptSnapshotFromSale(recordedSale, {
             id: activeStore.id,
@@ -252,14 +270,21 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       if (nextReceiptSnapshot) {
         setReceiptSnapshot(nextReceiptSnapshot);
         if (hardwareActions.printReceipt) {
-          try {
-            void printReceipt(nextReceiptSnapshot, 'thermal').catch((err) => {
-              console.warn('Sale recorded, but receipt printing failed:', err);
-              toast('warning', 'Sale completed, but the receipt could not be sent to the browser print dialog. Reprint it from this screen.');
+          setReceiptPrintStatus({ tone: 'warning', message: 'Sending receipt to the Windows printer…' });
+          void printReceipt(nextReceiptSnapshot, 'thermal').then((result) => {
+            setReceiptPrintStatus({
+              tone: 'success',
+              message: result.duplicate
+                ? 'This sale already has a receipt print job.'
+                : result.message || 'Windows accepted the receipt job. Check the printer for output.',
             });
-          } catch (err) {
+          }).catch((err) => {
             console.warn('Sale recorded, but receipt printing failed:', err);
-          }
+            setReceiptPrintStatus({
+              tone: 'warning',
+              message: `Sale saved, but the receipt was not sent to the printer. ${err instanceof Error ? err.message : 'Check the printer connection.'}`,
+            });
+          });
         }
       }
       if (activeStore) {
@@ -286,6 +311,8 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     setStep('payment');
     setCompletedSale(null);
     setReceiptSnapshot(null);
+    setReceiptPrintStatus(null);
+    setCashDrawerStatus(null);
     setPreviewOpen(false);
     completedSaleIdRef.current = null;
     processingRef.current = false;
@@ -487,6 +514,24 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
               </div>
             </div>
 
+            {receiptPrintStatus && (
+              <div
+                role={receiptPrintStatus.tone === 'warning' ? 'alert' : 'status'}
+                className={`mb-3 w-full rounded-lg border px-3 py-2 text-left text-sm ${receiptPrintStatus.tone === 'warning' ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-green-200 bg-green-50 text-green-800'}`}
+              >
+                {receiptPrintStatus.message}
+              </div>
+            )}
+
+            {cashDrawerStatus && (
+              <div
+                role={cashDrawerStatus.tone === 'warning' ? 'alert' : 'status'}
+                className={`mb-4 w-full rounded-lg border px-3 py-2 text-left text-sm ${cashDrawerStatus.tone === 'warning' ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-green-200 bg-green-50 text-green-800'}`}
+              >
+                {cashDrawerStatus.message}
+              </div>
+            )}
+
             <div className="flex gap-3 w-full">
               <button
                 onClick={() => receiptSnapshot && setPreviewOpen(true)}
@@ -499,8 +544,17 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
               <button
                 onClick={() => {
                   if (!receiptSnapshot) return;
-                  void printReceipt(receiptSnapshot, 'thermal').catch((error) => {
-                    toast('error', error instanceof Error ? error.message : 'Unable to print receipt.');
+                  setReceiptPrintStatus({ tone: 'warning', message: 'Sending receipt to the Windows printer…' });
+                  void printReceipt(receiptSnapshot, 'thermal', { reprint: true }).then((result) => {
+                    setReceiptPrintStatus({
+                      tone: 'success',
+                      message: result.message || 'Windows accepted the receipt job. Check the printer for output.',
+                    });
+                  }).catch((error) => {
+                    setReceiptPrintStatus({
+                      tone: 'warning',
+                      message: error instanceof Error ? error.message : 'Unable to send the receipt to the printer.',
+                    });
                   });
                 }}
                 disabled={!receiptSnapshot}
