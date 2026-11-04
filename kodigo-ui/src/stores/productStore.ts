@@ -836,6 +836,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
           await executeOrQueueMutation('product_restocking_options', 'UPDATE', {
             label: row.label,
             conversion_factor: row.conversion_factor,
+            last_purchase_price: row.last_purchase_price,
             is_default: row.is_default,
             is_active: row.is_active,
           }, 'id', option.id);
