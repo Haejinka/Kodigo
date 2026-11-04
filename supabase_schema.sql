@@ -168,7 +168,7 @@ create table public.products (
   barcode          text         unique,                    -- nullable, unique when set
   category_id      uuid         not null references public.categories (id) on delete restrict,
   unit             text         not null default 'piece',
-  cost_price       numeric(10,2) not null check (cost_price >= 0),
+  cost_price       numeric(14,6) not null check (cost_price >= 0),
   selling_price    numeric(10,2) not null check (selling_price >= 0),
   current_stock    integer      not null default 0 check (current_stock >= 0),
   min_stock_level  integer      not null default 0 check (min_stock_level >= 0),

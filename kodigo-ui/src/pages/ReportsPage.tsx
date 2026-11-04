@@ -375,9 +375,9 @@ export function ReportsPage() {
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-[var(--app-border)] bg-[var(--app-surface-elevated)] font-semibold text-[var(--foreground)]">
-                      <td colSpan={5} className="px-4 py-3 text-right">Total:</td>
+                      <td colSpan={5} className="px-4 py-3 text-right">Total Sales:</td>
                       <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums">{formatCurrency(totalAmountPaid)}</td>
-                      <td className={`whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums ${totalGrossProfit < 0 ? 'text-red-600' : 'text-green-700'}`}>{formatCurrency(totalGrossProfit)}</td>
+                      <td className={`whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums ${totalGrossProfit < 0 ? 'text-red-600' : 'text-green-700'}`}><span className="mr-2 font-sans">Total Profit:</span>{formatCurrency(totalGrossProfit)}</td>
                     </tr>
                   </tfoot>
                 </table>

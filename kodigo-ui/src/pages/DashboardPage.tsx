@@ -179,7 +179,7 @@ export function DashboardPage() {
         <StatCard label="Sales Revenue" value={formatCurrency(periodData.revenue)} icon={DollarSign} color="blue" loading={dashboardQuery.isLoading} />
         <StatCard label="Transactions" value={String(periodData.transactionCount)} icon={ShoppingBag} color="green" loading={dashboardQuery.isLoading} />
         <StatCard label="Average Order Value" value={formatCurrency(periodData.averageOrderValue)} icon={TrendingUp} color="amber" loading={dashboardQuery.isLoading} />
-        <StatCard label="Estimated Profit" value={formatCurrency(periodData.profit)} icon={BarChart2} color="purple" loading={dashboardQuery.isLoading} />
+        <StatCard label="Total Profit" value={formatCurrency(periodData.profit)} icon={BarChart2} color="purple" loading={dashboardQuery.isLoading} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
