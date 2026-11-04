@@ -127,6 +127,7 @@ const mapRestockingOption = (row: any): ProductRestockingOption => ({
   storeId: row.store_id,
   label: row.label ?? row.unit_label ?? 'unit',
   conversionFactor: Math.max(1, Number(row.conversion_factor ?? 1)),
+  lastPurchasePrice: row.last_purchase_price == null ? undefined : Number(row.last_purchase_price),
   isDefault: Boolean(row.is_default),
   isActive: row.is_active !== false,
   createdAt: row.created_at,
@@ -308,6 +309,7 @@ const toRestockingOptionRow = (option: ProductRestockingOption) => ({
   product_id: option.productId,
   label: option.label.trim(),
   conversion_factor: option.conversionFactor,
+  last_purchase_price: option.lastPurchasePrice ?? null,
   is_default: option.isDefault,
   is_active: option.isActive,
 });

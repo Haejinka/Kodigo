@@ -147,6 +147,7 @@ function createRestockingOption(storeId: string, unit = 'case', factor = 24, see
     storeId,
     label: seed?.label ?? unit,
     conversionFactor: seed?.conversionFactor ?? factor,
+    lastPurchasePrice: seed?.lastPurchasePrice,
     isDefault: seed?.isDefault ?? false,
     isActive: seed?.isActive !== false,
     createdAt: seed?.createdAt,
@@ -184,11 +185,13 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
   const [advancedPricing, setAdvancedPricing] = useState<Record<string, boolean>>({});
   const [skuManuallyEdited, setSkuManuallyEdited] = useState(mode === 'edit' || Boolean(initial?.sku));
   const [purchaseTotal, setPurchaseTotal] = useState(() => {
-    const packagePrice = (initial?.costPrice ?? 0) * (initial?.restockingOptions?.find((option) => option.isDefault)?.conversionFactor
-      ?? initial?.restockingOptions?.[0]?.conversionFactor
-      ?? (initial?.purchaseUnit ? initial.conversionFactor ?? 1 : 1));
-    // Base-unit costs retain six decimals; reconstructed package prices use centavos.
-    return Math.round((packagePrice + Number.EPSILON) * 100) / 100;
+    const defaultOption = initial?.restockingOptions?.find((option) => option.isDefault)
+      ?? initial?.restockingOptions?.[0];
+    if (defaultOption?.lastPurchasePrice != null) return defaultOption.lastPurchasePrice;
+    const packageSize = defaultOption?.conversionFactor
+      ?? (initial?.purchaseUnit ? initial.conversionFactor ?? 1 : 1);
+    const estimatedPrice = (initial?.costPrice ?? 0) * packageSize;
+    return Math.round((estimatedPrice + Number.EPSILON) * 100) / 100;
   });
   const [purchaseRestockingOptionId, setPurchaseRestockingOptionId] = useState(
     initial?.restockingOptions?.find((option) => option.isDefault)?.id ?? initial?.restockingOptions?.[0]?.id ?? '',
@@ -669,6 +672,9 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
         productId: initial?.id ?? option.productId,
         label: option.label.trim(),
         conversionFactor: Math.max(1, Number(option.conversionFactor) || 1),
+        lastPurchasePrice: option.id === purchaseRestockingOptionId
+          ? Math.round((purchaseTotal + Number.EPSILON) * 100) / 100
+          : option.lastPurchasePrice,
         isDefault: option.isDefault || (index === 0 && !(form.restockingOptions || []).some((candidate) => candidate.isDefault)),
         isActive: true,
       }));
@@ -815,8 +821,8 @@ export function ProductForm({ initial, onSubmit, mode }: ProductFormProps) {
             </div>
             <div className="mt-5 grid grid-cols-1 gap-4 border-t border-[var(--border)] pt-5 md:grid-cols-2">
 
-              <Field id="product-purchase-total" label="How much did you pay per package? (PHP)" required hint={`Enter the price for one ${purchaseRestockingOption?.label || 'package'}.`}><input id="product-purchase-total" type="number" min={0} step="0.01" className={`${inputCls} font-mono`} value={purchaseTotal || ''} onChange={(event) => updatePurchaseCost(Number(event.target.value) || 0)} /></Field>
-              <Field id="product-purchase-unit" label="Purchased as"><select id="product-purchase-unit" className={inputCls} value={purchaseRestockingOption?.id ?? ''} onChange={(event) => setPurchaseRestockingOptionId(event.target.value)}>{(form.restockingOptions || []).map((option) => <option key={option.id} value={option.id}>{option.label || baseUnit} ({option.conversionFactor} {baseUnit}{option.conversionFactor === 1 ? '' : 's'})</option>)}</select></Field>
+              <Field id="product-purchase-total" label="Package purchase price (PHP)" required hint={purchaseRestockingOption?.lastPurchasePrice == null && mode === 'edit' ? `Estimated from the saved per-${baseUnit} cost. Enter the actual price for one ${purchaseRestockingOption?.label || 'package'} to save it.` : `Enter the price for one ${purchaseRestockingOption?.label || 'package'}.`}><input id="product-purchase-total" type="number" min={0} step="0.01" className={`${inputCls} font-mono`} value={purchaseTotal || ''} onChange={(event) => updatePurchaseCost(Number(event.target.value) || 0)} /></Field>
+              <Field id="product-purchase-unit" label="Purchased as"><select id="product-purchase-unit" className={inputCls} value={purchaseRestockingOption?.id ?? ''} onChange={(event) => { const option = form.restockingOptions?.find((candidate) => candidate.id === event.target.value); setPurchaseRestockingOptionId(event.target.value); const fallbackPrice = form.costPrice * (option?.conversionFactor ?? 1); setPurchaseTotal(option?.lastPurchasePrice ?? Math.round((fallbackPrice + Number.EPSILON) * 100) / 100); }}>{(form.restockingOptions || []).map((option) => <option key={option.id} value={option.id}>{option.label || baseUnit} ({option.conversionFactor} {baseUnit}{option.conversionFactor === 1 ? '' : 's'})</option>)}</select></Field>
               <div className="rounded-lg bg-[var(--muted)] px-3 py-2 text-xs text-[var(--muted-foreground)] md:mt-6">Calculated cost per {baseUnit}: <span className="font-mono font-semibold">PHP {form.costPrice.toFixed(6)}</span></div>
               <Field id="product-price" label={`Regular selling price per ${baseUnit}`} required hint="Enter the price the customer pays. VAT is included for VAT-registered stores."><input id="product-price" type="number" min={0} step="0.01" className={`${inputCls} font-mono disabled:bg-gray-100`} value={form.sellingPrice || ''} disabled={form.autoPricingEnabled} onChange={(event) => { const sellingPrice = Number(event.target.value) || 0; setForm((prev) => ({ ...prev, sellingPrice })); }} />{errors.sellingPrice && <p className="text-xs text-red-500">{errors.sellingPrice}</p>}</Field>
               <div className="rounded-lg bg-[var(--muted)] px-3 py-2 text-xs text-[var(--muted-foreground)] md:mt-6">Profit per {baseUnit}: <span className="font-mono font-semibold">PHP {margin.toFixed(2)}</span>{' '}<span className={marginPct < 0 ? 'text-red-600' : 'text-green-700'}>({marginPct.toFixed(1)}%)</span></div>

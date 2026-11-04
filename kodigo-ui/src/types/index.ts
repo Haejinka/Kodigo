@@ -83,6 +83,8 @@ export interface ProductRestockingOption {
   storeId: string;
   label: string;
   conversionFactor: number;
+  /** Last package purchase price entered for this restocking unit. */
+  lastPurchasePrice?: number;
   isDefault: boolean;
   isActive: boolean;
   createdAt?: string;
