@@ -93,6 +93,8 @@ export interface ProductRestockingOption {
 
 export interface ProductSellingOption {
   id: string;
+  /** Optional scan code that selects this selling option directly. */
+  barcode?: string;
   productId: string;
   storeId: string;
   kind: SellingOptionKind;

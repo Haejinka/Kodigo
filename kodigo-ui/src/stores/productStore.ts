@@ -1,3 +1,4 @@
+import { normalizeBarcode, validateProductBarcodes } from '@/lib/product-barcodes';
 import { create } from 'zustand';
 import { calculateBulkPrice, getOptionInventoryMultiplier, isBulkSellingOption, isLegacySellingOption } from '@/types';
 import type { Product, AdjustmentReason, StockAdjustment, Category, ProductSellingOption, ProductRestockingOption, RestockResult } from '@/types';
@@ -96,6 +97,7 @@ const toCategoryError = (err: any) => {
 
 const mapSellingOption = (row: any): ProductSellingOption => ({
   id: row.id,
+  barcode: row.barcode ?? undefined,
   productId: row.product_id,
   storeId: row.store_id,
   kind: row.kind ?? 'unit',
@@ -164,7 +166,7 @@ const normalizeSellingOptions = (
       }];
 
   const baseUnit = data.unit?.trim() || 'unit';
-  const sanitized = rawOptions.map((option) => {
+  const sanitized: ProductSellingOption[] = rawOptions.map((option) => {
     const inferredBulk = option.isBulk == null
       ? (!option.isDefault && (Number(option.inventoryMultiplier) > 1 || Number(option.quantityValue) > 1 || option.kind === 'sack'))
       : Boolean(option.isBulk);
@@ -184,6 +186,7 @@ const normalizeSellingOptions = (
       : Math.max(0, Number(option.discountValue) || 0);
     return {
       ...option,
+      barcode: isBulk ? normalizeBarcode(option.barcode) || undefined : undefined,
       id: option.id && !isLegacySellingOption(option) ? option.id : crypto.randomUUID(),
       productId,
       storeId,
@@ -282,6 +285,7 @@ const normalizeRestockingOptions = (
 
 const toSellingOptionRow = (option: ProductSellingOption) => ({
   id: option.id,
+  barcode: option.barcode?.trim() || null,
   store_id: option.storeId,
   product_id: option.productId,
   kind: option.kind,
@@ -643,6 +647,8 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     }
     if (!storeId) return undefined;
 
+    const barcodeErrors = validateProductBarcodes({ ...data, storeId }, get().products);
+    if (Object.keys(barcodeErrors).length) throw new Error(Object.values(barcodeErrors)[0]);
     const newId = crypto.randomUUID();
     const supplierIds = normalizeSupplierIds(data);
     const primarySupplierId = supplierIds[0] || null;
@@ -653,7 +659,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       store_id: storeId,
       name: data.name,
       sku: data.sku,
-      barcode: data.barcode || null,
+      barcode: data.barcode?.trim() || null,
       category_id: data.categoryId,
        cost_price: data.costPrice,
        selling_price: data.sellingPrice,
@@ -678,6 +684,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     // Optimistic Update
     const optimisticProd: Product = {
       ...data,
+      barcode: normalizeBarcode(data.barcode) || undefined,
       id: newId,
       storeId,
       isActive: true,
@@ -713,6 +720,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       if (currentActiveStoreId === 'all' || currentActiveStoreId === storeId) {
         set(s => ({ products: s.products.filter(p => p.id !== newId) }));
       }
+      if ((err as { code?: string })?.code === '23505') throw new Error('Product SKU or barcode already exists in this store.');
       throw err;
     }
   },
@@ -730,6 +738,8 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     }
     if (!storeId) return;
 
+    const barcodeErrors = validateProductBarcodes({ ...data, storeId }, get().products, id);
+    if (Object.keys(barcodeErrors).length) throw new Error(Object.values(barcodeErrors)[0]);
     const supplierIds = normalizeSupplierIds(data);
     const primarySupplierId = supplierIds[0] || null;
     const sellingOptions = normalizeSellingOptions(data, id, storeId);
@@ -737,7 +747,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     const updates = {
       name: data.name,
       sku: data.sku,
-      barcode: data.barcode || null,
+      barcode: data.barcode?.trim() || null,
       category_id: data.categoryId,
       cost_price: data.costPrice,
        selling_price: data.sellingPrice,
@@ -769,6 +779,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
           ...p,
           isActive: data.isActive !== false,
           ...data,
+          barcode: normalizeBarcode(data.barcode) || undefined,
            unit: data.unit,
            sellingPrice: data.sellingPrice,
            currentStock: Math.round(data.currentStock),
@@ -798,6 +809,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
         const row = toSellingOptionRow(option);
         if (existingIds.has(option.id)) {
           await executeOrQueueMutation('product_selling_options', 'UPDATE', {
+              barcode: row.barcode,
               kind: row.kind,
               label: row.label,
               unit_label: row.unit_label,

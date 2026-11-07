@@ -5,6 +5,8 @@ import { ProductCard } from './ProductCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { BarcodeInput } from './BarcodeInput';
 import { useProductStore } from '@/stores/productStore';
+import { useToast } from '@/components/shared/Toast';
+import { findBarcodeMatch, normalizeBarcode } from '@/lib/product-barcodes';
 import { cn, formatCurrency } from '@/lib/utils';
 import {
   getDefaultSellingOption,
@@ -36,6 +38,7 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const products = useProductStore((s) => s.products);
+  const { toast } = useToast();
   const activeProducts = useMemo(() => products.filter((product) => product.isActive !== false), [products]);
 
   const categories = useMemo(() => {
@@ -51,7 +54,8 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
         !q ||
         p.name.toLowerCase().includes(q) ||
         p.sku.toLowerCase().includes(q) ||
-        (p.barcode && p.barcode.includes(q)) ||
+        normalizeBarcode(p.barcode).toLowerCase().includes(q) ||
+        getProductSellingOptions(p).some((option) => normalizeBarcode(option.barcode).toLowerCase().includes(q)) ||
         p.categoryName.toLowerCase().includes(q);
       const matchesCategory = activeCategory === 'All' || p.categoryName === activeCategory;
       return matchesQuery && matchesCategory;
@@ -61,7 +65,14 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
   const quickLookupResults = useMemo(() => {
     return query.trim()
       ? results.flatMap((product) =>
-          getProductSellingOptions(product).map((option) => ({ product, option }))
+          getProductSellingOptions(product)
+            .filter((option) => {
+              const q = query.trim().toLowerCase();
+              const matchedOptionBarcode = getProductSellingOptions(product).some((candidate) => normalizeBarcode(candidate.barcode).toLowerCase().includes(q));
+              return !matchedOptionBarcode || normalizeBarcode(product.barcode).toLowerCase().includes(q)
+                || normalizeBarcode(option.barcode).toLowerCase().includes(q);
+            })
+            .map((option) => ({ product, option }))
         ).slice(0, 8)
       : [];
   }, [query, results]);
@@ -87,14 +98,18 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
   }, [quickLookupResults, firstAvailableIndex]);
 
   const handleScan = (barcode: string) => {
-    const found = activeProducts.find((p) => p.barcode === barcode);
-    if (!found) return;
-    const options = getProductSellingOptions(found).filter((option) => getAvailableSellingUnits(found, option) > 0);
-    if (options.length === 1) {
-      onAddProduct(found, options[0]);
+    const match = findBarcodeMatch(activeProducts, barcode);
+    if (!match) {
+      toast('error', 'No product or selling option matches this barcode.');
       return;
     }
-    setQuery(found.name);
+    if (getAvailableSellingUnits(match.product, match.option) <= 0) {
+      toast('error', `Not enough stock for ${match.product.name} (${getSellingOptionLabel(match.option)}).`);
+      return;
+    }
+    onAddProduct(match.product, match.option);
+    setQuery('');
+    setHighlightedIndex(-1);
   };
 
   const addLookupProduct = useCallback((product: Product, option: ProductSellingOption) => {
@@ -237,7 +252,7 @@ export function ProductSearchPanel({ onAddProduct, onScanStart }: ProductSearchP
                     <span className="block truncate text-xs text-gray-500">
                       {isBulkSellingOption(option)
                         ? `${getSellingOptionLabel(option)} (${getOptionUnitsPerPackage(option)} ${product.unit}s)`
-                        : `${getSellingOptionLabel(option)} — ${product.unit}`} - {product.sku} {product.barcode ? `- ${product.barcode}` : ''}
+                        : `${getSellingOptionLabel(option)} — ${product.unit}`} - {product.sku} {(option.barcode || product.barcode) ? `- ${option.barcode || product.barcode}` : ''}
                     </span>
                   </span>
                   <span className="shrink-0 text-right">
