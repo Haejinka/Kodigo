@@ -318,165 +318,171 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/60" onClick={step === 'payment' && !processing ? onClose : undefined} />
-      <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-bold text-gray-900">
             {step === 'payment' ? 'Process Payment' : 'Payment Successful'}
           </h2>
           {step === 'payment' && (
-            <button onClick={onClose} disabled={processing} className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-40">
+            <button onClick={onClose} disabled={processing} aria-label="Close payment" className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-40">
               <X className="w-4 h-4 text-gray-500" />
             </button>
           )}
         </div>
 
         {step === 'payment' ? (
-          <div className="p-6 space-y-5">
-            <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-              {items.map((item) => {
-                const optionLabel = getSellingOptionLabel(item.sellingOption);
-                const unitDiscount = Math.min(getOptionSellingPrice(item.product, item.sellingOption), item.discountPerUnit ?? 0);
-                const netLineTotal = item.lineTotal - unitDiscount * item.quantity;
-                return (
-                  <div key={item.id} className="space-y-2 border-b border-gray-200 pb-3 last:border-0 last:pb-0">
-                    <div className="flex items-start justify-between gap-3 text-sm">
-                      <span className="min-w-0 flex-1 text-gray-700">
-                        {item.product.name} · {item.quantity} {optionLabel}
-                        <span className="block text-xs text-gray-500">{item.quantity * getOptionInventoryMultiplier(item.sellingOption)} {item.product.unit}{item.quantity * getOptionInventoryMultiplier(item.sellingOption) === 1 ? '' : 's'}</span>
-                      </span>
-                      <span className="whitespace-nowrap text-right font-mono font-medium text-gray-900">{formatCurrency(netLineTotal)}</span>
-                    </div>
-                    <label className="flex items-center justify-between gap-3 text-xs text-gray-500">
-                      <span>Discount per {optionLabel}</span>
-                      <span className="relative w-32 shrink-0">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">PHP</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max={getOptionSellingPrice(item.product, item.sellingOption)}
-                          step="0.01"
-                          value={unitDiscount ? unitDiscount : ''}
-                          onChange={(event) => setItemDiscount(item.id, Number(event.target.value) || 0)}
-                          disabled={processing}
-                          aria-label={`Discount per ${optionLabel} for ${item.product.name}`}
-                          className="w-full rounded-md border border-gray-200 bg-white py-1.5 pl-8 pr-2 text-right font-mono text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </span>
-                    </label>
+          <>
+            <div className="min-h-0 overflow-y-auto overscroll-contain p-6 space-y-5">
+              <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                <div role="region" aria-label="Order items and discounts" tabIndex={0} className="max-h-[30dvh] space-y-2 overflow-y-auto overscroll-contain [overflow-wrap:anywhere]">
+                  {items.map((item) => {
+                    const optionLabel = getSellingOptionLabel(item.sellingOption);
+                    const unitDiscount = Math.min(getOptionSellingPrice(item.product, item.sellingOption), item.discountPerUnit ?? 0);
+                    const netLineTotal = item.lineTotal - unitDiscount * item.quantity;
+                    return (
+                      <div key={item.id} className="space-y-2 border-b border-gray-200 pb-3 last:border-0 last:pb-0">
+                        <div className="flex items-start justify-between gap-3 text-sm">
+                          <span className="min-w-0 flex-1 text-gray-700">
+                            {item.product.name} · {item.quantity} {optionLabel}
+                            <span className="block text-xs text-gray-500">{item.quantity * getOptionInventoryMultiplier(item.sellingOption)} {item.product.unit}{item.quantity * getOptionInventoryMultiplier(item.sellingOption) === 1 ? '' : 's'}</span>
+                          </span>
+                          <span className="whitespace-nowrap text-right font-mono font-medium text-gray-900">{formatCurrency(netLineTotal)}</span>
+                        </div>
+                        <label className="flex items-center justify-between gap-3 text-xs text-gray-500">
+                          <span>Discount per {optionLabel}</span>
+                          <span className="relative w-32 shrink-0">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">PHP</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max={getOptionSellingPrice(item.product, item.sellingOption)}
+                              step="0.01"
+                              value={unitDiscount ? unitDiscount : ''}
+                              onChange={(event) => setItemDiscount(item.id, Number(event.target.value) || 0)}
+                              disabled={processing}
+                              aria-label={`Discount per ${optionLabel} for ${item.product.name}`}
+                              className="w-full rounded-md border border-gray-200 bg-white py-1.5 pl-8 pr-2 text-right font-mono text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </span>
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="pt-2 border-t border-gray-200 space-y-1">
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Item discounts</span>
+                    <span className="font-mono">-{formatCurrency(orderDiscount)}</span>
                   </div>
-                );
-              })}
-              <div className="pt-2 border-t border-gray-200 space-y-1">
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>Item discounts</span>
-                  <span className="font-mono">-{formatCurrency(orderDiscount)}</span>
-                </div>
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>{isVatRegistered ? `VAT included (${orderTaxRate}%)` : 'Tax'}</span>
-                  <span className="font-mono">{formatCurrency(orderTax)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-gray-900">
-                  <span>Total</span>
-                  <span className="font-mono text-blue-600 text-xl">{formatCurrency(orderTotal)}</span>
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>{isVatRegistered ? `VAT included (${orderTaxRate}%)` : 'Tax'}</span>
+                    <span className="font-mono">{formatCurrency(orderTax)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-gray-900">
+                    <span>Total</span>
+                    <span className="font-mono text-blue-600 text-xl">{formatCurrency(orderTotal)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-4 gap-2">
-              {paymentMethods.map((method) => {
-                const Icon = method.icon;
-                const active = paymentMethod === method.value;
-                return (
-                  <button
-                    key={method.value}
-                    type="button"
-                    onClick={() => setPaymentMethod(method.value)}
-                    disabled={processing}
-                    className={[
-                      'h-16 rounded-xl border text-xs font-semibold flex flex-col items-center justify-center gap-1 transition',
-                      active ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50',
-                    ].join(' ')}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {method.label}
-                  </button>
-                );
-              })}
-            </div>
+              <div className="grid grid-cols-4 gap-2">
+                {paymentMethods.map((method) => {
+                  const Icon = method.icon;
+                  const active = paymentMethod === method.value;
+                  return (
+                    <button
+                      key={method.value}
+                      type="button"
+                      onClick={() => setPaymentMethod(method.value)}
+                      disabled={processing}
+                      className={[
+                        'h-16 rounded-xl border text-xs font-semibold flex flex-col items-center justify-center gap-1 transition',
+                        active ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50',
+                      ].join(' ')}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {method.label}
+                    </button>
+                  );
+                })}
+              </div>
 
-            {isCash ? (
-              <div>
-                <label className="text-xs font-medium text-gray-500 mb-1.5 block">Cash Received</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">PHP</span>
+              {isCash ? (
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1.5 block">Cash Received</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">PHP</span>
+                    <input
+                      type="number"
+                      value={cashInput}
+                      onChange={(e) => setCashInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && canConfirm) {
+                          e.preventDefault();
+                          handleConfirm();
+                        } else if (e.key === 'Escape' && !processing) {
+                          e.preventDefault();
+                          onClose();
+                        }
+                      }}
+                      placeholder="0.00"
+                      className="w-full pl-12 pr-4 py-3 text-xl font-mono font-bold border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-gray-900"
+                      autoFocus
+                      min={0}
+                      disabled={processing}
+                    />
+                  </div>
+
+                  <div className="flex gap-2 mt-2">
+                    {quickAmounts.slice(0, 3).map((amt) => (
+                      <button
+                        key={amt}
+                        onClick={() => setCashInput(String(amt))}
+                        disabled={processing}
+                        className="flex-1 py-2 text-sm font-semibold font-mono bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                      >
+                        {formatCurrency(amt)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1.5 block">Reference Number</label>
                   <input
-                    type="number"
-                    value={cashInput}
-                    onChange={(e) => setCashInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && canConfirm) {
-                        e.preventDefault();
-                        handleConfirm();
-                      } else if (e.key === 'Escape' && !processing) {
-                        e.preventDefault();
-                        onClose();
-                      }
-                    }}
-                    placeholder="0.00"
-                    className="w-full pl-12 pr-4 py-3 text-xl font-mono font-bold border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-gray-900"
-                    autoFocus
-                    min={0}
+                    value={paymentReference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
                     disabled={processing}
+                    placeholder="Optional"
+                    className="w-full px-3 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-gray-900"
+                    autoFocus
                   />
                 </div>
+              )}
 
-                <div className="flex gap-2 mt-2">
-                  {quickAmounts.slice(0, 3).map((amt) => (
-                    <button
-                      key={amt}
-                      onClick={() => setCashInput(String(amt))}
-                      disabled={processing}
-                      className="flex-1 py-2 text-sm font-semibold font-mono bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                    >
-                      {formatCurrency(amt)}
-                    </button>
-                  ))}
+              {isCash && cashAmount >= orderTotal && (
+                <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex justify-between items-center">
+                  <span className="text-sm font-medium text-green-700">Change</span>
+                  <span className="text-xl font-bold font-mono text-green-700">{formatCurrency(change)}</span>
                 </div>
-              </div>
-            ) : (
-              <div>
-                <label className="text-xs font-medium text-gray-500 mb-1.5 block">Reference Number</label>
-                <input
-                  value={paymentReference}
-                  onChange={(e) => setPaymentReference(e.target.value)}
-                  disabled={processing}
-                  placeholder="Optional"
-                  className="w-full px-3 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-gray-900"
-                  autoFocus
-                />
-              </div>
-            )}
+              )}
 
-            {isCash && cashAmount >= orderTotal && (
-              <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex justify-between items-center">
-                <span className="text-sm font-medium text-green-700">Change</span>
-                <span className="text-xl font-bold font-mono text-green-700">{formatCurrency(change)}</span>
-              </div>
-            )}
-
-            <Button
-              onClick={handleConfirm}
-              disabled={!canConfirm}
-              loading={processing}
-              variant="primary"
-              size="lg"
-              className="w-full text-base"
-            >
-              Confirm Payment
-            </Button>
-          </div>
+            </div>
+            <div className="shrink-0 border-t border-gray-100 bg-white px-6 py-4">
+              <Button
+                onClick={handleConfirm}
+                disabled={!canConfirm}
+                loading={processing}
+                variant="primary"
+                size="lg"
+                className="w-full text-base"
+              >
+                Confirm Payment
+              </Button>
+            </div>
+          </>
         ) : (
-          <div className="p-8 flex flex-col items-center text-center">
+          <div className="min-h-0 overflow-y-auto overscroll-contain p-8 flex flex-col items-center text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
