@@ -36,6 +36,12 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
+      - name: Install Chromium for IndexedDB acceptance tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Test encrypted offline storage in Chromium
+        run: npm run test:e2e -- tests/e2e/offline-storage.spec.ts
+
 
   integration:
     name: Isolated Supabase integration tests

@@ -1,6 +1,6 @@
 # T50 — Migrate IndexedDB to a durable encrypted operation outbox
 
-**Status:** In progress; encryption primitives, typed offline metadata, the v2 IndexedDB schema/upgrader, and atomic storage APIs are implemented but not connected to POS checkout. Browser acceptance and the remaining state transitions remain pending.
+**Status:** In progress; encryption primitives, typed offline metadata, the v2 IndexedDB schema/upgrader, and atomic storage APIs are implemented but not connected to POS checkout. Real-browser acceptance coverage is added; its remote CI result and remaining state transitions remain pending.
 **Task ID:** T50  
 **Feature:** Offline storage  
 **Priority:** Critical  
@@ -24,6 +24,7 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 ## Files to modify
 
 - `kodigo-ui/src/lib/offline-sync.ts`
+- `.github/workflows/ci.yml`
 
 ## New files
 
@@ -53,7 +54,7 @@ A07/B09. AES256-GCM/96-bit IV, PBKDF2-SHA256600000; no key/passphrase beside cip
 1. Define versioned IDB schema/upgrader and legacy byte-preserving recovery import.
 2. Implement crypto envelope/unlock/idle lock with specified AAD and unique IV.
 3. Implement one local transaction for outbox+sequence+grant counters and ack persistence.
-4. Test blocked upgrade, quota/abort/crash, wrong user/passphrase, encrypted export and v1 retention.
+4. Test blocked upgrade, quota/abort/crash, wrong user/passphrase, encrypted export and v1 retention in a real browser; keep database test targets synthetic and isolated.
 5. Run this task's checks against the declared environment; record actual results, skipped checks and unresolved gates in TASK_STATUS. Do not enable a dependent feature while its accounting/authorization prerequisites are incomplete.
 
 ## Edge cases
