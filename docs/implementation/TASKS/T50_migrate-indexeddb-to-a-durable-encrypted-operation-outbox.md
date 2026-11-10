@@ -1,6 +1,6 @@
 # T50 — Migrate IndexedDB to a durable encrypted operation outbox
 
-**Status:** In progress; encryption primitives, typed offline metadata, the v2 IndexedDB schema/upgrader, and atomic storage APIs are implemented but not connected to POS checkout. Real-browser acceptance coverage is added; its remote CI result and remaining state transitions remain pending.
+**Status:** In progress; encryption primitives, typed offline metadata, the v2 IndexedDB schema/upgrader, and atomic storage APIs are implemented but not connected to POS checkout. Six real-browser acceptance tests pass remotely; remaining edge cases and integration are pending.
 **Task ID:** T50  
 **Feature:** Offline storage  
 **Priority:** Critical  
