@@ -1,5 +1,14 @@
 // ─── Auth & Stores ─────────────────────────────────────────────────────────────
 
+export type {
+  ConfirmedOperationResult,
+  OfflineQueueState,
+  OperationCommandV1,
+  OperationJsonValue,
+  OperationResult,
+  RecordedLocallyResult,
+} from './operations';
+
 export interface Store {
   id: string;
   ownerId?: string;
