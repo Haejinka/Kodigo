@@ -618,3 +618,94 @@ test('outbox attempts and retry states persist atomically and prevent overlappin
     lastErrorCode: 'lease_revoked',
   });
 });
+
+test('recovery export encrypts legacy queues and rejects another passphrase or account scope', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const {
+      createOfflineRecoveryExport,
+      openOfflineDatabase,
+    } = await import('/src/lib/offline-db.ts');
+    const { decryptOfflineRecoveryBundle } = await import('/src/lib/offline-crypto.ts');
+    const name = `offline-export-${crypto.randomUUID()}`;
+    const scope = {
+      storeId: '22222222-2222-4222-8222-222222222222',
+      actorId: '33333333-3333-4333-8333-333333333333',
+      terminalId: '44444444-4444-4444-8444-444444444444',
+    };
+    const legacySale = {
+      id: 'legacy-export-sale',
+      customerName: 'EXPORT-SECRET-CUSTOMER',
+      total: 37.5,
+      _syncStatus: 'pending' as const,
+    };
+    const legacyMutation = {
+      id: 'legacy-export-mutation',
+      table: 'products',
+      operation: 'UPDATE' as const,
+      payload: { privateNote: 'EXPORT-SECRET-MUTATION' },
+      _syncStatus: 'error' as const,
+    };
+    const database = await openOfflineDatabase({ name });
+    await database.put('sales_queue', legacySale as never);
+    await database.put('generic_mutations', legacyMutation as never);
+    await database.put('legacy_recovery', {
+      id: 'v1:sales_queue:legacy-export-sale',
+      source_store: 'sales_queue',
+      source_key: legacySale.id,
+      original_payload: legacySale,
+      imported_at_local: '2026-11-11T00:00:00.000Z',
+      recovery_state: 'unreviewed',
+    });
+    const envelope = await createOfflineRecoveryExport({
+      database,
+      scope,
+      passphrase: 'export test-only passphrase',
+      now: new Date('2026-11-11T00:00:00.000Z'),
+    });
+    const serialized = JSON.stringify(envelope);
+    const recovered = await decryptOfflineRecoveryBundle(envelope, 'export test-only passphrase', scope);
+    let wrongPassphraseRejected = false;
+    try {
+      await decryptOfflineRecoveryBundle(envelope, 'incorrect test-only passphrase', scope);
+    } catch {
+      wrongPassphraseRejected = true;
+    }
+    let wrongScopeRejected = false;
+    try {
+      await decryptOfflineRecoveryBundle(envelope, 'export test-only passphrase', {
+        ...scope,
+        actorId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      });
+    } catch {
+      wrongScopeRejected = true;
+    }
+    database.close();
+    await new Promise<void>((resolve) => {
+      const request = indexedDB.deleteDatabase(name);
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
+      request.onblocked = () => resolve();
+    });
+    return {
+      envelopeFormat: envelope.format,
+      kdfIterations: envelope.iterations,
+      legacySales: recovered.legacy_v1_sales,
+      legacyMutations: recovered.legacy_v1_mutations,
+      recoveryState: recovered.legacy_recovery[0]?.recovery_state,
+      hasRawSaleSecret: serialized.includes('EXPORT-SECRET-CUSTOMER'),
+      hasRawMutationSecret: serialized.includes('EXPORT-SECRET-MUTATION'),
+      wrongPassphraseRejected,
+      wrongScopeRejected,
+    };
+  });
+
+  expect(result.envelopeFormat).toBe('kodigo-offline-recovery');
+  expect(result.kdfIterations).toBe(600_000);
+  expect(result.legacySales).toEqual([expect.objectContaining({ customerName: 'EXPORT-SECRET-CUSTOMER' })]);
+  expect(result.legacyMutations).toEqual([expect.objectContaining({ payload: { privateNote: 'EXPORT-SECRET-MUTATION' } })]);
+  expect(result.recoveryState).toBe('unreviewed');
+  expect(result.hasRawSaleSecret).toBe(false);
+  expect(result.hasRawMutationSecret).toBe(false);
+  expect(result.wrongPassphraseRejected).toBe(true);
+  expect(result.wrongScopeRejected).toBe(true);
+});

@@ -8,12 +8,19 @@ import type {
   OfflineLeaseSnapshot,
   OfflineOperationAck,
   OfflineOperationPayload,
+  OfflineRecoveryBundleV1,
+  OfflineRecoveryExportEnvelope,
   OfflineQueuedOperation,
   OfflineStockGrant,
   OfflineTerminalMetadata,
   OfflineCatalogSnapshot,
 } from '@/types/offline';
-import { decryptOfflinePayload, encryptOfflinePayload, OfflineKeySession } from './offline-crypto.ts';
+import {
+  decryptOfflinePayload,
+  encryptOfflinePayload,
+  encryptOfflineRecoveryBundle,
+  OfflineKeySession,
+} from './offline-crypto.ts';
 import { hashCanonicalOperationValue, hashOperationCommand } from './pos-operations.ts';
 
 export interface OfflineDatabase extends DBSchema {
@@ -486,6 +493,78 @@ export async function readOperationAcknowledgement(
 
 export function offlineScopeKey(scope: { storeId: string; actorId: string; terminalId: string }): string {
   return `${scope.storeId}:${scope.actorId}:${scope.terminalId}`;
+}
+
+/** Take a consistent scope snapshot and encrypt all included recovery evidence before returning it. */
+export async function createOfflineRecoveryExport(input: {
+  database: IDBPDatabase<OfflineDatabase>;
+  scope: { storeId: string; actorId: string; terminalId: string };
+  passphrase: string;
+  now?: Date;
+}): Promise<OfflineRecoveryExportEnvelope> {
+  const stores = [
+    'terminal_meta', 'catalog_snapshots', 'offline_leases', 'stock_grants', 'offline_grant_events',
+    'operations_outbox', 'operation_acks', 'legacy_recovery', 'sales_queue', 'generic_mutations',
+  ] as const;
+  const tx = input.database.transaction(stores, 'readonly');
+  const metaRequest = tx.objectStore('terminal_meta').get(offlineScopeKey(input.scope));
+  const catalogRequest = tx.objectStore('catalog_snapshots').getAll();
+  const leaseRequest = tx.objectStore('offline_leases').getAll();
+  const grantRequest = tx.objectStore('stock_grants').getAll();
+  const eventRequest = tx.objectStore('offline_grant_events').getAll();
+  const operationRequest = tx.objectStore('operations_outbox').getAll();
+  const ackRequest = tx.objectStore('operation_acks').getAll();
+  const recoveryRequest = tx.objectStore('legacy_recovery').getAll();
+  const legacySalesRequest = tx.objectStore('sales_queue').getAll();
+  const legacyMutationsRequest = tx.objectStore('generic_mutations').getAll();
+  const [terminalMeta, catalogs, leases, grants, events, operations, acknowledgements, recovery, sales, mutations] = await Promise.all([
+    metaRequest, catalogRequest, leaseRequest, grantRequest, eventRequest,
+    operationRequest, ackRequest, recoveryRequest, legacySalesRequest, legacyMutationsRequest,
+  ]);
+  await tx.done;
+
+  const scopedLeases = leases.filter((lease) => lease.store_id === input.scope.storeId
+    && lease.terminal_id === input.scope.terminalId && lease.cashier_id === input.scope.actorId);
+  const leaseIds = new Set(scopedLeases.map((lease) => lease.id));
+  const scopedGrants = grants.filter((grant) => grant.store_id === input.scope.storeId
+    && grant.terminal_id === input.scope.terminalId && leaseIds.has(grant.lease_id));
+  const grantIds = new Set(scopedGrants.map((grant) => grant.id));
+  const scopedOperations = operations.filter((operation) => operation.store_id === input.scope.storeId
+    && operation.actor_id === input.scope.actorId && operation.terminal_id === input.scope.terminalId);
+  const operationIds = new Set(scopedOperations.map((operation) => operation.operation_id));
+  const scopedAcks = acknowledgements.filter((ack) => ack.store_id === input.scope.storeId
+    && ack.actor_id === input.scope.actorId && ack.terminal_id === input.scope.terminalId);
+  const bundle: OfflineRecoveryBundleV1 = {
+    format: 'kodigo-offline-recovery-bundle',
+    version: 1,
+    schema_version: OFFLINE_DATABASE_VERSION,
+    exported_at_local: (input.now ?? new Date()).toISOString(),
+    scope: {
+      store_id: input.scope.storeId,
+      actor_id: input.scope.actorId,
+      terminal_id: input.scope.terminalId,
+    },
+    terminal_meta: terminalMeta ?? null,
+    catalog_snapshots: catalogs.filter((snapshot) => snapshot.store_id === input.scope.storeId)
+      .sort((left, right) => left.id.localeCompare(right.id)),
+    offline_leases: scopedLeases.sort((left, right) => left.id.localeCompare(right.id)),
+    stock_grants: scopedGrants.sort((left, right) => left.id.localeCompare(right.id)),
+    offline_grant_events: events.filter((event) => grantIds.has(event.grant_id) && operationIds.has(event.operation_id))
+      .sort((left, right) => left.id.localeCompare(right.id)),
+    operations_outbox: scopedOperations.sort((left, right) => left.terminal_sequence - right.terminal_sequence),
+    operation_acks: scopedAcks.sort((left, right) => left.terminal_sequence - right.terminal_sequence),
+    // Legacy v1 rows have no trustworthy store/actor/terminal scope. Keep them as unscoped evidence,
+    // encrypted in this export, and never reattribute or replay them here.
+    legacy_recovery: recovery.sort((left, right) => left.id.localeCompare(right.id)),
+    legacy_v1_sales: sales,
+    legacy_v1_mutations: mutations,
+  };
+  const hasRecoveryData = Boolean(terminalMeta) || bundle.catalog_snapshots.length > 0
+    || bundle.offline_leases.length > 0 || bundle.stock_grants.length > 0
+    || bundle.operations_outbox.length > 0 || bundle.operation_acks.length > 0
+    || bundle.legacy_recovery.length > 0 || sales.length > 0 || mutations.length > 0;
+  if (!hasRecoveryData) throw new Error('There are no offline recovery records for this terminal to export.');
+  return encryptOfflineRecoveryBundle(bundle, input.passphrase);
 }
 
 function normalizeGrantConsumptions(consumptions: Array<{ grantId: string; quantity: number }>): Array<{ grantId: string; quantity: number }> {

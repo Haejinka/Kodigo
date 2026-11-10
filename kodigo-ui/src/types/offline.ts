@@ -130,6 +130,38 @@ export interface LegacyRecoveryRecord {
   recovery_state: 'unreviewed';
 }
 
+export interface OfflineRecoveryExportEnvelope {
+  format: 'kodigo-offline-recovery';
+  version: 1;
+  schema_version: 2;
+  kdf: 'PBKDF2-SHA256';
+  iterations: 600_000;
+  store_id: string;
+  actor_id: string;
+  terminal_id: string;
+  salt: string;
+  iv: string;
+  ciphertext: string;
+}
+
+export interface OfflineRecoveryBundleV1 {
+  format: 'kodigo-offline-recovery-bundle';
+  version: 1;
+  schema_version: 2;
+  exported_at_local: string;
+  scope: { store_id: string; actor_id: string; terminal_id: string };
+  terminal_meta: OfflineTerminalMetadata | null;
+  catalog_snapshots: OfflineCatalogSnapshot[];
+  offline_leases: OfflineLeaseSnapshot[];
+  stock_grants: OfflineStockGrant[];
+  offline_grant_events: OfflineGrantEvent[];
+  operations_outbox: OfflineQueuedOperation[];
+  operation_acks: OfflineOperationAck[];
+  legacy_recovery: LegacyRecoveryRecord[];
+  legacy_v1_sales: unknown[];
+  legacy_v1_mutations: unknown[];
+}
+
 export interface OfflineOperationPayload {
   command: OperationCommandV1;
   grant_consumptions: Array<{ grant_id: string; quantity: number }>;

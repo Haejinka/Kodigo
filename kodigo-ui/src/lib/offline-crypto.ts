@@ -1,6 +1,8 @@
 import { canonicalOperationJson } from './pos-operations.ts';
 import type {
   EncryptedOfflinePayload,
+  OfflineRecoveryBundleV1,
+  OfflineRecoveryExportEnvelope,
   OfflineRecordScope,
   WrappedOfflineMasterKey,
 } from '@/types/offline';
@@ -204,6 +206,94 @@ export async function decryptOfflinePayload<T>(
   }
 }
 
+/** Encrypt a complete recovery snapshot with a separate passphrase before it leaves the device. */
+export async function encryptOfflineRecoveryBundle(
+  bundle: OfflineRecoveryBundleV1,
+  passphrase: string,
+): Promise<OfflineRecoveryExportEnvelope> {
+  assertPassphrase(passphrase);
+  const scope = {
+    storeId: bundle.scope.store_id,
+    actorId: bundle.scope.actor_id,
+    terminalId: bundle.scope.terminal_id,
+  };
+  assertScope(scope);
+  const salt = randomBytes(PBKDF2_SALT_LENGTH);
+  const iv = randomBytes(AES_GCM_IV_LENGTH);
+  const wrappingKey = await deriveWrappingKey(passphrase, salt);
+  const header: OfflineRecoveryExportEnvelope = {
+    format: 'kodigo-offline-recovery',
+    version: 1,
+    schema_version: AAD_SCHEMA_VERSION,
+    kdf: 'PBKDF2-SHA256',
+    iterations: PBKDF2_ITERATIONS,
+    store_id: scope.storeId,
+    actor_id: scope.actorId,
+    terminal_id: scope.terminalId,
+    salt: toBase64(salt),
+    iv: toBase64(iv),
+    ciphertext: '',
+  };
+  const plaintext = new TextEncoder().encode(canonicalOperationJson(bundle));
+  const plaintextBuffer = toArrayBuffer(plaintext);
+  try {
+    const ciphertext = await cryptoApi().subtle.encrypt({
+      name: 'AES-GCM',
+      iv: toArrayBuffer(iv),
+      additionalData: toArrayBuffer(recoveryExportAad(header)),
+      tagLength: 128,
+    }, wrappingKey, plaintextBuffer);
+    return { ...header, ciphertext: toBase64(new Uint8Array(ciphertext)) };
+  } finally {
+    plaintext.fill(0);
+    new Uint8Array(plaintextBuffer).fill(0);
+  }
+}
+
+/** Decrypt an export only for its declared store, actor, and terminal scope. */
+export async function decryptOfflineRecoveryBundle(
+  envelope: OfflineRecoveryExportEnvelope,
+  passphrase: string,
+  expectedScope: { storeId: string; actorId: string; terminalId: string },
+): Promise<OfflineRecoveryBundleV1> {
+  assertPassphrase(passphrase);
+  assertScope(expectedScope);
+  if (envelope.format !== 'kodigo-offline-recovery' || envelope.version !== 1
+    || envelope.schema_version !== AAD_SCHEMA_VERSION || envelope.kdf !== 'PBKDF2-SHA256'
+    || envelope.iterations !== PBKDF2_ITERATIONS || envelope.store_id !== expectedScope.storeId
+    || envelope.actor_id !== expectedScope.actorId || envelope.terminal_id !== expectedScope.terminalId) {
+    throw new Error('Offline recovery export is incompatible with this account, terminal, or application version.');
+  }
+
+  const salt = fromBase64(envelope.salt);
+  const iv = fromBase64(envelope.iv);
+  if (salt.byteLength !== PBKDF2_SALT_LENGTH || iv.byteLength !== AES_GCM_IV_LENGTH) {
+    throw new Error('Offline recovery export is invalid.');
+  }
+  const wrappingKey = await deriveWrappingKey(passphrase, salt);
+  let plaintext: Uint8Array | null = null;
+  try {
+    const decrypted = await cryptoApi().subtle.decrypt({
+      name: 'AES-GCM',
+      iv: toArrayBuffer(iv),
+      additionalData: toArrayBuffer(recoveryExportAad(envelope)),
+      tagLength: 128,
+    }, wrappingKey, toArrayBuffer(fromBase64(envelope.ciphertext)));
+    plaintext = new Uint8Array(decrypted);
+    const bundle = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plaintext)) as OfflineRecoveryBundleV1;
+    if (bundle.format !== 'kodigo-offline-recovery-bundle' || bundle.version !== 1
+      || bundle.schema_version !== AAD_SCHEMA_VERSION || bundle.scope.store_id !== expectedScope.storeId
+      || bundle.scope.actor_id !== expectedScope.actorId || bundle.scope.terminal_id !== expectedScope.terminalId) {
+      throw new Error('Offline recovery export contents do not match the requested scope.');
+    }
+    return bundle;
+  } catch {
+    throw new Error('Unable to open offline recovery export. Check the passphrase and recovery scope.');
+  } finally {
+    plaintext?.fill(0);
+  }
+}
+
 function assertPassphrase(passphrase: string): void {
   if (typeof passphrase !== 'string' || passphrase.length === 0) throw new Error('An offline unlock passphrase is required.');
 }
@@ -253,6 +343,14 @@ function masterKeyAad(scope: Omit<OfflineRecordScope, 'recordId'>): Uint8Array {
 function recordAad(scope: OfflineRecordScope): Uint8Array {
   return new TextEncoder().encode(canonicalOperationJson({
     purpose: 'offline-payload', schema_version: AAD_SCHEMA_VERSION, ...scope,
+  }));
+}
+
+function recoveryExportAad(envelope: Pick<OfflineRecoveryExportEnvelope,
+  'format' | 'version' | 'schema_version' | 'kdf' | 'iterations' | 'store_id' | 'actor_id' | 'terminal_id'>): Uint8Array {
+  return new TextEncoder().encode(canonicalOperationJson({
+    purpose: 'offline-recovery-export',
+    ...envelope,
   }));
 }
 
