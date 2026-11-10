@@ -581,7 +581,7 @@ function preserveLegacyStore(
   })();
 }
 
-function abortTransaction(transaction: IDBPTransaction<OfflineDatabase, StoreNames<OfflineDatabase>[], IDBTransactionMode>): void {
+function abortTransaction(transaction: { abort: () => void; done: Promise<unknown> }): void {
   try {
     transaction.abort();
   } catch {
