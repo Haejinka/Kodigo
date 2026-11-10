@@ -161,11 +161,7 @@ export async function enqueueOfflineOperation(input: EnqueueOfflineOperationInpu
     throw new Error('Offline command scope does not match the signed-in store and terminal.');
   }
   const grantConsumptions = normalizeGrantConsumptions(input.grantConsumptions);
-  const hash = await hashCanonicalOperationValue({
-    operation_kind: operationKind,
-    command_hash: await hashOperationCommand(command),
-    grant_consumptions: grantConsumptions,
-  });
+  const hash = await hashOperationCommand(command);
   const key = keySession.getKey();
   const payloadScope = { recordId: command.operation_id, ...scope };
   // Encrypt before opening the transaction so no crypto wait can close it.
@@ -184,7 +180,8 @@ export async function enqueueOfflineOperation(input: EnqueueOfflineOperationInpu
     if (existing) {
       if (existing.payload_hash !== hash || existing.operation_kind !== operationKind
         || existing.store_id !== scope.storeId || existing.actor_id !== scope.actorId
-        || existing.terminal_id !== scope.terminalId) {
+        || existing.terminal_id !== scope.terminalId || existing.lease_id !== leaseId
+        || existing.shift_id !== command.shift_id) {
         throw new Error('Operation ID was already used for a different offline request.');
       }
       await tx.done;
