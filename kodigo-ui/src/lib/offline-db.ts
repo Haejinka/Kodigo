@@ -83,9 +83,12 @@ export const OFFLINE_DATABASE_NAME = 'kodigo-pos-db';
 export const OFFLINE_DATABASE_VERSION = 2;
 
 export class OfflineStorageError extends Error {
-  constructor(message: string, readonly code: 'UNAVAILABLE' | 'QUOTA' | 'BLOCKED' | 'CORRUPT' = 'UNAVAILABLE') {
+  readonly code: 'UNAVAILABLE' | 'QUOTA' | 'BLOCKED' | 'CORRUPT';
+
+  constructor(message: string, code: 'UNAVAILABLE' | 'QUOTA' | 'BLOCKED' | 'CORRUPT' = 'UNAVAILABLE') {
     super(message);
     this.name = 'OfflineStorageError';
+    this.code = code;
   }
 }
 
