@@ -735,3 +735,119 @@ test('offline storage quota and conflict errors give safe recovery guidance', as
   expect(result.quotaMessage).not.toContain('sensitive underlying storage detail');
   expect(result.conflictMessage).not.toContain('sensitive underlying storage detail');
 });
+
+test('quota failure aborts grant, event, outbox, and sequence writes atomically', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { enqueueOfflineOperation, offlineScopeKey, openOfflineDatabase } = await import('/src/lib/offline-db.ts');
+    const { createOfflineMasterKey, OfflineKeySession } = await import('/src/lib/offline-crypto.ts');
+    const name = `offline-quota-abort-${crypto.randomUUID()}`;
+    const scope = {
+      storeId: '22222222-2222-4222-8222-222222222222',
+      actorId: '33333333-3333-4333-8333-333333333333',
+      terminalId: '44444444-4444-4444-8444-444444444444',
+    };
+    const leaseId = '55555555-5555-4555-8555-555555555555';
+    const shiftId = '77777777-7777-4777-8777-777777777777';
+    const grantIds = [
+      '66666666-6666-4666-8666-666666666666',
+      'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    ];
+    const operationId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    const now = new Date('2026-11-11T00:00:00.000Z');
+    const material = await createOfflineMasterKey('quota test-only passphrase', scope);
+    const keySession = new OfflineKeySession(material.key, 60_000);
+    const database = await openOfflineDatabase({ name });
+    await database.put('terminal_meta', {
+      scope_key: offlineScopeKey(scope), store_id: scope.storeId, actor_id: scope.actorId,
+      terminal_id: scope.terminalId, lease_id: leaseId, next_sequence: 1,
+      last_acknowledged_sequence: 0, wrapped_master_key: material.wrapped,
+      updated_at_local: now.toISOString(),
+    });
+    await database.put('offline_leases', {
+      id: leaseId, store_id: scope.storeId, terminal_id: scope.terminalId,
+      shift_id: shiftId, cashier_id: scope.actorId, issued_at: now.toISOString(),
+      expires_at: '2030-01-01T00:00:00.000Z', last_mfa_at: now.toISOString(),
+      state: 'active', catalog_version: 'v1', price_policy_hash: 'hash',
+      sequence_start: 1, sequence_end: 10, contract_version: 1,
+    });
+    for (const id of grantIds) {
+      await database.put('stock_grants', {
+        id, store_id: scope.storeId, terminal_id: scope.terminalId, lease_id: leaseId,
+        product_id: id, location_id: '99999999-9999-4999-8999-999999999999', lot_id: id,
+        quantity_allocated: 2, quantity_consumed: 0, quantity_released: 0,
+        state: 'active', version: 1,
+      });
+    }
+
+    const originalDescriptor = Object.getOwnPropertyDescriptor(IDBObjectStore.prototype, 'put');
+    if (!originalDescriptor) throw new Error('IndexedDB put method is unavailable in this browser.');
+    const originalPut = originalDescriptor.value as IDBObjectStore['put'];
+    let stockGrantWrites = 0;
+    Object.defineProperty(IDBObjectStore.prototype, 'put', {
+      ...originalDescriptor,
+      value: function (this: IDBObjectStore, ...args: unknown[]) {
+        if (this.name === 'stock_grants' && ++stockGrantWrites === 2) {
+          throw new DOMException('test-only quota exhaustion', 'QuotaExceededError');
+        }
+        return Reflect.apply(originalPut, this, args);
+      },
+    });
+
+    let errorCode: string | null = null;
+    let safeMessage = false;
+    try {
+      await enqueueOfflineOperation({
+        database,
+        keySession,
+        scope,
+        command: {
+          contract_version: 1, operation_id: operationId, store_id: scope.storeId,
+          terminal_id: scope.terminalId, shift_id: shiftId, occurred_at_local: now.toISOString(),
+          terminal_sequence: 1, expected_version: null, payload: { total: '21.00' },
+        },
+        operationKind: 'physical_sale',
+        leaseId,
+        grantConsumptions: grantIds.map((grantId) => ({ grantId, quantity: 1 })),
+        now,
+      });
+    } catch (error) {
+      errorCode = (error as Error & { code?: string }).code ?? null;
+      safeMessage = error instanceof Error && error.message.includes('operation was not saved');
+    } finally {
+      Object.defineProperty(IDBObjectStore.prototype, 'put', originalDescriptor);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const grants = await Promise.all(grantIds.map((id) => database.get('stock_grants', id)));
+    const metadata = await database.get('terminal_meta', offlineScopeKey(scope));
+    const events = await database.getAll('offline_grant_events');
+    const outbox = await database.getAll('operations_outbox');
+    keySession.lock();
+    database.close();
+    await new Promise<void>((resolve) => {
+      const request = indexedDB.deleteDatabase(name);
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
+      request.onblocked = () => resolve();
+    });
+    return {
+      errorCode,
+      safeMessage,
+      injectedAfterFirstGrantWrite: stockGrantWrites === 2,
+      consumed: grants.map((grant) => grant?.quantity_consumed),
+      nextSequence: metadata?.next_sequence,
+      eventCount: events.length,
+      outboxCount: outbox.length,
+    };
+  });
+
+  expect(result).toEqual({
+    errorCode: 'QUOTA',
+    safeMessage: true,
+    injectedAfterFirstGrantWrite: true,
+    consumed: [0, 0],
+    nextSequence: 1,
+    eventCount: 0,
+    outboxCount: 0,
+  });
+});
