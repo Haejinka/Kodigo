@@ -16,8 +16,7 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1
     FROM pg_class relation
-    JOIN pg_namespace namespace ON namespace.oid = relation.relnamespace
-    WHERE namespace.nspname = 'pg_temp'
+    WHERE relation.relnamespace = pg_my_temp_schema()
       AND relation.relname = 'enhancement_test_fixture'
       AND relation.relpersistence = 't'
   ) THEN

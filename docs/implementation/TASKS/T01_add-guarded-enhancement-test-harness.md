@@ -1,6 +1,6 @@
 # T01 — Add guarded enhancement test harness
 
-**Status:** In progress; guarded harness and CI wiring are implemented, but T00 and isolated-target verification remain incomplete.  
+**Status:** In progress; guarded harness and CI wiring are implemented. The temporary-table SQL case passed on the deployed project in an explicit rollback transaction after fixing its temp-schema identity check. Remote run #112 passed the read-only deployed login-screen Playwright smoke. T00's empty-bootstrap gate and full isolated integration suite remain incomplete under the current no-new-database direction.
 **Task ID:** T01  
 **Feature:** Foundation testing  
 **Priority:** Critical  
