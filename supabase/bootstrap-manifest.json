@@ -6,7 +6,7 @@
   "scope": "Candidate exact source order for a new empty disposable database only. Not an instruction to apply to a populated or deployed project.",
   "databaseBaseline": {
     "path": "supabase_schema.sql",
-    "sha256": "b5ef1c1f7f4c1bc6bb6c69c2cc65226d1cc2951ca8d0c6aedd3cedd5b50125fd"
+    "sha256": "66b4fb8167ebfda9435e4955badae66520e20fe26ddd2427a50837baf7822c94"
   },
   "ordering": {
     "rule": "Apply the baseline, then available root migrations in numeric order, then timestamped migrations in filename order. This places root migration 37 before date patches that replace its stock workflow definitions.",
@@ -28,7 +28,7 @@
       "order": 0,
       "path": "supabase_schema.sql",
       "kind": "baseline",
-      "sha256": "b5ef1c1f7f4c1bc6bb6c69c2cc65226d1cc2951ca8d0c6aedd3cedd5b50125fd",
+      "sha256": "66b4fb8167ebfda9435e4955badae66520e20fe26ddd2427a50837baf7822c94",
       "dependsOn": []
     },
     {

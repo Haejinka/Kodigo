@@ -1,6 +1,6 @@
 # T00 — Fingerprint schema and prove bootstrap order
 
-**Status:** In progress; source manifest and read-only deployed baseline captured. The first hosted replay stopped at the preflight checksum because the manifest hashed Windows CRLF bytes while GitHub checked out LF. Manifest hashing is now canonical UTF-8/LF and awaits a remote rerun. Restored-clone comparison remains pending.
+**Status:** In progress; source manifest and read-only deployed baseline captured. Hosted replay confirmed the candidate order and reached SQL; it then exposed a baseline function comparing `user_role` to `super_admin` before migration 02 adds that enum value. The baseline now compares the role as text, preserving the same predicate while making the source order executable. A hosted rerun is pending. Restored-clone comparison remains pending.
 **Task ID:** T00  
 **Feature:** Foundation  
 **Priority:** Critical  
@@ -58,7 +58,7 @@ Deployed schema is unverified. Preserve full migrations and receipt/stock/consig
 
 1. Discover CLI/psql/server versions using --help; select an explicitly named disposable test target. The CI target is a temporary Supabase database in an isolated GitHub Actions runner, not a Supabase branch or project.
 2. Capture effective schema/functions/triggers/RLS/grants and compare root/datetime definitions; record every precedence choice.
-3. Restore clone and build empty isolated DB using ordered checksummed manifest; compare effective fingerprints and sample hashes.
+3. Restore clone and build empty isolated DB using ordered checksummed manifest; compare effective fingerprints and sample hashes. The empty-bootstrap failure showed `public.is_admin()` in the baseline references `super_admin` before root migration 02 creates the enum label; the minimal baseline compatibility correction casts `role` to text and leaves the predicate unchanged.
 4. Document exact supported bootstrap/restore commands and unresolved deployment differences; register the test target without credentials.
 5. Run this task's checks against the declared environment; record actual results, skipped checks and unresolved gates in TASK_STATUS. Do not enable a dependent feature while its accounting/authorization prerequisites are incomplete.
 

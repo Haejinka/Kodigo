@@ -638,7 +638,7 @@ alter table public.purchase_order_items     enable row level security;
   returns boolean language sql stable security definer as $$
     select exists (
       select 1 from public.profiles
-      where id = auth.uid() and role in ('admin', 'super_admin')
+      where id = auth.uid() and role::text in ('admin', 'super_admin')
     );
   $$;
 -- Helper: return the role of the current authenticated user
