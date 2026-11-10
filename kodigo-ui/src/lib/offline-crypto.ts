@@ -19,12 +19,16 @@ export interface OfflineMasterKeyMaterial {
 export class OfflineKeySession {
   private key: CryptoKey | null;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private readonly idleTimeoutMs: number;
+  private readonly onLock?: () => void;
 
-  constructor(key: CryptoKey, private readonly idleTimeoutMs: number, private readonly onLock?: () => void) {
+  constructor(key: CryptoKey, idleTimeoutMs: number, onLock?: () => void) {
     if (!Number.isFinite(idleTimeoutMs) || idleTimeoutMs <= 0) {
       throw new TypeError('An approved positive idle-lock duration is required.');
     }
     this.key = key;
+    this.idleTimeoutMs = idleTimeoutMs;
+    this.onLock = onLock;
     this.refreshIdleLock();
   }
 
@@ -67,17 +71,18 @@ export async function createOfflineMasterKey(
     ['encrypt', 'decrypt'],
   );
   const rawMaster = new Uint8Array(await cryptoApi().subtle.exportKey('raw', extractableMaster));
+  const rawMasterBuffer = toArrayBuffer(rawMaster);
 
   try {
     const wrappedBytes = await cryptoApi().subtle.encrypt({
       name: 'AES-GCM',
-      iv,
-      additionalData: masterKeyAad(scope),
+      iv: toArrayBuffer(iv),
+      additionalData: toArrayBuffer(masterKeyAad(scope)),
       tagLength: 128,
-    }, wrappingKey, rawMaster);
+    }, wrappingKey, rawMasterBuffer);
     const key = await cryptoApi().subtle.importKey(
       'raw',
-      rawMaster,
+      rawMasterBuffer,
       { name: 'AES-GCM', length: AES_GCM_KEY_LENGTH },
       false,
       ['encrypt', 'decrypt'],
@@ -99,6 +104,7 @@ export async function createOfflineMasterKey(
     };
   } finally {
     rawMaster.fill(0);
+    new Uint8Array(rawMasterBuffer).fill(0);
   }
 }
 
@@ -123,18 +129,20 @@ export async function unlockOfflineMasterKey(
   }
   const wrappingKey = await deriveWrappingKey(passphrase, salt);
   let rawMaster: Uint8Array | null = null;
+  let rawMasterBuffer: ArrayBuffer | null = null;
   try {
     const decrypted = await cryptoApi().subtle.decrypt({
       name: 'AES-GCM',
-      iv,
-      additionalData: masterKeyAad(scope),
+      iv: toArrayBuffer(iv),
+      additionalData: toArrayBuffer(masterKeyAad(scope)),
       tagLength: 128,
-    }, wrappingKey, fromBase64(wrapped.ciphertext));
+    }, wrappingKey, toArrayBuffer(fromBase64(wrapped.ciphertext)));
     rawMaster = new Uint8Array(decrypted);
     if (rawMaster.byteLength !== AES_GCM_KEY_LENGTH / 8) throw new Error('Invalid key length.');
+    rawMasterBuffer = toArrayBuffer(rawMaster);
     return await cryptoApi().subtle.importKey(
       'raw',
-      rawMaster,
+      rawMasterBuffer,
       { name: 'AES-GCM', length: AES_GCM_KEY_LENGTH },
       false,
       ['encrypt', 'decrypt'],
@@ -143,6 +151,7 @@ export async function unlockOfflineMasterKey(
     throw new Error('Unable to unlock offline data. Check the passphrase and recovery scope.');
   } finally {
     rawMaster?.fill(0);
+    if (rawMasterBuffer) new Uint8Array(rawMasterBuffer).fill(0);
   }
 }
 
@@ -154,16 +163,18 @@ export async function encryptOfflinePayload(
   assertScope(scope);
   const iv = randomBytes(AES_GCM_IV_LENGTH);
   const plaintext = new TextEncoder().encode(canonicalOperationJson(value));
+  const plaintextBuffer = toArrayBuffer(plaintext);
   try {
     const ciphertext = await cryptoApi().subtle.encrypt({
       name: 'AES-GCM',
-      iv,
-      additionalData: recordAad(scope),
+      iv: toArrayBuffer(iv),
+      additionalData: toArrayBuffer(recordAad(scope)),
       tagLength: 128,
-    }, key, plaintext);
+    }, key, plaintextBuffer);
     return { version: 1, iv: toBase64(iv), ciphertext: toBase64(new Uint8Array(ciphertext)) };
   } finally {
     plaintext.fill(0);
+    new Uint8Array(plaintextBuffer).fill(0);
   }
 }
 
@@ -180,10 +191,10 @@ export async function decryptOfflinePayload<T>(
   try {
     const decrypted = await cryptoApi().subtle.decrypt({
       name: 'AES-GCM',
-      iv,
-      additionalData: recordAad(scope),
+      iv: toArrayBuffer(iv),
+      additionalData: toArrayBuffer(recordAad(scope)),
       tagLength: 128,
-    }, key, fromBase64(envelope.ciphertext));
+    }, key, toArrayBuffer(fromBase64(envelope.ciphertext)));
     plaintext = new Uint8Array(decrypted);
     return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plaintext)) as T;
   } catch {
@@ -213,11 +224,24 @@ function randomBytes(length: number): Uint8Array {
 }
 
 async function deriveWrappingKey(passphrase: string, salt: Uint8Array): Promise<CryptoKey> {
-  const material = await cryptoApi().subtle.importKey(
-    'raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey'],
-  );
-  return cryptoApi().subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: PBKDF2_ITERATIONS },
-    material, { name: 'AES-GCM', length: AES_GCM_KEY_LENGTH }, false, ['encrypt', 'decrypt']);
+  const passphraseBytes = new TextEncoder().encode(passphrase);
+  const passphraseBuffer = toArrayBuffer(passphraseBytes);
+  try {
+    const material = await cryptoApi().subtle.importKey(
+      'raw', passphraseBuffer, 'PBKDF2', false, ['deriveKey'],
+    );
+    return await cryptoApi().subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt: toArrayBuffer(salt), iterations: PBKDF2_ITERATIONS },
+      material, { name: 'AES-GCM', length: AES_GCM_KEY_LENGTH }, false, ['encrypt', 'decrypt']);
+  } finally {
+    passphraseBytes.fill(0);
+    new Uint8Array(passphraseBuffer).fill(0);
+  }
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
 }
 
 function masterKeyAad(scope: Omit<OfflineRecordScope, 'recordId'>): Uint8Array {
