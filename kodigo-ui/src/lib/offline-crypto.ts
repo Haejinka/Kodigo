@@ -1,4 +1,4 @@
-import { canonicalOperationJson } from './pos-operations';
+import { canonicalOperationJson } from './pos-operations.ts';
 import type {
   EncryptedOfflinePayload,
   OfflineRecordScope,
