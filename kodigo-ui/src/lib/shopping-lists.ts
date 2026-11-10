@@ -3,8 +3,8 @@ import type {
   ShoppingListDraftLine,
   ShoppingListSnapshotV1,
 } from '../types/shopping-lists';
-import { printDocumentHtml } from './document-print';
-import { buildShoppingListMarkup, getShoppingListPageRule, getShoppingListWidth } from './shopping-list-markup';
+import { printDocumentHtml } from './document-print.ts';
+import { buildShoppingListMarkup, getShoppingListPageRule, getShoppingListWidth } from './shopping-list-markup.ts';
 import type { ShoppingListPaperProfile } from '../types/shopping-lists';
 
 const MAX_SHOPPING_LIST_ITEMS = 500;

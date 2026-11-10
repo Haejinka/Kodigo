@@ -1,5 +1,5 @@
 import type { ReceiptLayout } from './receipt-markup';
-import { printDocumentHtml } from './document-print';
+import { printDocumentHtml } from './document-print.ts';
 
 export function getReceiptPrintFrameHeight(layout: ReceiptLayout, contentHeightPx: number): string {
   if (layout !== 'thermal') return '297mm';
