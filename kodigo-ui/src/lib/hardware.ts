@@ -1,3 +1,5 @@
+import type { ShoppingListPaperProfile, ShoppingListSnapshotV1 } from '@/types/shopping-lists';
+
 const LOCAL_PRINT_AGENT_URL = 'http://127.0.0.1:17831';
 const LOCAL_PRINT_AGENT_TOKEN_KEY = 'kodigo.local-print-agent.pairing-token';
 
@@ -5,6 +7,13 @@ type PrinterListResponse = { printers: string[]; unavailablePrinters?: string[] 
 export type PrinterScanResult = { printers: string[]; unavailablePrinters: string[] };
 type DrawerResponse = { opened: boolean; duplicate?: boolean; message?: string };
 export type ReceiptPrintResponse = { submitted: boolean; duplicate?: boolean; message?: string };
+export type ShoppingListPrintResponse = { submitted: boolean; duplicate?: boolean; message?: string };
+export interface LocalPrintAgentCapabilities {
+  version: string;
+  supportedDocuments: string[];
+  shoppingListPaperProfiles: ShoppingListPaperProfile[];
+  shoppingListMaximumItems: number;
+}
 type AgentErrorResponse = { error?: string; detail?: string; title?: string };
 
 function getPrinterPreferenceKey(storeId: string) {
@@ -159,4 +168,82 @@ export async function printThermalReceipt(
     method: 'POST',
     body: JSON.stringify({ printerName, saleId, reprint, receipt }),
   });
+}
+
+export async function getLocalPrintAgentCapabilities(): Promise<LocalPrintAgentCapabilities | null> {
+  const token = getLocalPrintAgentToken();
+  if (!token) return null;
+
+  try {
+    const response = await requestLocalPrintAgent<{
+      version?: string;
+      supportedDocuments?: unknown;
+      paperProfiles?: { shoppingList?: unknown };
+      shoppingListMaximumItems?: unknown;
+    }>('/v1/capabilities', token);
+    return {
+      version: response.version || 'unknown',
+      supportedDocuments: Array.isArray(response.supportedDocuments)
+        ? response.supportedDocuments.filter((value): value is string => typeof value === 'string')
+        : [],
+      shoppingListPaperProfiles: Array.isArray(response.paperProfiles?.shoppingList)
+        ? response.paperProfiles.shoppingList.filter((value): value is ShoppingListPaperProfile => value === '58mm' || value === '80mm')
+        : [],
+      shoppingListMaximumItems: typeof response.shoppingListMaximumItems === 'number' && Number.isInteger(response.shoppingListMaximumItems)
+        ? Math.max(0, response.shoppingListMaximumItems)
+        : 0,
+    };
+  } catch (error) {
+    if (error instanceof Error && /Unknown print-agent endpoint|\(404\)/i.test(error.message)) {
+      return { version: 'legacy', supportedDocuments: ['receipt'], shoppingListPaperProfiles: [], shoppingListMaximumItems: 0 };
+    }
+    throw error;
+  }
+}
+
+export async function hashShoppingListDocument(
+  snapshot: ShoppingListSnapshotV1,
+  profile: ShoppingListPaperProfile,
+  showPrices: boolean,
+) {
+  if (!globalThis.crypto?.subtle) throw new Error('Secure document hashing is unavailable in this browser.');
+  const compactSnapshot = JSON.stringify(snapshot);
+  const source = `profile:${profile}\nshow_prices:${showPrices}\n${compactSnapshot}`;
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(source));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+export async function printShoppingListOnLocalAgent(input: {
+  printerName: string;
+  snapshot: ShoppingListSnapshotV1;
+  profile: ShoppingListPaperProfile;
+  attemptId: string;
+  reprint: boolean;
+  showPrices: boolean;
+}): Promise<ShoppingListPrintResponse> {
+  const token = getLocalPrintAgentToken();
+  if (!token) throw new Error('This computer is not paired with Kodigo Print Agent. Use browser printing or pair it in Settings → POS hardware.');
+  if (!input.printerName) throw new Error('Choose the thermal printer in Settings → POS hardware before printing.');
+  const documentHash = await hashShoppingListDocument(input.snapshot, input.profile, input.showPrices);
+
+  try {
+    return await requestLocalPrintAgent<ShoppingListPrintResponse>('/v1/documents/shopping-list/print', token, {
+      method: 'POST',
+      body: JSON.stringify({
+        printerName: input.printerName,
+        document_id: input.snapshot.documentId,
+        attempt_id: input.attemptId,
+        document_hash: documentHash,
+        profile: input.profile,
+        reprint: input.reprint,
+        show_prices: input.showPrices,
+        shopping_list: input.snapshot,
+      }),
+    });
+  } catch (error) {
+    if (error instanceof Error && /Unknown print-agent endpoint|\(404\)/i.test(error.message)) {
+      throw new Error('This print agent does not support shopping lists yet. Update the agent or use browser printing.');
+    }
+    throw error;
+  }
 }

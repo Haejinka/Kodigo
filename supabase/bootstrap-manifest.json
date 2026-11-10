@@ -1,0 +1,646 @@
+{
+  "manifestVersion": 1,
+  "status": "source-reviewed; empty-bootstrap-and-restore-equivalence-not-verified",
+  "sourceRevision": "ef2d963b681b371a7bbd103dd1b5b2a72b3f26e3",
+  "generatedOn": "2026-11-10",
+  "scope": "Candidate exact source order for a new empty disposable database only. Not an instruction to apply to a populated or deployed project.",
+  "databaseBaseline": {
+    "path": "supabase_schema.sql",
+    "sha256": "f991a9fca3e2ffcb5d7e4d3f97256d631360ea95dd78532c899e3d300e5fefd0"
+  },
+  "ordering": {
+    "rule": "Apply the baseline, then available root migrations in numeric order, then timestamped migrations in filename order. This places root migration 37 before date patches that replace its stock workflow definitions.",
+    "rootSequenceComplete": false,
+    "missingRootMigrations": [
+      {
+        "number": 33,
+        "path": "migration_33_*.sql",
+        "action": "Absent from repository; intentionally not synthesized."
+      }
+    ],
+    "timestampedCount": 20,
+    "rootMigrationCount": 39,
+    "bootstrapOrderVerified": false,
+    "restoreComparisonVerified": false
+  },
+  "files": [
+    {
+      "order": 0,
+      "path": "supabase_schema.sql",
+      "kind": "baseline",
+      "sha256": "f991a9fca3e2ffcb5d7e4d3f97256d631360ea95dd78532c899e3d300e5fefd0",
+      "dependsOn": []
+    },
+    {
+      "order": 1,
+      "path": "migration_01_invite_codes.sql",
+      "kind": "root-migration",
+      "sha256": "eef971db72a9d8b057fb374d618da030653dc2061e473d7167b69b25db5834a7",
+      "dependsOn": [
+        "supabase_schema.sql"
+      ]
+    },
+    {
+      "order": 2,
+      "path": "migration_02_super_admin.sql",
+      "kind": "root-migration",
+      "sha256": "7bc40c33a95c28837b984788ae074daa31d6ba6e283c93463e8d15387f818769",
+      "dependsOn": [
+        "migration_01_invite_codes.sql"
+      ]
+    },
+    {
+      "order": 3,
+      "path": "migration_03_fix_trigger.sql",
+      "kind": "root-migration",
+      "sha256": "cd84e2a0026893740d5a56f1e8e56e2d1a40e5d2a6c3370f920f7916e14fac46",
+      "dependsOn": [
+        "migration_02_super_admin.sql"
+      ]
+    },
+    {
+      "order": 4,
+      "path": "migration_04_invite_creator_rls.sql",
+      "kind": "root-migration",
+      "sha256": "f5d26cd3fa2159030d494bbecc864a4d6bf8453afc68ee5f19dd4003e73812d7",
+      "dependsOn": [
+        "migration_03_fix_trigger.sql"
+      ]
+    },
+    {
+      "order": 5,
+      "path": "migration_05_fix_orphaned_profiles.sql",
+      "kind": "root-migration",
+      "sha256": "a0823a43e893765d5a2b8cd96394712fa2c8a59594a061091ccdb229475b8329",
+      "dependsOn": [
+        "migration_04_invite_creator_rls.sql"
+      ]
+    },
+    {
+      "order": 6,
+      "path": "migration_06_fix_permissions.sql",
+      "kind": "root-migration",
+      "sha256": "fc0310445342de5756e5d856530fc2174ab2afacae370c4ac8c6ff69be245318",
+      "dependsOn": [
+        "migration_05_fix_orphaned_profiles.sql"
+      ]
+    },
+    {
+      "order": 7,
+      "path": "migration_07_multistore.sql",
+      "kind": "root-migration",
+      "sha256": "a3349f4797dc08e9b1be9f69f16b3216f60122bef94729f121217aa4bc3f72b9",
+      "dependsOn": [
+        "migration_06_fix_permissions.sql"
+      ]
+    },
+    {
+      "order": 8,
+      "path": "migration_08_multistore_rls.sql",
+      "kind": "root-migration",
+      "sha256": "b9ca6a34ea1812ea09287e2526b30a805dfb273a12da27667abe5302d5ee28bc",
+      "dependsOn": [
+        "migration_07_multistore.sql"
+      ]
+    },
+    {
+      "order": 9,
+      "path": "migration_09_full_audit_fixes.sql",
+      "kind": "root-migration",
+      "sha256": "5f1fc62a04b913c66513b7b34a14653a00f9f35c85da91c302af025747b0e3f6",
+      "dependsOn": [
+        "migration_08_multistore_rls.sql"
+      ]
+    },
+    {
+      "order": 10,
+      "path": "migration_10_store_creation_fix.sql",
+      "kind": "root-migration",
+      "sha256": "26c5084cb2ab2e74364213d097d86d1a979b4f087cee33a3430b7b405936ff0e",
+      "dependsOn": [
+        "migration_09_full_audit_fixes.sql"
+      ]
+    },
+    {
+      "order": 11,
+      "path": "migration_11_role_fixes.sql",
+      "kind": "root-migration",
+      "sha256": "36891a64dced8e308906ac9720d78c20d6d3ac803cd32e76588094e5c2eb9ce6",
+      "dependsOn": [
+        "migration_10_store_creation_fix.sql"
+      ]
+    },
+    {
+      "order": 12,
+      "path": "migration_12_revert_super_admin.sql",
+      "kind": "root-migration",
+      "sha256": "8f95676e084614c0ad495f0ca93bfd452b57fdf31d2afa5e70cb51dfea161163",
+      "dependsOn": [
+        "migration_11_role_fixes.sql"
+      ]
+    },
+    {
+      "order": 13,
+      "path": "migration_13_fix_store_creation.sql",
+      "kind": "root-migration",
+      "sha256": "8b7a7cb25aca263181ffddd8eb6644e74ae90622584d0ead9c87fb4fc729ecd2",
+      "dependsOn": [
+        "migration_12_revert_super_admin.sql"
+      ]
+    },
+    {
+      "order": 14,
+      "path": "migration_14_fix_store_update.sql",
+      "kind": "root-migration",
+      "sha256": "4f23f7afc575cd52d1a3bbb20bce200de9c83b29bc25e5a182d317bf29dc29b9",
+      "dependsOn": [
+        "migration_13_fix_store_creation.sql"
+      ]
+    },
+    {
+      "order": 15,
+      "path": "migration_15_fix_store_admin_access.sql",
+      "kind": "root-migration",
+      "sha256": "85460af2c40597cc8d5970ef15c8fdaa3e94151a4d1fd863eb3913b327180848",
+      "dependsOn": [
+        "migration_14_fix_store_update.sql"
+      ]
+    },
+    {
+      "order": 16,
+      "path": "migration_16_fix_store_policies_final.sql",
+      "kind": "root-migration",
+      "sha256": "870ec542e7248b5066be07b21af8e5f04143dd61836eda80f91e33203e85d2b4",
+      "dependsOn": [
+        "migration_15_fix_store_admin_access.sql"
+      ]
+    },
+    {
+      "order": 17,
+      "path": "migration_17_add_suppliers_updated_at.sql",
+      "kind": "root-migration",
+      "sha256": "7792888e25d91ed333571e5300653c1b0fb4ae0f8532fff7d6c116f44147b8c5",
+      "dependsOn": [
+        "migration_16_fix_store_policies_final.sql"
+      ]
+    },
+    {
+      "order": 18,
+      "path": "migration_18_production_readiness_fixes.sql",
+      "kind": "root-migration",
+      "sha256": "60c90bfc6a4255007c907d6b59fdd954154115d013aa123b4b7e796ab4e23672",
+      "dependsOn": [
+        "migration_17_add_suppliers_updated_at.sql"
+      ]
+    },
+    {
+      "order": 19,
+      "path": "migration_19_transaction_lifecycle_auth_ops.sql",
+      "kind": "root-migration",
+      "sha256": "5fc4e08dfdb75bdbb318534498dc061a987ed9d9f2d4474c6c4970963f2e48ea",
+      "dependsOn": [
+        "migration_18_production_readiness_fixes.sql"
+      ]
+    },
+    {
+      "order": 20,
+      "path": "migration_20_product_selling_options.sql",
+      "kind": "root-migration",
+      "sha256": "c7f7a4be3fd2a80cfae8ccf39d742f641c4ea4775b15684d8d85c79b11a85971",
+      "dependsOn": [
+        "migration_19_transaction_lifecycle_auth_ops.sql"
+      ]
+    },
+    {
+      "order": 21,
+      "path": "migration_21_reporting_snapshots_and_reports.sql",
+      "kind": "root-migration",
+      "sha256": "a8152173bfec87e6366d412e9d1713a8c8488b4cab0defb02ba6ffb0e1e8a161",
+      "dependsOn": [
+        "migration_20_product_selling_options.sql"
+      ]
+    },
+    {
+      "order": 22,
+      "path": "migration_22_reporting_schema_alignment.sql",
+      "kind": "root-migration",
+      "sha256": "20547308c4703eedb2283ad76cafac96cfda80f560fc67476b0a4464670682aa",
+      "dependsOn": [
+        "migration_21_reporting_snapshots_and_reports.sql"
+      ]
+    },
+    {
+      "order": 23,
+      "path": "migration_23_notification_system.sql",
+      "kind": "root-migration",
+      "sha256": "8344786e649b883141afd76e9e4689cceff0eda4528e728d04f4e7f63adb5278",
+      "dependsOn": [
+        "migration_22_reporting_schema_alignment.sql"
+      ]
+    },
+    {
+      "order": 24,
+      "path": "migration_24_notification_function_privileges.sql",
+      "kind": "root-migration",
+      "sha256": "88e29f437f9ae04a01046ad7d0615bcd3baaa4953e0dc36dcbf58f0eaf0040b7",
+      "dependsOn": [
+        "migration_23_notification_system.sql"
+      ]
+    },
+    {
+      "order": 25,
+      "path": "migration_25_shared_suppliers.sql",
+      "kind": "root-migration",
+      "sha256": "46788e45043c6d7cbebb57b1280f868607a7f83123630b2010a09e1b589a0ced",
+      "dependsOn": [
+        "migration_24_notification_function_privileges.sql"
+      ]
+    },
+    {
+      "order": 26,
+      "path": "migration_26_supplier_owner_isolation.sql",
+      "kind": "root-migration",
+      "sha256": "dfb4352204593ca2b5441efe3b6f0ed085d088aea509924b9d328d10b6c8d966",
+      "dependsOn": [
+        "migration_25_shared_suppliers.sql"
+      ]
+    },
+    {
+      "order": 27,
+      "path": "migration_27_inventory_branding_receipts.sql",
+      "kind": "root-migration",
+      "sha256": "62d8d86706db81160a2ef04122d29b842fb21c7b705d19447bb0d3300b57db59",
+      "dependsOn": [
+        "migration_26_supplier_owner_isolation.sql"
+      ]
+    },
+    {
+      "order": 28,
+      "path": "migration_28_member_account_rbac_hardening.sql",
+      "kind": "root-migration",
+      "sha256": "ca41e20d9150f3daf6f36c5d74995c52478140c02b87a81dd22ae66098332457",
+      "dependsOn": [
+        "migration_27_inventory_branding_receipts.sql"
+      ]
+    },
+    {
+      "order": 29,
+      "path": "migration_29_base_unit_inventory_margin_velocity.sql",
+      "kind": "root-migration",
+      "sha256": "73e4d915a434c06a6ab5504573f767d24205d66d8969c94882b3e9231fd6e5bf",
+      "dependsOn": [
+        "migration_28_member_account_rbac_hardening.sql"
+      ]
+    },
+    {
+      "order": 30,
+      "path": "migration_30_supplier_facebook_link.sql",
+      "kind": "root-migration",
+      "sha256": "ccb53cd8f7631ed5da153ed6d175d3521a7eaf2f1d000aae6a7c69514a28a0b7",
+      "dependsOn": [
+        "migration_29_base_unit_inventory_margin_velocity.sql"
+      ]
+    },
+    {
+      "order": 31,
+      "path": "migration_31_receive_po_status_only.sql",
+      "kind": "root-migration",
+      "sha256": "7f4f038f467a21ae910ce318050a3e9a2a0fcc621b144d548789a55eed33904c",
+      "dependsOn": [
+        "migration_30_supplier_facebook_link.sql"
+      ]
+    },
+    {
+      "order": 32,
+      "path": "migration_32_sales_velocity.sql",
+      "kind": "root-migration",
+      "sha256": "59af922868f6b899d56ade8d036f95b92650a422a6c5154d76ef55f3c1dcd49d",
+      "dependsOn": [
+        "migration_31_receive_po_status_only.sql"
+      ]
+    },
+    {
+      "order": 33,
+      "path": "migration_34_bulk_purchase_base_units.sql",
+      "kind": "root-migration",
+      "sha256": "cc51b91f0a744240619b33f4efd3d2682a4d2896001e05b9b45875e8407d704c",
+      "dependsOn": [
+        "migration_32_sales_velocity.sql"
+      ]
+    },
+    {
+      "order": 34,
+      "path": "migration_35_product_suppliers.sql",
+      "kind": "root-migration",
+      "sha256": "c8ea91016cf0c7820b91a911135629208d4d0ea3176220cccd63fb2054fcd09f",
+      "dependsOn": [
+        "migration_34_bulk_purchase_base_units.sql"
+      ]
+    },
+    {
+      "order": 35,
+      "path": "migration_36_owner_scoped_categories.sql",
+      "kind": "root-migration",
+      "sha256": "0f5a6b121591c0149778eaab2c470f535b4c3abc1d0ee9b16dc4780ec5e9e0cf",
+      "dependsOn": [
+        "migration_35_product_suppliers.sql"
+      ]
+    },
+    {
+      "order": 36,
+      "path": "migration_37_unit_aware_inventory_workflow.sql",
+      "kind": "root-migration",
+      "sha256": "cdce9b955889dae97ec9cb36d9d70e4bc5859c567f47167ce6dabc1114e14e22",
+      "dependsOn": [
+        "migration_36_owner_scoped_categories.sql"
+      ]
+    },
+    {
+      "order": 37,
+      "path": "migration_38_product_archiving.sql",
+      "kind": "root-migration",
+      "sha256": "7d6596d0dd7bcb4d738370b502825db058799a0efa2eb4d30468c5626cdfd08a",
+      "dependsOn": [
+        "migration_37_unit_aware_inventory_workflow.sql"
+      ]
+    },
+    {
+      "order": 38,
+      "path": "migration_39_repair_sale_item_category_snapshot.sql",
+      "kind": "root-migration",
+      "sha256": "b2cec8ab68b9ecef8f97cfbac8a5ef2b53fda04c0737a5c45bccdc212179dac1",
+      "dependsOn": [
+        "migration_38_product_archiving.sql"
+      ]
+    },
+    {
+      "order": 39,
+      "path": "migration_40_inventory_consumption_history.sql",
+      "kind": "root-migration",
+      "sha256": "5def58e64fc712a9cad4af68ea203240de01c38f27f1549063dd8e1e0c34da03",
+      "dependsOn": [
+        "migration_39_repair_sale_item_category_snapshot.sql"
+      ]
+    },
+    {
+      "order": 40,
+      "path": "supabase/migrations/20260803013739_fix_admin_supplier_inventory_workflows.sql",
+      "kind": "timestamped-migration",
+      "sha256": "145078c81f282656a858cd67ae551176e064ae31b364cc007dd7fa42687f415b",
+      "dependsOn": [
+        "migration_40_inventory_consumption_history.sql"
+      ]
+    },
+    {
+      "order": 41,
+      "path": "supabase/migrations/20260803022414_hide_notifications_from_super_admin.sql",
+      "kind": "timestamped-migration",
+      "sha256": "42b6bccef63c293cead6aa1c5790c42aaea30144d6195db34ff65b998de65dde",
+      "dependsOn": [
+        "supabase/migrations/20260803013739_fix_admin_supplier_inventory_workflows.sql"
+      ]
+    },
+    {
+      "order": 42,
+      "path": "supabase/migrations/20260803023252_enforce_mfa_assurance.sql",
+      "kind": "timestamped-migration",
+      "sha256": "5b9f5843304d8b969ef6d7a2620eebe6c1fdeda61cb3c612d84bef44cb896fdc",
+      "dependsOn": [
+        "supabase/migrations/20260803022414_hide_notifications_from_super_admin.sql"
+      ]
+    },
+    {
+      "order": 43,
+      "path": "supabase/migrations/20260930090000_vat_inclusive_pos_totals.sql",
+      "kind": "timestamped-migration",
+      "sha256": "f508c2b1d8e1c0d4db53ab89d43c8e422daaa3aa3a790dc39515794486c3b2be",
+      "dependsOn": [
+        "supabase/migrations/20260803023252_enforce_mfa_assurance.sql"
+      ]
+    },
+    {
+      "order": 44,
+      "path": "supabase/migrations/20260930130000_consignment_inventory_lots.sql",
+      "kind": "timestamped-migration",
+      "sha256": "0cac295625b5fa4eb16443ea7d4bb485f3ad546ce1bb6ca206af22b522b014f3",
+      "dependsOn": [
+        "supabase/migrations/20260930090000_vat_inclusive_pos_totals.sql"
+      ]
+    },
+    {
+      "order": 45,
+      "path": "supabase/migrations/20260930180000_fix_shared_stock_alert_scope.sql",
+      "kind": "timestamped-migration",
+      "sha256": "d598e73202381b0061858206941139ef2f1f5a006d964808c2751398ac576acc",
+      "dependsOn": [
+        "supabase/migrations/20260930130000_consignment_inventory_lots.sql"
+      ]
+    },
+    {
+      "order": 46,
+      "path": "supabase/migrations/20261019120000_pos_reporting_and_consignment_revisions.sql",
+      "kind": "timestamped-migration",
+      "sha256": "d005cea0c2f3fe11a33b83b050f8b9d0b282b19a131a38f890b2c9d8ae5a7493",
+      "dependsOn": [
+        "supabase/migrations/20260930180000_fix_shared_stock_alert_scope.sql"
+      ]
+    },
+    {
+      "order": 47,
+      "path": "supabase/migrations/20261019120001_consignment_received_goods_accrue_payable.sql",
+      "kind": "timestamped-migration",
+      "sha256": "b0bb1032412c38ff38f72bd23020d7cb86252d09396f6507f747eb542827cd63",
+      "dependsOn": [
+        "supabase/migrations/20261019120000_pos_reporting_and_consignment_revisions.sql"
+      ]
+    },
+    {
+      "order": 48,
+      "path": "supabase/migrations/20261019130000_client_revision_fixes.sql",
+      "kind": "timestamped-migration",
+      "sha256": "ddd591777aecaa20ef591236e4e26bd4daa2b6f4e0dfe224266c616c5aaf3c11",
+      "dependsOn": [
+        "supabase/migrations/20261019120001_consignment_received_goods_accrue_payable.sql"
+      ]
+    },
+    {
+      "order": 49,
+      "path": "supabase/migrations/20261021055145_fix_pos_item_discount_snapshots.sql",
+      "kind": "timestamped-migration",
+      "sha256": "68925dd85da7031dacc75ea1ab462a3f8793791c7272f85d0792b291672ef2be",
+      "dependsOn": [
+        "supabase/migrations/20261019130000_client_revision_fixes.sql"
+      ]
+    },
+    {
+      "order": 50,
+      "path": "supabase/migrations/20261021100000_fix_refund_pos_sale_refund_total.sql",
+      "kind": "timestamped-migration",
+      "sha256": "8a54adcd53997939529d85f7800bacf5fb455f91cd587088286ea40b3391c09c",
+      "dependsOn": [
+        "supabase/migrations/20261021055145_fix_pos_item_discount_snapshots.sql"
+      ]
+    },
+    {
+      "order": 51,
+      "path": "supabase/migrations/20261027191635_harden_store_creation_and_audit_logging.sql",
+      "kind": "timestamped-migration",
+      "sha256": "17d28f5b648e88dd0ed6cb2111d29cb208237185a2a2b9de206d6d0b775dab26",
+      "dependsOn": [
+        "supabase/migrations/20261021100000_fix_refund_pos_sale_refund_total.sql"
+      ]
+    },
+    {
+      "order": 52,
+      "path": "supabase/migrations/20261028191705_scope_storeless_error_notifications.sql",
+      "kind": "timestamped-migration",
+      "sha256": "7c4a8dc345b338cd9055d1887e1a99707be18bbd6e0cdf4ddbc71e8bd1f74eb3",
+      "dependsOn": [
+        "supabase/migrations/20261027191635_harden_store_creation_and_audit_logging.sql"
+      ]
+    },
+    {
+      "order": 53,
+      "path": "supabase/migrations/20261103134636_invite_code_redeemer_details.sql",
+      "kind": "timestamped-migration",
+      "sha256": "d1fb007ec4abca9dd60aa72e0e839a3f632bb548c3263f4a28df53edd72c4309",
+      "dependsOn": [
+        "supabase/migrations/20261028191705_scope_storeless_error_notifications.sql"
+      ]
+    },
+    {
+      "order": 54,
+      "path": "supabase/migrations/20261104104528_preserve_fractional_product_cost.sql",
+      "kind": "timestamped-migration",
+      "sha256": "0a9b988280bf875af616b368c8c61aad90378b55defc82b42a0bb49c07ea3c03",
+      "dependsOn": [
+        "supabase/migrations/20261103134636_invite_code_redeemer_details.sql"
+      ]
+    },
+    {
+      "order": 55,
+      "path": "supabase/migrations/20261104110422_preserve_restocking_package_price.sql",
+      "kind": "timestamped-migration",
+      "sha256": "48034a8d1368aa548bbbe1c36e3e5f23f196f4f655e3d2d7ce3a50eaa993e47f",
+      "dependsOn": [
+        "supabase/migrations/20261104104528_preserve_fractional_product_cost.sql"
+      ]
+    },
+    {
+      "order": 56,
+      "path": "supabase/migrations/20261104111848_preserve_fractional_stock_lot_costs.sql",
+      "kind": "timestamped-migration",
+      "sha256": "5e42384e55556bf376bcd1659b434903e5a66561c76f5885d93c998678281aaa",
+      "dependsOn": [
+        "supabase/migrations/20261104110422_preserve_restocking_package_price.sql"
+      ]
+    },
+    {
+      "order": 57,
+      "path": "supabase/migrations/20261104112104_preserve_fractional_stock_cost_precision.sql",
+      "kind": "timestamped-migration",
+      "sha256": "a1e47215cf05b3282a2aa2797897c98a8598e616b5e4f5be41c131989006c655",
+      "dependsOn": [
+        "supabase/migrations/20261104111848_preserve_fractional_stock_lot_costs.sql"
+      ]
+    },
+    {
+      "order": 58,
+      "path": "supabase/migrations/20261107024031_selling_option_barcodes.sql",
+      "kind": "timestamped-migration",
+      "sha256": "958af65fca71a9f3badd545fda5623b51c412490276bd7f1180abd3d9570791a",
+      "dependsOn": [
+        "supabase/migrations/20261104112104_preserve_fractional_stock_cost_precision.sql"
+      ]
+    },
+    {
+      "order": 59,
+      "path": "supabase/migrations/20261107024448_deny_direct_barcode_registry_access.sql",
+      "kind": "timestamped-migration",
+      "sha256": "41a12acc5cb0f59caebf22f1f7e2eb5ef2223467e7db8ea7319fa9b65e08cb3b",
+      "dependsOn": [
+        "supabase/migrations/20261107024031_selling_option_barcodes.sql"
+      ]
+    }
+  ],
+  "executionGate": {
+    "allowedTarget": "A newly created, explicitly disposable isolated database only, after empty bootstrap and restored-clone fingerprints match.",
+    "blockedUntil": [
+      "Supabase CLI version/command workflow is discovered on an available test host.",
+      "The ordered files apply cleanly to an empty isolated database.",
+      "A restored isolated copy has matching function, trigger, RLS/grant, precision, and fixture fingerprints."
+    ],
+    "neverTargets": [
+      "Production database",
+      "Any database with business data"
+    ],
+    "migrationHistoryWarning": "Supabase CLI migration reconciliation compares timestamps. Deployed project migration history differs from this checkout; do not link or push this manifest to the deployed project."
+  },
+  "deployedObservation": {
+    "observedOn": "2026-11-10",
+    "target": {
+      "projectName": "KodiGo Database",
+      "projectRef": "vlnucrbsgxnetdiejnwt",
+      "postgresServerVersion": "17.6",
+      "isolation": "deployed; read-only only"
+    },
+    "catalogFingerprints": {
+      "relations": {
+        "count": 45,
+        "md5": "d36cf2733da53b3841c02e7e588c03de"
+      },
+      "columns": {
+        "count": 547,
+        "md5": "8894f8045112443a0a243448d1c04420"
+      },
+      "constraints": {
+        "count": 244,
+        "md5": "c2c037133966dcd81cc5c909c7b956ff"
+      },
+      "indexes": {
+        "count": 122,
+        "md5": "3697810bef84f967bc8f0aec22a0effe"
+      },
+      "routines": {
+        "count": 87,
+        "md5": "173c73ffd08a852812c7eb107218949c"
+      },
+      "triggers": {
+        "count": 41,
+        "md5": "30fd85d22ab4114e24c48dd701726ec7"
+      },
+      "policies": {
+        "count": 77,
+        "md5": "00e8aca5e24c57f73f9500504694b99a"
+      },
+      "tableGrants": {
+        "count": 1013,
+        "md5": "b121dfce676f23e1839141435a2b2c74"
+      },
+      "routineGrants": {
+        "count": 240,
+        "md5": "4954ed1a09e9200e9b2fbbeabb85d4a0"
+      }
+    },
+    "selectedRoutineDefinitionMd5": {
+      "public.process_pos_sale": "3ebd7d60efd1d5fa55c8fb475f2b3918",
+      "public.process_pos_sale_v2": "cb03fefb056ea7cbd940a34f602a8cbb",
+      "public.process_pos_sale_v3": "9414a19d7e87cc884d9ae419dd10f7e9",
+      "public.process_pos_sale_v4": "c9cd5a6933b4aa0b70cc62ae6df8b7e6",
+      "public.trg_deduct_stock_on_sale": "b8a91055243ec28c36dcee46b1127f4d",
+      "public.adjust_inventory_stock": "55885c7ca038e4a3c1a8542b09694685",
+      "public.receive_product_stock": "5203cd0526731157d1c00e90d5c76197",
+      "public.restock_product_inventory_v2": "77187dacb6cc7d5cc7cf2870f18ed2a6",
+      "public.void_pos_sale": "5b86c50a9b25009cae889e1d19184226",
+      "public.return_sale_items": "c6e3ddd8a01a570c61b9fc9cfde73748",
+      "public.refund_pos_sale": "aa12108ef57c2880aa1449f81ff3c852",
+      "public.close_cashier_shift": "a14e801111151b35461f985011f8b9e9",
+      "public.user_belongs_to_store": "6757e4eb57830c20a5887180ea8d2665",
+      "private.mfa_session_is_valid": "2c215ee2d35ce272bd628b51ab2a026b",
+      "private.sync_stock_lots_from_adjustment": "ad9c855ebe9a3e18cb30416008fe8342",
+      "private.restore_sale_stock_lots_after_void": "a6097a45e10fd7e97f6153875433e7fd",
+      "public.create_store_with_owner": "a5174d70b66c5e340db89cdcd030d41d"
+    },
+    "warning": "This is a deployed baseline fingerprint for comparison only. It is not evidence that the source manifest builds this schema; do not run SQL against this project."
+  }
+}

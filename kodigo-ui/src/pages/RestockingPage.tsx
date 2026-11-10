@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { ShoppingCart, ClipboardList, RefreshCw, AlertTriangle, PackageCheck, X } from 'lucide-react';
+import { ShoppingCart, ClipboardList, RefreshCw, AlertTriangle, PackageCheck, Printer, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
 import { SearchInput } from '@/components/shared/SearchInput';
@@ -14,6 +14,9 @@ import { useSupplierStore } from '@/stores/supplierStore';
 import { useAuthStore } from '@/stores/authStore';
 import { getStockStatus } from '@/types';
 import type { ProductRestockingOption, RestockItem, RestockResult } from '@/types';
+import { createShoppingListSnapshot, downloadShoppingListText } from '@/lib/shopping-lists';
+import { ShoppingListPreviewDialog } from '@/components/shopping/ShoppingListPreviewDialog';
+import type { ShoppingListSnapshotV1 } from '@/types/shopping-lists';
 
 interface RestockDraft {
   optionKey: string;
@@ -148,6 +151,8 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
   const [receivingId, setReceivingId] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [shoppingListPreviewOpen, setShoppingListPreviewOpen] = useState(false);
+  const [shoppingListSnapshot, setShoppingListSnapshot] = useState<ShoppingListSnapshotV1 | null>(null);
 
   useEffect(() => {
     setNow(Date.now());
@@ -240,49 +245,48 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
   };
   const totalCost = selectedItems.reduce((sum, item) => sum + getDraftCalculation(item).totalCost, 0);
 
-  const handleCreateShoppingList = () => {
-    if (selectedItems.length === 0) return;
-    const itemRows: [string, string, string, string][] = selectedItems.map((item) => {
-      const calculation = getDraftCalculation(item);
-      const unitPrice = calculation.quantity > 0 ? calculation.totalCost / calculation.quantity : 0;
-      return [
-        item.productName,
-        `${calculation.quantity} ${calculation.option.label}`,
-        formatCurrency(unitPrice),
-        formatCurrency(calculation.totalCost),
-      ];
+  const createSelectedShoppingListSnapshot = () => {
+    if (selectedItems.length === 0) return null;
+    const store = stores.find((candidate) => candidate.id === activeStoreId);
+    return createShoppingListSnapshot({
+      storeId: activeStoreId || 'all',
+      storeName: store?.name || (activeStoreId === 'all' ? 'All stores' : 'Store'),
+      items: selectedItems.map((item) => {
+        const calculation = getDraftCalculation(item);
+        return {
+          productId: item.productId,
+          productName: item.productName,
+          quantity: calculation.quantity,
+          purchaseUnit: calculation.option.label,
+          subtotal: calculation.totalCost,
+          isEstimated: calculation.isEstimated,
+        };
+      }),
     });
-    const columns = ['Item', 'Quantity', 'Unit Price', 'Total'] as const;
-    const totalRow: [string, string, string, string] = ['TOTAL AMOUNT', '', '', formatCurrency(totalCost)];
-    const columnWidths = columns.map((column, index) => Math.max(
-      column.length,
-      ...itemRows.map((row) => row[index].length),
-      totalRow[index].length,
-    ));
-    const renderRow = (row: readonly string[]) => `| ${row.map((cell, index) => cell.padEnd(columnWidths[index] ?? cell.length)).join(' | ')} |`;
-    const separator = `+-${columnWidths.map((width) => '-'.repeat(width)).join('-+-')}-+`;
-    const now = new Date();
-    const displayDate = new Intl.DateTimeFormat('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }).format(now);
-    const fileDate = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
-    const shoppingList = [
-      `Shopping List — ${displayDate}`,
-      '',
-      separator,
-      renderRow(columns),
-      separator,
-      ...itemRows.map(renderRow),
-      separator,
-      renderRow(totalRow),
-      separator,
-      '',
-    ].join('\n');
-    const url = URL.createObjectURL(new Blob([`\uFEFF${shoppingList}`], { type: 'text/plain;charset=utf-8' }));
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `Shopping-List-${fileDate}.txt`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+  };
+
+  const handleCreateShoppingList = () => {
+    const snapshot = createSelectedShoppingListSnapshot();
+    if (!snapshot) return;
+    downloadShoppingListText(snapshot);
     toast('success', 'Shopping list downloaded as a text file.');
+  };
+
+  const handlePreviewShoppingList = () => {
+    const snapshot = createSelectedShoppingListSnapshot();
+    if (!snapshot) return;
+    setShoppingListSnapshot(snapshot);
+    setShoppingListPreviewOpen(true);
+  };
+
+  const handleRefreshShoppingListSnapshot = () => {
+    const snapshot = createSelectedShoppingListSnapshot();
+    if (!snapshot) {
+      toast('warning', 'Select at least one restocking item before refreshing the shopping list.');
+      return;
+    }
+    setShoppingListSnapshot(snapshot);
+    toast('info', 'Shopping-list preview refreshed from the current receiving quantities and costs.');
   };
 
   const applyReceipt = async (item: RestockItem, quantityReceived: number, actualCost?: number) => {
@@ -509,7 +513,10 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
                 {bulkReceiptOpen ? 'Close bulk receipt' : 'Record bulk receipt'}
               </Button>
               <Button variant="secondary" size={embedded ? 'sm' : 'md'} icon={<ClipboardList className="w-4 h-4" />} disabled={selectedItems.length === 0} onClick={handleCreateShoppingList}>
-                Create Shopping List
+                Download Shopping List (TXT)
+              </Button>
+              <Button variant="secondary" size={embedded ? 'sm' : 'md'} icon={<Printer className="w-4 h-4" />} disabled={selectedItems.length === 0} onClick={handlePreviewShoppingList}>
+                Preview / Print List
               </Button>
               <Button variant="secondary" size={embedded ? 'sm' : 'md'} icon={<ShoppingCart className="w-4 h-4" />} disabled={selectedItems.length === 0} onClick={() => setConfirmOpen(true)}>
                 Create Purchase Order
@@ -788,6 +795,13 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
         loading={creating}
         onConfirm={handleCreatePO}
         onCancel={() => setConfirmOpen(false)}
+      />
+
+      <ShoppingListPreviewDialog
+        open={shoppingListPreviewOpen}
+        snapshot={shoppingListSnapshot}
+        onClose={() => setShoppingListPreviewOpen(false)}
+        onRefresh={handleRefreshShoppingListSnapshot}
       />
 
     </div>

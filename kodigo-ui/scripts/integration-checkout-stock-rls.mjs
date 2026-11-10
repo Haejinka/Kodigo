@@ -1,19 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
+import { validateSupabaseTestTarget } from './enhancement-test-target.mjs';
 
 const mustRun = process.env.RUN_INTEGRATION_TESTS === 'true';
 
-const supabaseUrl = process.env.KODIGO_TEST_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-const anonKey = process.env.KODIGO_TEST_SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.KODIGO_TEST_SUPABASE_URL;
+const anonKey = process.env.KODIGO_TEST_SUPABASE_ANON_KEY;
 const serviceRoleKey = process.env.KODIGO_TEST_SUPABASE_SERVICE_ROLE_KEY;
+const projectRef = process.env.KODIGO_TEST_SUPABASE_PROJECT_REF;
 
 if (!mustRun) {
   console.log('Integration tests skipped. Set RUN_INTEGRATION_TESTS=true to run checkout/stock/RLS tests.');
   process.exit(0);
 }
 
-if (!supabaseUrl || !anonKey || !serviceRoleKey) {
-  throw new Error('Missing Supabase integration test env vars.');
+if (!supabaseUrl || !anonKey || !serviceRoleKey || !projectRef) {
+  throw new Error('Missing explicit Supabase test target env vars.');
 }
+
+validateSupabaseTestTarget({ url: supabaseUrl, projectRef });
 
 const admin = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },

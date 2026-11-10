@@ -69,18 +69,11 @@ Only public browser credentials belong in `VITE_*` variables. Never put a Supaba
 
 ### 3. Prepare the database
 
-This repository does not contain a pinned Supabase CLI dependency or a `supabase/config.toml`, so it does not currently provide a one-command local database bootstrap. Use an authorized Supabase project and its SQL Editor.
+The repository does not currently provide a verified one-command database bootstrap. [`supabase/bootstrap-manifest.json`](supabase/bootstrap-manifest.json) records the current source file order and SHA-256 checksums, but it is still a **candidate**: an empty isolated database run and a restored-clone comparison have not been completed. Do not execute it against any populated or deployed database.
 
-For a new, empty project:
+Before using any database, compare its applied migration history and effective schema with [`docs/implementation/SCHEMA_BASELINE.md`](docs/implementation/SCHEMA_BASELINE.md). The deployed application has been confirmed to use the active Supabase project described there, whose recorded migration versions do not match this checkout's timestamped filenames. Supabase CLI migration reconciliation compares timestamps; linking this checkout and running `db push` could therefore replay existing SQL. Do not run `db push`, `migration repair`, historical migration files, or the baseline against that project. Never infer that a migration is unapplied solely from a filename mismatch.
 
-1. Run [`supabase_schema.sql`](supabase_schema.sql) once as the baseline snapshot.
-2. Run the root migrations in numeric order from [`migration_01_invite_codes.sql`](migration_01_invite_codes.sql) through [`migration_28_member_account_rbac_hardening.sql`](migration_28_member_account_rbac_hardening.sql). Follow any execution notes inside each file; migration 02, for example, separates the enum change from the remaining statements.
-3. Run the existing dated migrations in [`supabase/migrations/`](supabase/migrations/) in filename order, except for the new post-root-40 hardening migration described in step 5.
-4. Run the root migrations from [`migration_29_base_unit_inventory_margin_velocity.sql`](migration_29_base_unit_inventory_margin_velocity.sql) through [`migration_40_inventory_consumption_history.sql`](migration_40_inventory_consumption_history.sql) in numeric order, including the available migrations 30, 31, 32, and 34–39.
-5. After root migration 40, run [`20261027191635_harden_store_creation_and_audit_logging.sql`](supabase/migrations/20261027191635_harden_store_creation_and_audit_logging.sql). Migration 36 redefines `create_store_with_owner`, so this forward hardening patch must run after the full root migration chain.
-6. Review the resulting RLS policies, functions, triggers, grants, Storage configuration, and Auth settings before using real data.
-
-The ordered migration chain is the source of truth for the current database. `supabase_schema.sql` is only a starting snapshot; later migrations intentionally replace earlier policies and functions. Existing environments should apply only migrations that have not already been recorded as applied. Do not rerun the baseline over a populated database.
+Only validate the manifest on a newly created, explicitly disposable isolated database. The current workspace has no Supabase CLI, `psql`, or Docker installed, and no empty-bootstrap or restore-equivalence run has been recorded. Once an isolated target and the CLI workflow are available, verify the manifest there before publishing a supported bootstrap procedure. For existing installations, make only reviewed forward migrations after the actual history and effective schema have been reconciled.
 
 There is no general-purpose seed script. The UI creates default product categories when needed, but user accounts and production business data are not seeded. Owner registration requires an invite code, and the repository does not include an automated first-super-admin bootstrap; an authorized Supabase project operator must provision the initial administrative account according to the deployment's access policy.
 
@@ -117,18 +110,35 @@ Run all commands in this table from `kodigo-ui/`.
 | `npm run build` | Type-check and produce the optimized Vite bundle in `dist/`. |
 | `npm run preview` | Preview the built bundle locally. |
 | `npm run test:integration` | Skip safely unless explicitly enabled; otherwise run the checkout, historical snapshot, stock, void, and RLS integration harness. |
-| `npm run ci` | Run type-checking, linting, build, and the integration harness. |
+| `npm run test:db:enhancements -- --case Txx` | Run one allowlisted enhancement SQL case against an explicitly identified disposable Supabase database; no environment fallback is used. |
+| `npm run test:e2e` | Check the public login screen with Playwright. A remote origin requires an explicit read-only URL and opt-in. |
+| `npm run ci` | Run type-checking, linting, build, and unit tests. Opt-in database checks run as separate CI jobs and are never counted as a passing test when they are disabled. |
 
 The integration harness creates and removes Auth users, stores, products, sales, and related test records. Run it only against an isolated test or staging project:
 
 ```dotenv
 RUN_INTEGRATION_TESTS=true
 KODIGO_TEST_SUPABASE_URL=<test-project-url>
+KODIGO_TEST_SUPABASE_PROJECT_REF=<test-project-ref>
 KODIGO_TEST_SUPABASE_ANON_KEY=<test-public-anon-or-publishable-key>
 KODIGO_TEST_SUPABASE_SERVICE_ROLE_KEY=<test-service-role-key>
 ```
 
 The service-role variable is for this Node-based test harness and must never use production credentials or be exposed to the browser. GitHub Actions reads the equivalent values from repository secrets.
+
+The enhancement database harness has a separate guard and only runs when all target-identity values are explicit:
+
+```dotenv
+RUN_ENHANCEMENT_DB_TESTS=true
+KODIGO_TEST_DATABASE_URL=<isolated-test-database-connection-string>
+KODIGO_TEST_DATABASE_PROJECT_REF=<isolated-test-project-ref>
+KODIGO_TEST_DATABASE_NAME=postgres
+KODIGO_TEST_DATABASE_ISOLATED=true
+```
+
+The configured database URL must identify the same project ref and database name. The deployed KodiGo project ref is denied by the harness. Database credentials are read from environment variables and passed to `psql` through its process environment, never command-line arguments or logs. CI marks opt-in database jobs as skipped when no isolated target is configured; a skipped job is not a pass.
+
+For the read-only public UI smoke, set `KODIGO_E2E_BASE_URL` to an explicit HTTPS origin and `KODIGO_E2E_ALLOW_REMOTE_READ_ONLY=true`. The smoke only opens the login page and checks its controls; it does not submit credentials or business actions.
 
 ## Roles and Access
 

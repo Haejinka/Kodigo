@@ -6,9 +6,9 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Kodigo.PrintAgent</AssemblyName>
     <RootNamespace>Kodigo.PrintAgent</RootNamespace>
-    <Version>1.0.1</Version>
-    <AssemblyVersion>1.0.1</AssemblyVersion>
-    <FileVersion>1.0.1</FileVersion>
+    <Version>1.0.2</Version>
+    <AssemblyVersion>1.0.2</AssemblyVersion>
+    <FileVersion>1.0.2</FileVersion>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DefaultItemExcludes>$(DefaultItemExcludes);publish/**;package-staging/**;Kodigo-Print-Agent-win-x64/**;Kodigo-Print-Agent-win-x64.zip;Kodigo-Print-Setup-win-x64.exe</DefaultItemExcludes>
   </PropertyGroup>

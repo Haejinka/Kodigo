@@ -2,6 +2,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Kodigo.PrintAgent;
 
 if (args.Contains("--help", StringComparer.OrdinalIgnoreCase))
@@ -55,6 +56,12 @@ if (!isFirstInstance)
 }
 
 var allowedOrigins = AgentConfiguration.GetAllowedOrigins();
+var shoppingListLedgerPath = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "Kodigo",
+    "PrintAgent",
+    "shopping-list-print-attempts.json");
+var shoppingListLedger = new ShoppingListAttemptLedger(shoppingListLedgerPath);
 var builder = WebApplication.CreateBuilder([]);
 builder.WebHost.ConfigureKestrel(server =>
 {
@@ -118,7 +125,19 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.MapGet("/v1/health", () => Results.Ok(new { ok = true, name = "Kodigo Print Agent", version = "1.0.1" }));
+app.MapGet("/v1/health", () => Results.Ok(new { ok = true, name = "Kodigo Print Agent", version = "1.0.2" }));
+
+app.MapGet("/v1/capabilities", () => Results.Ok(new
+{
+    version = "1.0.2",
+    supportedDocuments = new[] { "receipt", "shopping-list" },
+    paperProfiles = new
+    {
+        receipt = new[] { "58mm" },
+        shoppingList = new[] { "58mm", "80mm" },
+    },
+    shoppingListMaximumItems = 50,
+}));
 
 app.MapPost("/v1/pair", () => Results.Ok(new { token = PairingTokenStore.Create() }));
 
@@ -199,6 +218,109 @@ app.MapPost("/v1/receipts/print", async (HttpContext context) =>
     catch (Exception)
     {
         return Results.Problem("Windows could not submit the receipt. Check that the printer is online and its driver accepts RAW thermal jobs.", statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
+
+app.MapPost("/v1/documents/shopping-list/print", async (HttpContext context) =>
+{
+    var request = await ReadJson<ShoppingListPrintRequest>(context);
+    if (request is null
+        || string.IsNullOrWhiteSpace(request.PrinterName)
+        || request.PrinterName.Length > 256
+        || !Guid.TryParse(request.DocumentId, out var documentId)
+        || !Guid.TryParse(request.AttemptId, out var attemptId)
+        || !ShoppingListFormatter.IsSupportedProfile(request.Profile)
+        || request.ShoppingList.ValueKind != JsonValueKind.Object
+        || string.IsNullOrWhiteSpace(request.DocumentHash)
+        || request.DocumentHash.Length != 64
+        || request.DocumentHash.Any(character => character is not (>= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F')))
+    {
+        return Results.BadRequest(new ApiError("A printer, document ID, attempt ID, supported profile, document hash, and shopping-list snapshot are required."));
+    }
+
+    if (!request.ShoppingList.TryGetProperty("documentId", out var snapshotDocumentId)
+        || snapshotDocumentId.ValueKind != JsonValueKind.String
+        || !Guid.TryParse(snapshotDocumentId.GetString(), out var parsedSnapshotId)
+        || parsedSnapshotId != documentId)
+    {
+        return Results.BadRequest(new ApiError("The shopping-list snapshot must match the supplied document ID."));
+    }
+
+    byte[] documentData;
+    string expectedHash;
+    try
+    {
+        documentData = ShoppingListFormatter.Format(request.ShoppingList, request.Profile, request.ShowPrices);
+        expectedHash = ShoppingListFormatter.ComputeHash(request.ShoppingList, request.Profile, request.ShowPrices);
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new ApiError(exception.Message));
+    }
+
+    if (!CryptographicOperations.FixedTimeEquals(
+        Convert.FromHexString(request.DocumentHash),
+        Convert.FromHexString(expectedHash)))
+    {
+        return Results.Conflict(new ApiError("The shopping-list document hash does not match its content and print profile."));
+    }
+
+    var printerName = request.PrinterName.Trim();
+    try
+    {
+        var printers = WindowsPrinter.GetInstalledPrinters();
+        if (!printers.Contains(printerName, StringComparer.OrdinalIgnoreCase))
+        {
+            return Results.BadRequest(new ApiError("That printer is not installed on this computer. Find printers again and choose an installed printer."));
+        }
+
+        WindowsPrinter.EnsureAvailable(printerName);
+        DocumentPrintClaim claim;
+        try
+        {
+            claim = await shoppingListLedger.TryClaimAsync(documentId, attemptId, expectedHash, request.Reprint, context.RequestAborted);
+        }
+        catch (InvalidDataException)
+        {
+            return Results.Problem("The local shopping-list print history is unreadable and was preserved. No print job was submitted.", statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (IOException)
+        {
+            return Results.Problem("The local shopping-list print history could not be saved. No print job was submitted.", statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
+        if (claim.Status == DocumentPrintClaimStatus.Conflict)
+        {
+            return Results.Conflict(new ApiError(claim.Message));
+        }
+        if (claim.Status == DocumentPrintClaimStatus.Duplicate)
+        {
+            return Results.Ok(new { submitted = false, duplicate = true, message = claim.Message });
+        }
+
+        await PrinterCommandGate.WaitAsync(context.RequestAborted);
+        try
+        {
+            WindowsPrinter.SendRaw(printerName, documentData, "Kodigo shopping list");
+        }
+        finally
+        {
+            PrinterCommandGate.Release();
+        }
+
+        return Results.Ok(new { submitted = true, duplicate = false, message = "Windows accepted the shopping-list print job. Check the printer for output." });
+    }
+    catch (PrinterUnavailableException exception)
+    {
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (OperationCanceledException)
+    {
+        return Results.StatusCode(StatusCodes.Status408RequestTimeout);
+    }
+    catch (Exception)
+    {
+        return Results.Problem("Windows could not submit the shopping-list job. Its outcome may be uncertain; use an explicit reprint attempt only if another submission is needed.", statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 });
 
@@ -331,6 +453,15 @@ sealed record ApiError(string Error);
 sealed record DrawerRequest(string PrinterName, string SaleId);
 sealed record DrawerTestRequest(string PrinterName);
 sealed record ReceiptPrintRequest(string PrinterName, string SaleId, bool Reprint, JsonElement Receipt);
+sealed record ShoppingListPrintRequest(
+    string PrinterName,
+    [property: JsonPropertyName("document_id")] string DocumentId,
+    [property: JsonPropertyName("attempt_id")] string AttemptId,
+    [property: JsonPropertyName("document_hash")] string DocumentHash,
+    string Profile,
+    [property: JsonPropertyName("reprint")] bool Reprint,
+    [property: JsonPropertyName("show_prices")] bool ShowPrices,
+    [property: JsonPropertyName("shopping_list")] JsonElement ShoppingList);
 
 static class AgentConfiguration
 {

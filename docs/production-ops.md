@@ -13,11 +13,18 @@ This runbook covers production backups, restore testing, error logging, audit lo
 ## Restore Procedure
 
 1. Restore the latest production backup into a separate Supabase project or a temporary branch.
-2. Apply any newer migrations that were not included in the backup window.
-3. Validate row counts for stores, products, sales, sale items, and stock adjustments.
-4. Run `npm run test:integration` with `RUN_INTEGRATION_TESTS=true` against the restored project.
-5. Smoke-test login, POS checkout, void, refund, return, closeout, inventory update, and user management.
-6. Promote the restored project only after DNS/API keys and Edge Functions are verified.
+2. Identify the restored project by name/ref and verify it is isolated. Compare its actual migration history and effective schema to [`implementation/SCHEMA_BASELINE.md`](implementation/SCHEMA_BASELINE.md) and [`../supabase/bootstrap-manifest.json`](../supabase/bootstrap-manifest.json). Do not run a historical file, `db push`, `migration repair`, or the baseline until every discrepancy has a reviewed resolution.
+3. Apply only reviewed forward changes to the restored project, using the installed, version-pinned Supabase CLI workflow after checking that version's `--help`. Keep the source manifest unchanged unless a restore-backed check proves a dependency correction is needed.
+4. Validate schema fingerprints, row counts for stores, products, sales, sale items, and stock adjustments, plus representative receipt, lot-allocation, and consignment-payable fixtures.
+5. Run `npm run test:integration` with `RUN_INTEGRATION_TESTS=true` only against this explicitly identified isolated restored project. The harness creates and removes Auth users and business rows.
+6. Smoke-test login, POS checkout, void, refund, return, closeout, inventory update, and user management with clearly labelled test records. Never perform external settlement or financial transfers.
+7. Promote the restored project only after schema, DNS/API keys, Edge Functions, authorization, and rollback checks are verified.
+
+## Schema provenance gate
+
+`supabase/bootstrap-manifest.json` is a checksummed source-order candidate, not a certified bootstrap. It has not yet been applied to an empty isolated database or compared with a restored copy. The repository checkout has root migrations 01–32 and 34–40 (33 is absent) plus 20 timestamped migrations. The current deployed KodiGo project runs PostgreSQL 17.6, and its migration-history timestamps/names differ from this checkout. The deployed website bundle references that same project. Treat this as migration drift: the project is for read-only inspection until an isolated restore and history reconciliation prove a safe forward path. No production SQL was applied for this baseline.
+
+The workspace used for the initial implementation check has no Supabase CLI, `psql`, or Docker command available. Record the version and `--help` output from the actual test host before choosing migration commands. Never place project credentials, login credentials, or database connection strings in this runbook.
 
 ## Error Logging
 

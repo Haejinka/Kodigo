@@ -36,10 +36,115 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
+
+  integration:
+    name: Isolated Supabase integration tests
+    if: ${{ vars.KODIGO_RUN_INTEGRATION_TESTS == 'true' }}
+    needs: frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kodigo-ui
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: kodigo-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Integration tests
         run: npm run test:integration
         env:
-          RUN_INTEGRATION_TESTS: ${{ secrets.KODIGO_RUN_INTEGRATION_TESTS }}
+          RUN_INTEGRATION_TESTS: ${{ vars.KODIGO_RUN_INTEGRATION_TESTS }}
           KODIGO_TEST_SUPABASE_URL: ${{ secrets.KODIGO_TEST_SUPABASE_URL }}
+          KODIGO_TEST_SUPABASE_PROJECT_REF: ${{ vars.KODIGO_TEST_SUPABASE_PROJECT_REF }}
           KODIGO_TEST_SUPABASE_ANON_KEY: ${{ secrets.KODIGO_TEST_SUPABASE_ANON_KEY }}
           KODIGO_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.KODIGO_TEST_SUPABASE_SERVICE_ROLE_KEY }}
+
+  enhancement-db-tests:
+    name: Isolated enhancement database tests
+    if: ${{ vars.RUN_ENHANCEMENT_DB_TESTS == 'true' }}
+    needs: frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kodigo-ui
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: kodigo-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install --yes postgresql-client
+
+      - name: Enhancement database tests
+        run: npm run test:db:enhancements -- --case T01
+        env:
+          RUN_ENHANCEMENT_DB_TESTS: ${{ vars.RUN_ENHANCEMENT_DB_TESTS }}
+          KODIGO_TEST_DATABASE_URL: ${{ secrets.KODIGO_TEST_DATABASE_URL }}
+          KODIGO_TEST_DATABASE_PROJECT_REF: ${{ vars.KODIGO_TEST_DATABASE_PROJECT_REF }}
+          KODIGO_TEST_DATABASE_NAME: ${{ vars.KODIGO_TEST_DATABASE_NAME }}
+          KODIGO_TEST_DATABASE_ISOLATED: ${{ vars.KODIGO_TEST_DATABASE_ISOLATED }}
+
+  deployed-ui-smoke:
+    name: Deployed read-only UI smoke
+    if: ${{ vars.KODIGO_E2E_BASE_URL != '' }}
+    needs: frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kodigo-ui
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: kodigo-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Test deployed public login screen
+        run: npm run test:e2e -- tests/e2e/harness.spec.ts --reporter=list
+        env:
+          KODIGO_E2E_BASE_URL: ${{ vars.KODIGO_E2E_BASE_URL }}
+          KODIGO_E2E_ALLOW_REMOTE_READ_ONLY: 'true'
+
+  print-agent-format-tests:
+    name: Print agent formatting and deduplication tests
+    needs: frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Test print-agent document formatting
+        run: dotnet run --project ./kodigo-ui/print-agent-tests/Kodigo.PrintAgent.FormatTests.csproj

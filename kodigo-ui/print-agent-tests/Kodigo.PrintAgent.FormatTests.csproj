@@ -7,6 +7,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\print-agent\ReceiptFormatter.cs" Link="ReceiptFormatter.cs" />
+    <Compile Include="..\print-agent\ShoppingListFormatter.cs" Link="ShoppingListFormatter.cs" />
+    <Compile Include="..\print-agent\ShoppingListAttemptLedger.cs" Link="ShoppingListAttemptLedger.cs" />
     <Compile Include="..\print-agent\AgentOriginPolicy.cs" Link="AgentOriginPolicy.cs" />
   </ItemGroup>
 </Project>

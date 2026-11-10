@@ -1,0 +1,93 @@
+# Typed API and command contracts
+
+Supplement to ARCHITECTURE A02/A03; normative for the lower-tier implementation model. These are proposed APIs, not existing deployed endpoints. All writes use Supabase RPC with `{p_command: CommandV1}` and thin frontend adapters. Read methods use typed parameters listed below, not arbitrary SQL/filter strings. Never expose private posting helpers. Task owners create the exact TypeScript payload/result types in their declared domain files.
+
+## Command envelope, validation and errors
+
+`CommandV1` fields: `contract_version:1`, `operation_id:UUID`, `store_id:UUID`, `terminal_id:UUID|null`, `shift_id:UUID|null`, `occurred_at_local:ISO8601|null`, `terminal_sequence:integer|null`, `expected_version:integer|null`, `payload:object`. Actor is session-derived; no arbitrary actor override. Required terminal/shift is checked by command kind. A supervisor recovery command supplies a lease/source reference, never an unchecked original-cashier parameter.
+
+Quantities are positive integers for current sale/intake APIs. Money and rates returned as canonical decimal strings/integer basis points; reject NaN/infinity/negative values outside allowed signed movement commands. IDs, states, reasons and method enums are validated before casts/writes. New operational requests cap reason3–500 chars and free comments1–2000; external references1–160 with B08 normalization. Unsupported extra fields reject, so old/new payload interpretation cannot drift silently. Current supported tender remains cash/gcash/card/bank_transfer/other. Apply tasks explicitly register command kinds and supported contract version; no dynamic SQL/table/function dispatch.
+
+`CommandResultV1`: contract_version, operation_id, outcome (`confirmed` or `pending_external`), aggregate_type/id/version, confirmed_at server timestamp, result domain object. `confirmed` means the **command** committed (a request can commit while its workflow remains requested); result always includes workflow_state. It does not mean provider settlement/printing finished. Client local result is separate `{outcome:'recorded_locally',local_id,queue_state,occurred_at_local}`.
+
+Expected validation failures raise stable business error detail JSON `{business_code,message,field_errors?,current_version?,retryable:false}` using a consistent SQL error category, preserving SQLSTATE42501 for authorization where appropriate. Codes: AUTH_REQUIRED, MFA_REQUIRED, STORE_FORBIDDEN, CAPABILITY_REQUIRED, SELF_APPROVAL, INVALID_INPUT, UNSUPPORTED_CONTRACT, UPGRADE_REQUIRED, IDEMPOTENCY_MISMATCH, VERSION_CONFLICT, INSUFFICIENT_STOCK, INSUFFICIENT_CASH, INSUFFICIENT_WALLET, RETURN_LIMIT, CREDIT_LIMIT, REFUND_LIMIT, SALE_INELIGIBLE, SETTLEMENT_REQUIRED, DUPLICATE_EXTERNAL_REFERENCE, SHIFT_REQUIRED, SHIFT_CLOSED, LEASE_EXPIRED, LEASE_REVOKED, GRANT_EXHAUSTED, SEQUENCE_GAP, LEGACY_RECONCILIATION_REQUIRED. Domain failure rolls back all command effects and does not create committed success. Client preserves same ID for transport retry; a deliberately changed proposal uses a new ID linked to previous request.
+
+Transport errors/5xx/429 are handled separately from domain errors. A failed offline ingest is captured in local durable conflict state and can be recorded through a separate checked `record_sync_conflict` command after the failed transaction. Do not catch an exception halfway through accounting and report partial success. `get_pos_operation(p_store_id,p_operation_id)` returns prior committed response only to original authorized actor or explicitly authorized recovery reviewer.
+
+## Sale, stock and approvals
+
+| API / owner | Payload fields | Server result/effects |
+| --- | --- | --- |
+| `process_pos_sale_v5` / T06,T26 | `items:[{product_id,selling_option_id:null|UUID,quantity,discount_per_unit}]`, payment_method, amount_tendered, payment_reference?, customer_id?, discount_category; offline grant fields accepted only through checked ingest path | Canonical SaleRecord, line/payment/receipt IDs and money strings, workflow/financial states, stock/cash movement IDs. Recompute current online prices/discounts/tax; do not trust frontend total. Required shift/terminal when new custody flag on. |
+| `request_inventory_adjustment` / T06 | product_id, location_id, mode add/remove/count, quantity (count may0), reason, expected_balance_version | Shared approval request for decrease/count correction, or authorized routine increase application; pending result contains no changed stock. Count computes proposed delta once against expected version. |
+| `decide_operational_approval` / T03,T06,T27,T35 | request_id, request_version, decision approve/reject, reason | Immutable decision. Command kind determines required approve capability and resource schema; self approval denied. Approval does not bypass apply-time version/funds validation. |
+| `apply_inventory_adjustment` / T06 | request_id, approved_decision_id, expected_balance_version | Central movement/source adjustment IDs and before/after. Mismatched live version requires new review rather than changed approved proposal. |
+| `receive_product_stock_v2` / T06 | product_id, restocking_option_id, receiving_quantity, purchase_total, ownership store_owned/consigned, supplier_id?, reason, expected_balance_version | Base-unit stock/restock history/lot/movement/cost snapshots. Existing receive_product_stock delegates after input conversion; PO status receive remains separate. |
+| `transfer_inventory` / T05 | product_id, from_location_id, to_location_id, quantity_base, reason, expected source/dest versions | Paired immutable movements/group and lot-location slices; same-store only. |
+| `dispose_quarantine_stock` / T05,T19 | product_id, location_id, source_return_item_id or lot_id, quantity_base, reason, approval_request_id | Negative quarantine movement; zero sellable effect; no implied supplier payable reversal. |
+
+Inventory product creation must submit initial stock through the central opening-stock service in the same transaction as new product/option metadata, not a generic independently queued INSERT. New offline generic catalog/PO writes are unsupported.
+
+## Void and return/refund APIs
+
+| API / owner | Payload fields | Result and guards |
+| --- | --- | --- |
+| `request_sale_void` / T12 | sale_id, sale_version, scope full/partial, items?:[{sale_item_id,quantity}], reason, goods_held_unfulfilled:true | request_id/state/eligibility snapshot. Partial rejects while flag off; nonblank reason required. |
+| `decide_sale_void` / T12 | request_id, request_version, decision approve/reject, reason, external_evidence_id? | Independent decision, requested/awaiting_settlement/rejected state. Does not post restoration merely because approved. |
+| `apply_approved_void` / T13,T15 | request_id, request_version, decision_id, verified_settlement_event_ids?, cash_return_attestation? | applied void/credit/payment/movement IDs; cash shift required for actual payout; original held goods and entitlement revalidated. |
+| `submit_sale_return` / T18 | sale_id, items:[{sale_item_id,quantity,disposition}], reason | Submitted quantity claim and credit quote; explicitly state whether proposed intake or accepted physical custody. A submitted proposal has no posted credit/payment. |
+| `accept_sale_return` / T18,T19 | return_id, return_version, items:[{return_item_id,accepted_quantity,disposition}], reason | Accepted physical intake/disposition/source movements and commercial credit IDs; approver required by store policy; no automatic refund. Pending inspection credit acceptance explicit in result. |
+| `inspect_return` / T19 | return_item_id, expected_version, decision restockable/damaged/defective/unsellable, quantity, reason, approval_request_id? | New disposition event and location transfer/disposal where required; cumulative inspected<=pending. Original credit untouched; later COGS recovery is movement fact. |
+| `request_sale_refund` / T21 | sale_id, amount, method, reason, credit_item_ids?, original_payment_ids?, create_goodwill:false|true | Refund request/reservations/available capacity; explicit zero-unit goodwill only when no existing credit covers allowance. |
+| `approve_sale_refund` / T21 | refund_id, refund_version, decision approve/reject, reason, method_change_authorization? | Independent decision; reserved credit/capture capacity; no money yet. |
+| `confirm_sale_refund` / T22 | refund_id, refund_version, cash_payout_attestation? or external_settlement_event_id | Confirmed negative payment/cash/source links or pending_external; no inventory effect. |
+| `record_refund_external_outcome` / T22 | refund_id, outcome confirmed/failed/unknown, provider_account_id, reference?, external_at?, amount?, evidence_ref?, reason | Append observed outcome; confirmed requires evidence/unique reference, unknown never resends transfer. |
+
+Reads: `get_void_eligibility(p_sale_id)`, `get_return_eligibility(p_sale_id)`, `get_refund_eligibility(p_sale_id)`, `get_sale_financial_facts(p_sale_id)`. Return original/previous/remaining quantity, gross/net/credit/capture capacity, version and reason codes. Values are advisory until apply locks/rechecks. Quote mismatch/stale version never silently changes approved amount.
+
+## Cash and closeout APIs
+
+| API / owner | Payload fields | Result |
+| --- | --- | --- |
+| `register_pos_terminal` / T24 | name, display_identifier | Registered UUID and active state; admin only. |
+| `register_cash_drawer` / T24 | name, terminal_id? | Logical drawer UUID; admin only. |
+| `open_cashier_shift` / T24,T25 | drawer_id, terminal_id, opening_cash | Shift ID/version and opening movement, server start; no overlapping custody. |
+| `request_cash_movement` / T27 | type add/remove/drop/adjustment, amount, signed_direction where adjustment, reason, source_ref? | Posted permitted routine movement or independent approval request; no cash change while pending. |
+| `record_cash_movement` / T27 | approved_request_id?, type, amount, reason, expected_shift_version | One actual physical cash movement with before/after/available; applies only exact approved proposal where approval required. |
+| `prepare_closeout` / T28 | shift_id, expected_shift_version | Freeze/watermark draft, pending IDs and totals; blocks new sales while closing. This is a write command, not read-only preview. |
+| `submit_closeout` / T28 | shift_id, frozen_version, counted_cash, notes, exception_approval_request_id? | Immutable snapshot/hash/source IDs; normal path rejects unresolved pending work. |
+| `record_closeout_review` / T29 | closeout_id, review_version, decision approve/flag/request_clarification, comment | Independent reviewer/state/time; snapshot untouched. |
+| `add_closeout_comment` / T29 | closeout_id, body | Append comment only. |
+| `resubmit_closeout_clarification` / T29 | closeout_id, review_version, comment, amendment_id? | New review event; no overwrite of original totals. |
+| `prepare_closeout_amendment` / T31 | closeout_id, source_operation_ids, reason | New linked immutable amendment snapshot for independent review; original hash unchanged. |
+
+Late shift attribution is server-derived from immutable original references; client cannot backdate a movement into arbitrary employee custody. Available physical cash is scoped to current shift; old-shift corrections never add current cash twice.
+
+## Digital manual recording and wallet APIs
+
+| API / owner | Payload fields | Result |
+| --- | --- | --- |
+| `create_service_fee_policy_version` / T33 | service_kind, policy_code, effective interval, bands/rate/flat and supported ranges | New immutable policy version; overlapping ambiguous versions reject; admin only. |
+| `quote_digital_service` read / T33 | store_id, product_id, service_kind, face_amount, selected_policy_code | Fee/cost/earning and cash/wallet effects plus exact policy version; no hold/transfer. |
+| `create_digital_service` / T36 | product_id, service_kind, face_amount, selected_policy_version, provider_account_id, customer_id?, minimum recipient data? | Draft service/quote; no confirmed external action. |
+| `reserve_digital_service` / T36 | service_id, service_version, expected_quote_hash | Outgoing wallet/drawer holds and required next step. Policy/quote changes require explicit new quote. |
+| `record_digital_cash_leg` / T36 | service_id, service_version, direction collect/disburse, amount, physical_exchange_attestation:true | Actual cash fact+clearing and updated step, not necessarily completed. |
+| `verify_digital_external_leg` / T36 | service_id, service_version, direction, provider_account_id, reference, external_at, amount, outcome, evidence_ref | Wallet/external/clearing effect only if verified; unknown pending, duplicate ref conflicts. |
+| `complete_digital_service` / T36–T40 | service_id, service_version, delivery_attestation? | Final billed sale/payment link/earning once. GCash fee-only sale links existing leg; no second cash movement. Generic digital product uses explicit price/cost/delivery and no fabricated wallet. |
+| `request_digital_reversal` / T41 | service_id, reason, requested_leg_ids, amounts | Approval/reconciliation case, no assumed transfer reversal. |
+| `record_verified_digital_reversal` / T41 | case_id, version, original_leg_id, amount, external_evidence or cash attestation, decision_id | Only verified leg compensation; partial/remaining liability visible. |
+| `request_wallet_adjustment` / T35 | wallet_id, kind opening/topup/withdraw/correction, amount, source funding kind, source drawer/shift or external ref, reason | Shared approval request and exact proposed counterparties. |
+| `apply_wallet_adjustment` / T35 | request_id, decision_id, wallet_version, source_evidence | Wallet and actual cash counterparty facts atomically where relevant. |
+| `record_wallet_statement` / T35 | wallet_id, statement_at, statement_balance, evidence_ref | Immutable reconciliation snapshot/difference; no automatic balance plug. |
+
+No digital command invokes an external provider. A future authorized API integration is a new scoped design/task, using provider idempotency and an external-attempt state machine; it is not hidden in these manual APIs.
+
+## Customer, queue and paginated reads
+
+Customers: create/update/archive customer, associate_sale_customer; payloads include only named minimal fields, expected version, sale/customer ID and reason for retroactive association. Server preserves receipt snapshots. `get_customer_history`, `get_customer_summary`, `get_customer_rankings` use T45–T46 fact basis; metric is whitelisted and current store required. GCash principal is excluded from spending.
+
+Timeline/list reads use `p_store_id`, typed `p_filters`, `p_cursor:null|opaque cursor`, `p_limit` default50/max100. Cursor includes sort tuple and filter hash; wrong store/filter rejects rather than silently paging another scope. Standard result `{items,next_cursor,has_more,generated_at,filters}`. Use `(created_at,id)` descending for histories and `(metric_value,customer_id)` for rankings with explicit direction/ties. Related detailed records have same-store authorization. No arbitrary client column/order expressions.
+
+Offline: `issue_offline_lease`, `allocate_offline_stock`, `release_reconciled_offline_stock`, `ingest_offline_pos_operation` and `record_sync_conflict` follow A07. Ingest payload contains immutable physical sale command plus lease_id, catalog/quote hash and per-line grant IDs/base quantities; caller identity must match lease unless invoking separately authorized supervisor recovery. One ingest RPC is one atomic sale. `syncPosOperations` is a client loop of at most20 separate requests, never a SQL multi-commit batch. Returned ack contains sale/receipt, operation/hash, sequence, original/server times, stock-grant/cash references and closeout adjustment if late. Store ack before advancing local lane.
+
+Printing: existing `/v1/receipts/print` unchanged. New paired agent `GET /v1/capabilities` advertises document/profile support and the maximum native item count (50). `POST /v1/documents/shopping-list/print` accepts `{printerName,document_id,attempt_id,document_hash,profile:'58mm'|'80mm',reprint:false|true,show_prices,shopping_list:SnapshotV1}`. `SnapshotV1` is `{version:1,documentId,createdAt,storeId,storeName,items:[{productId,productName,quantity,purchaseUnit,unitPrice,subtotal,isEstimated}],total}`. `document_hash` is lowercase SHA-256 over `profile`, `show_prices`, and the compact JSON serialization of `shopping_list`; the agent recomputes it from the received snapshot. Unknown outcome is explicit reprint only, never money/sale retry logic. No database command or drawer pulse is issued.
