@@ -149,6 +149,8 @@ export interface EnqueueOfflineOperationResult {
   inserted: boolean;
 }
 
+export type OfflineOperationFailureState = Extract<OfflineQueueState, 'retry_wait' | 'conflicted' | 'blocked_auth' | 'needs_recovery'>;
+
 /** Stores ciphertext, consumes local grants, and advances one terminal sequence atomically. */
 export async function enqueueOfflineOperation(input: EnqueueOfflineOperationInput): Promise<EnqueueOfflineOperationResult> {
   const { database, keySession, scope, command, operationKind, leaseId } = input;
@@ -264,6 +266,105 @@ export async function enqueueOfflineOperation(input: EnqueueOfflineOperationInpu
   }
 }
 
+/** Claim one queued command for transport and durably count the attempt before sending it. */
+export async function beginOfflineOperationAttempt(input: {
+  database: IDBPDatabase<OfflineDatabase>;
+  scope: { storeId: string; actorId: string; terminalId: string };
+  operationId: string;
+  now?: Date;
+}): Promise<OfflineQueuedOperation> {
+  const now = input.now ?? new Date();
+  const tx = input.database.transaction('operations_outbox', 'readwrite', { durability: 'strict' });
+  try {
+    const store = tx.objectStore('operations_outbox');
+    const operation = await store.get(input.operationId);
+    if (!operation || operation.store_id !== input.scope.storeId || operation.actor_id !== input.scope.actorId
+      || operation.terminal_id !== input.scope.terminalId) {
+      throw new Error('Queued operation is missing or belongs to another account scope.');
+    }
+    if (operation.state !== 'local_pending' && operation.state !== 'retry_wait') {
+      throw new Error(`Queued operation cannot start another attempt from ${operation.state}.`);
+    }
+    if (!Number.isSafeInteger(operation.attempt_count) || operation.attempt_count < 0
+      || operation.attempt_count >= Number.MAX_SAFE_INTEGER) {
+      throw new Error('Queued operation attempt counter is invalid or exhausted.');
+    }
+    if (operation.state === 'retry_wait'
+      && (!operation.next_attempt_at || !Number.isFinite(Date.parse(operation.next_attempt_at)))) {
+      throw new Error('Queued retry has no valid next-attempt time.');
+    }
+    if (operation.state === 'retry_wait' && Date.parse(operation.next_attempt_at!) > now.getTime()) {
+      throw new Error('Queued operation retry is not due yet.');
+    }
+    const updated: OfflineQueuedOperation = {
+      ...operation,
+      state: 'syncing',
+      attempt_count: operation.attempt_count + 1,
+      next_attempt_at: null,
+      last_error_code: null,
+      updated_at_local: now.toISOString(),
+    };
+    await store.put(updated);
+    await tx.done;
+    return updated;
+  } catch (error) {
+    abortTransaction(tx);
+    throw normalizeStorageError(error);
+  }
+}
+
+/** Record a bounded transport/validation/auth/recovery outcome without storing server error text or PII. */
+export async function recordOfflineOperationFailure(input: {
+  database: IDBPDatabase<OfflineDatabase>;
+  scope: { storeId: string; actorId: string; terminalId: string };
+  operationId: string;
+  state: OfflineOperationFailureState;
+  errorCode: string;
+  nextAttemptAt?: string | null;
+  now?: Date;
+}): Promise<OfflineQueuedOperation> {
+  const now = input.now ?? new Date();
+  const errorCode = input.errorCode.trim();
+  if (!errorCode || errorCode.length > 80 || /[\u0000-\u001f\u007f]/.test(errorCode)) {
+    throw new TypeError('Offline operation error code must be a short, non-sensitive code.');
+  }
+  let nextAttemptAt: string | null = null;
+  if (input.state === 'retry_wait') {
+    if (!input.nextAttemptAt || !Number.isFinite(Date.parse(input.nextAttemptAt))) {
+      throw new TypeError('A retry time is required for a retry_wait operation.');
+    }
+    nextAttemptAt = new Date(input.nextAttemptAt).toISOString();
+  } else if (input.nextAttemptAt != null) {
+    throw new TypeError('Only retry_wait operations may have a next-attempt time.');
+  }
+
+  const tx = input.database.transaction('operations_outbox', 'readwrite', { durability: 'strict' });
+  try {
+    const store = tx.objectStore('operations_outbox');
+    const operation = await store.get(input.operationId);
+    if (!operation || operation.store_id !== input.scope.storeId || operation.actor_id !== input.scope.actorId
+      || operation.terminal_id !== input.scope.terminalId) {
+      throw new Error('Queued operation is missing or belongs to another account scope.');
+    }
+    if (operation.state !== 'syncing') {
+      throw new Error(`Queued operation cannot record a failure from ${operation.state}.`);
+    }
+    const updated: OfflineQueuedOperation = {
+      ...operation,
+      state: input.state,
+      next_attempt_at: nextAttemptAt,
+      last_error_code: errorCode,
+      updated_at_local: now.toISOString(),
+    };
+    await store.put(updated);
+    await tx.done;
+    return updated;
+  } catch (error) {
+    abortTransaction(tx);
+    throw normalizeStorageError(error);
+  }
+}
+
 export async function decryptQueuedOperation(
   operation: OfflineQueuedOperation,
   keySession: OfflineKeySession,
@@ -289,16 +390,17 @@ export async function persistOperationAcknowledgement(input: {
 }): Promise<void> {
   const now = input.now ?? new Date();
   if (!Number.isFinite(Date.parse(input.acknowledgedAtServer))) throw new TypeError('Server acknowledgement time is invalid.');
+  if (!input.result || typeof input.result !== 'object'
+    || !('operation_id' in input.result) || input.result.operation_id !== input.operationId
+    || !('outcome' in input.result) || (input.result.outcome !== 'confirmed' && input.result.outcome !== 'pending_external')) {
+    throw new Error('Server acknowledgement must include the matching operation ID and a server-confirmed outcome.');
+  }
   const key = input.keySession.getKey();
   const encryptedResult = await encryptOfflinePayload(input.result, key, {
     recordId: `ack:${input.operationId}`,
     ...input.scope,
   });
   const resultHash = await hashCanonicalOperationValue(input.result);
-  if (!input.result || typeof input.result !== 'object'
-    || !('operation_id' in input.result) || input.result.operation_id !== input.operationId) {
-    throw new Error('Server acknowledgement operation ID does not match the queued operation.');
-  }
   const tx = input.database.transaction(
     ['operations_outbox', 'operation_acks', 'terminal_meta'],
     'readwrite',
@@ -338,7 +440,10 @@ export async function persistOperationAcknowledgement(input: {
 
     const metaStore = tx.objectStore('terminal_meta');
     const metadata = await metaStore.get(offlineScopeKey(input.scope));
-    if (!metadata) throw new Error('Terminal metadata is missing for the acknowledged operation.');
+    if (!metadata || metadata.store_id !== input.scope.storeId || metadata.actor_id !== input.scope.actorId
+      || metadata.terminal_id !== input.scope.terminalId) {
+      throw new Error('Terminal metadata is missing or belongs to another account scope.');
+    }
     let lastAcknowledged = metadata.last_acknowledged_sequence;
     let nextSequence = lastAcknowledged + 1;
     while (true) {

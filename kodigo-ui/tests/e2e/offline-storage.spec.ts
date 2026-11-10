@@ -376,6 +376,15 @@ test('server acknowledgements are encrypted, durable, and idempotent', async ({ 
     } catch {
       conflictingAckRejected = true;
     }
+    let locallyRecordedAckRejected = false;
+    try {
+      await persistOperationAcknowledgement({
+        ...ackInput,
+        result: { ...serverResult, outcome: 'recorded_locally' },
+      });
+    } catch {
+      locallyRecordedAckRejected = true;
+    }
     const operation = await database.get('operations_outbox', operationId);
     const acks = await database.getAll('operation_acks');
     const metadata = await database.get('terminal_meta', offlineScopeKey(scope));
@@ -393,6 +402,7 @@ test('server acknowledgements are encrypted, durable, and idempotent', async ({ 
       serverResult,
       otherActorRejected,
       conflictingAckRejected,
+      locallyRecordedAckRejected,
       operationState: operation?.state,
       acknowledgementId: operation?.acknowledgement_id,
       ackCount: acks.length,
@@ -405,6 +415,7 @@ test('server acknowledgements are encrypted, durable, and idempotent', async ({ 
   expect(result.restored).toEqual(result.serverResult);
   expect(result.otherActorRejected).toBe(true);
   expect(result.conflictingAckRejected).toBe(true);
+  expect(result.locallyRecordedAckRejected).toBe(true);
   expect(result.operationState).toBe('synchronized');
   expect(result.acknowledgementId).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
   expect(result.ackCount).toBe(1);
@@ -489,4 +500,121 @@ test('legacy sale records remain untouched instead of auto-replaying on reconnec
 
   expect(result.retainedSale).toEqual(result.legacySale);
   expect(replayRequests).toBe(0);
+});
+
+test('outbox attempts and retry states persist atomically and prevent overlapping sends', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const {
+      beginOfflineOperationAttempt,
+      enqueueOfflineOperation,
+      offlineScopeKey,
+      openOfflineDatabase,
+      recordOfflineOperationFailure,
+    } = await import('/src/lib/offline-db.ts');
+    const { createOfflineMasterKey, OfflineKeySession } = await import('/src/lib/offline-crypto.ts');
+    const name = `offline-attempt-${crypto.randomUUID()}`;
+    const scope = {
+      storeId: '22222222-2222-4222-8222-222222222222',
+      actorId: '33333333-3333-4333-8333-333333333333',
+      terminalId: '44444444-4444-4444-8444-444444444444',
+    };
+    const leaseId = '55555555-5555-4555-8555-555555555555';
+    const shiftId = '77777777-7777-4777-8777-777777777777';
+    const grantId = '66666666-6666-4666-8666-666666666666';
+    const operationId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    const now = new Date('2026-11-11T00:00:00.000Z');
+    const material = await createOfflineMasterKey('test-only passphrase', scope);
+    const keySession = new OfflineKeySession(material.key, 60_000);
+    const database = await openOfflineDatabase({ name });
+    await database.put('terminal_meta', {
+      scope_key: offlineScopeKey(scope), store_id: scope.storeId, actor_id: scope.actorId, terminal_id: scope.terminalId,
+      lease_id: leaseId, next_sequence: 1, last_acknowledged_sequence: 0,
+      wrapped_master_key: material.wrapped, updated_at_local: now.toISOString(),
+    });
+    await database.put('offline_leases', {
+      id: leaseId, store_id: scope.storeId, terminal_id: scope.terminalId, shift_id: shiftId, cashier_id: scope.actorId,
+      issued_at: now.toISOString(), expires_at: '2030-01-01T00:00:00.000Z', last_mfa_at: now.toISOString(),
+      state: 'active', catalog_version: 'v1', price_policy_hash: 'hash', sequence_start: 1, sequence_end: 10, contract_version: 1,
+    });
+    await database.put('stock_grants', {
+      id: grantId, store_id: scope.storeId, terminal_id: scope.terminalId, lease_id: leaseId,
+      product_id: '88888888-8888-4888-8888-888888888888', location_id: '99999999-9999-4999-8999-999999999999',
+      lot_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', quantity_allocated: 2, quantity_consumed: 0,
+      quantity_released: 0, state: 'active', version: 1,
+    });
+    const command = {
+      contract_version: 1, operation_id: operationId, store_id: scope.storeId, terminal_id: scope.terminalId,
+      shift_id: shiftId, occurred_at_local: now.toISOString(), terminal_sequence: 1, expected_version: null,
+      payload: { total: '8.00' },
+    };
+    await enqueueOfflineOperation({
+      database, keySession, scope, command, operationKind: 'physical_sale', leaseId,
+      grantConsumptions: [{ grantId, quantity: 1 }], now,
+    });
+    const claimResults = await Promise.allSettled([
+      beginOfflineOperationAttempt({ database, scope, operationId, now }),
+      beginOfflineOperationAttempt({ database, scope, operationId, now }),
+    ]);
+    const claimed = claimResults.find((entry) => entry.status === 'fulfilled');
+    const failedClaim = claimResults.find((entry) => entry.status === 'rejected');
+    const retryAt = new Date(now.getTime() + 1_000).toISOString();
+    await recordOfflineOperationFailure({
+      database, scope, operationId, state: 'retry_wait', errorCode: 'network_timeout', nextAttemptAt: retryAt, now,
+    });
+    let earlyRetryRejected = false;
+    try {
+      await beginOfflineOperationAttempt({ database, scope, operationId, now: new Date(now.getTime() + 500) });
+    } catch {
+      earlyRetryRejected = true;
+    }
+    const secondAttempt = await beginOfflineOperationAttempt({
+      database, scope, operationId, now: new Date(now.getTime() + 1_500),
+    });
+    await recordOfflineOperationFailure({
+      database, scope, operationId, state: 'blocked_auth', errorCode: 'lease_revoked',
+      now: new Date(now.getTime() + 1_500),
+    });
+    let blockedRetryRejected = false;
+    try {
+      await beginOfflineOperationAttempt({ database, scope, operationId, now: new Date(now.getTime() + 5_000) });
+    } catch {
+      blockedRetryRejected = true;
+    }
+    const finalOperation = await database.get('operations_outbox', operationId);
+    keySession.lock();
+    database.close();
+    await new Promise<void>((resolve) => {
+      const request = indexedDB.deleteDatabase(name);
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
+      request.onblocked = () => resolve();
+    });
+    return {
+      claimFulfilled: claimed?.status === 'fulfilled',
+      claimCount: claimResults.filter((entry) => entry.status === 'fulfilled').length,
+      concurrentClaimRejected: failedClaim?.status === 'rejected',
+      firstAttemptCount: claimed?.status === 'fulfilled' ? claimed.value.attempt_count : null,
+      earlyRetryRejected,
+      secondAttemptCount: secondAttempt.attempt_count,
+      blockedRetryRejected,
+      finalState: finalOperation?.state,
+      finalAttemptCount: finalOperation?.attempt_count,
+      nextAttemptAt: finalOperation?.next_attempt_at,
+      lastErrorCode: finalOperation?.last_error_code,
+    };
+  });
+
+  expect(result).toEqual({
+    claimFulfilled: true,
+    claimCount: 1,
+    concurrentClaimRejected: true,
+    firstAttemptCount: 1,
+    earlyRetryRejected: true,
+    secondAttemptCount: 2,
+    blockedRetryRejected: true,
+    finalState: 'blocked_auth',
+    finalAttemptCount: 2,
+    nextAttemptAt: null,
+    lastErrorCode: 'lease_revoked',
+  });
 });
