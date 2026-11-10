@@ -9,7 +9,7 @@ import { useToast } from '@/components/shared/Toast';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useProductStore } from '@/stores/productStore';
-import { processSale } from '@/lib/offline-sync';
+import { processSale, SaleConfirmationUncertainError } from '@/lib/offline-sync';
 import {
   getSellingOptionLabel,
   getAvailableSellingUnits,
@@ -60,6 +60,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const processingRef = useRef(false);
   const completedSaleIdRef = useRef<string | null>(null);
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
+  const [uncertainSale, setUncertainSale] = useState<Sale | null>(null);
   const [receiptSnapshot, setReceiptSnapshot] = useState<ReceiptSnapshot | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [receiptPrintStatus, setReceiptPrintStatus] = useState<{ tone: 'warning'; message: string } | null>(null);
@@ -80,7 +81,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const tendered = isCash ? cashAmount : orderTotal;
   const change = isCash ? Math.max(0, cashAmount - orderTotal) : 0;
   const stockIssue = items.find((i) => i.quantity > getAvailableSellingUnits(i.product, i.sellingOption));
-  const canConfirm = items.length > 0 && (isCash ? cashAmount >= orderTotal : true) && !stockIssue && !processing;
+  const canConfirm = items.length > 0 && (isCash ? cashAmount >= orderTotal : true) && (!stockIssue || Boolean(uncertainSale)) && !processing;
 
   const quickAmounts = [
     Math.ceil(orderTotal / 50) * 50,
@@ -102,14 +103,14 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     }
 
     const currentStockIssue = items.find((i) => i.quantity > getAvailableSellingUnits(i.product, i.sellingOption));
-    if (currentStockIssue) {
+    if (currentStockIssue && !uncertainSale) {
       toast('error', `${currentStockIssue.product.name} - ${getSellingOptionLabel(currentStockIssue.sellingOption)} only has ${getAvailableSellingUnits(currentStockIssue.product, currentStockIssue.sellingOption)} in stock.`);
       setProcessing(false);
       processingRef.current = false;
       return;
     }
 
-    const sale: Sale = {
+    const sale: Sale = uncertainSale ?? {
       id: crypto.randomUUID(),
       storeId,
       items: items.map((i) => {
@@ -183,6 +184,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
       recordedSale = await processSale(sale);
     } catch (err) {
       console.error('Failed to record POS sale:', err);
+      setUncertainSale(err instanceof SaleConfirmationUncertainError ? sale : null);
       toast('error', formatErrorMessage(err, 'Payment could not be completed. Please review the error and try again.'));
       setProcessing(false);
       processingRef.current = false;
@@ -193,6 +195,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     // is local UI/peripheral work and must not turn a completed sale into a
     // false failure (or encourage the cashier to charge the customer twice).
     setCompletedSale(recordedSale);
+    setUncertainSale(null);
     setReceiptPrintStatus(null);
     setCashDrawerStatus(null);
     completedSaleIdRef.current = recordedSale.id;
@@ -303,6 +306,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     setPaymentReference('');
     setStep('payment');
     setCompletedSale(null);
+    setUncertainSale(null);
     setReceiptSnapshot(null);
     setReceiptPrintStatus(null);
     setCashDrawerStatus(null);
@@ -317,14 +321,14 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/60" onClick={step === 'payment' && !processing ? onClose : undefined} />
+      <div className="fixed inset-0 bg-black/60" onClick={step === 'payment' && !processing && !uncertainSale ? onClose : undefined} />
       <div className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex shrink-0 items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-bold text-gray-900">
             {step === 'payment' ? 'Process Payment' : 'Payment Successful'}
           </h2>
           {step === 'payment' && (
-            <button onClick={onClose} disabled={processing} aria-label="Close payment" className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-40">
+            <button onClick={onClose} disabled={processing || Boolean(uncertainSale)} aria-label="Close payment" className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-40">
               <X className="w-4 h-4 text-gray-500" />
             </button>
           )}
@@ -359,7 +363,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                               step="0.01"
                               value={unitDiscount ? unitDiscount : ''}
                               onChange={(event) => setItemDiscount(item.id, Number(event.target.value) || 0)}
-                              disabled={processing}
+                              disabled={processing || Boolean(uncertainSale)}
                               aria-label={`Discount per ${optionLabel} for ${item.product.name}`}
                               className="w-full rounded-md border border-gray-200 bg-white py-1.5 pl-8 pr-2 text-right font-mono text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
@@ -385,6 +389,13 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                 </div>
               </div>
 
+              {uncertainSale && (
+                <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <p className="font-semibold">Sale status is not confirmed</p>
+                  <p className="mt-1">Keep this order and payment unchanged. Retry this same request after reconnecting. Do not start a second transaction for these goods.</p>
+                </div>
+              )}
+
               <div className="grid grid-cols-4 gap-2">
                 {paymentMethods.map((method) => {
                   const Icon = method.icon;
@@ -394,7 +405,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                       key={method.value}
                       type="button"
                       onClick={() => setPaymentMethod(method.value)}
-                      disabled={processing}
+                      disabled={processing || Boolean(uncertainSale)}
                       className={[
                         'h-16 rounded-xl border text-xs font-semibold flex flex-col items-center justify-center gap-1 transition',
                         active ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50',
@@ -420,7 +431,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                         if (e.key === 'Enter' && canConfirm) {
                           e.preventDefault();
                           handleConfirm();
-                        } else if (e.key === 'Escape' && !processing) {
+                        } else if (e.key === 'Escape' && !processing && !uncertainSale) {
                           e.preventDefault();
                           onClose();
                         }
@@ -429,7 +440,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                       className="w-full pl-12 pr-4 py-3 text-xl font-mono font-bold border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-gray-900"
                       autoFocus
                       min={0}
-                      disabled={processing}
+                      disabled={processing || Boolean(uncertainSale)}
                     />
                   </div>
 
@@ -438,7 +449,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                       <button
                         key={amt}
                         onClick={() => setCashInput(String(amt))}
-                        disabled={processing}
+                        disabled={processing || Boolean(uncertainSale)}
                         className="flex-1 py-2 text-sm font-semibold font-mono bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                       >
                         {formatCurrency(amt)}
@@ -452,7 +463,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                   <input
                     value={paymentReference}
                     onChange={(e) => setPaymentReference(e.target.value)}
-                    disabled={processing}
+                    disabled={processing || Boolean(uncertainSale)}
                     placeholder="Optional"
                     className="w-full px-3 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 text-gray-900"
                     autoFocus
@@ -477,7 +488,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
                 size="lg"
                 className="w-full text-base"
               >
-                Confirm Payment
+                {uncertainSale ? 'Retry Same Sale Request' : 'Confirm Payment'}
               </Button>
             </div>
           </>

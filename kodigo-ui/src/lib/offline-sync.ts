@@ -93,17 +93,6 @@ export async function getCachedProducts(): Promise<Product[]> {
   return idbRetry(() => db.getAll('products_cache'));
 }
 
-/** Queue a sale when offline */
-export async function queueSaleOffline(sale: Sale) {
-  if (!dbPromise) return;
-  const db = await dbPromise;
-  if (!db.objectStoreNames.contains('sales_queue')) return;
-  await idbRetry(async () => db.put('sales_queue', {
-    ...sale,
-    _syncStatus: 'pending',
-  }));
-}
-
 function mapSaleResponse(sale: Sale, row: any | null): Sale {
   if (!row) return sale;
   return {
@@ -189,42 +178,42 @@ async function pushSaleToSupabase(sale: Sale): Promise<Sale> {
   }
 
   if (error) throw error;
+  if (!data || data.id !== id || data.store_id !== storeId) {
+    throw new Error('The server did not return a matching committed sale record.');
+  }
   return mapSaleResponse(sale, data);
 }
 
-/** Push all pending sales when connection is restored */
+/** Preserve legacy sale evidence without replaying it outside the leased outbox protocol. */
 export async function syncPendingSales() {
   if (!dbPromise || !navigator.onLine) return;
   const db = await dbPromise;
   if (!db.objectStoreNames.contains('sales_queue')) return;
-  let pendingSales: any[] = [];
+  let queuedCount = 0;
   try {
-    pendingSales = await db.getAllFromIndex('sales_queue', 'by-status', 'pending');
+    queuedCount = await db.count('sales_queue');
   } catch (err: any) {
-    console.warn('[Sync] sales_queue index missing or unreadable, skipping sales sync', err);
+    console.warn('[Sync] Legacy sales queue is unreadable; its contents were left untouched.', err);
     return;
   }
-
-  for (const sale of pendingSales) {
-    try {
-      await pushSaleToSupabase(sale);
-      await idbRetry(() => db.delete('sales_queue', sale.id));
-    } catch (err: any) {
-      console.error('Failed to sync sale:', sale.id, err);
-      // Mark as error but leave in queue
-      sale._syncStatus = 'error';
-      sale._syncError = err?.message || 'Unknown error';
-      await db.put('sales_queue', sale);
-    }
+  if (queuedCount > 0) {
+    console.warn(`[Sync] ${queuedCount} legacy sale record(s) remain preserved for reconciliation; automatic replay is disabled.`);
   }
 }
 
-/** Process a sale. Tries to push to Supabase immediately; if it fails or offline, it queues locally. */
+export class SaleConfirmationUncertainError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SaleConfirmationUncertainError';
+  }
+}
+
+/** A sale is complete only after the server returns its committed result. */
 export async function processSale(sale: Sale): Promise<Sale> {
   if (typeof window !== 'undefined' && !navigator.onLine) {
-    console.log('[Sync] Offline, queueing sale locally:', sale.id);
-    await queueSaleOffline(sale);
-    return sale;
+    throw new SaleConfirmationUncertainError(
+      'This terminal is offline. No sale was submitted; keep the cart and reconnect before retrying.',
+    );
   }
   try {
     return await pushSaleToSupabase(sale);
@@ -232,9 +221,10 @@ export async function processSale(sale: Sale): Promise<Sale> {
     if (isDatabaseRejection(err)) {
       throw err;
     }
-    console.error('[Sync] Failed to push to Supabase, queueing locally:', err);
-    await queueSaleOffline(sale);
-    return sale;
+    console.error('[Sync] Server response for sale was not received:', sale.id, err);
+    throw new SaleConfirmationUncertainError(
+      'The server response was not received, so this sale may already have been committed. Keep this payment unchanged and retry the same request to check its result.',
+    );
   }
 }
 

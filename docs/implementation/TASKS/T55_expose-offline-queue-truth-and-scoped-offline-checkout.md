@@ -1,6 +1,6 @@
 # T55 — Expose offline queue truth and scoped offline checkout
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; a safety correction prevents disconnected false-success checkout and automatic replay of legacy sale rows. The queue status UI and scoped offline checkout remain dependency-gated.  
 **Task ID:** T55  
 **Feature:** Offline POS UI  
 **Priority:** High  
@@ -21,6 +21,7 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 - `kodigo-ui/src/pages/POSPage.tsx`
 - `kodigo-ui/src/stores/productStore.ts`
 - `kodigo-ui/src/stores/cartStore.ts`
+- `kodigo-ui/src/lib/offline-sync.ts`
 
 ## Files to modify
 
