@@ -1,6 +1,6 @@
 # T50 — Migrate IndexedDB to a durable encrypted operation outbox
 
-**Status:** In progress; encryption primitives, typed offline metadata, the v2 IndexedDB schema/upgrader, atomic storage APIs, and durable attempt/retry-state transitions are implemented but not connected to POS checkout. Seven real-browser storage/safety tests pass remotely. The eighth test exposed an AAD mismatch in the new encrypted recovery-export slice; the metadata-only AAD fix is awaiting remote CI. Additional failure modes and integration remain open.
+**Status:** In progress; encryption primitives, typed offline metadata, the v2 IndexedDB schema/upgrader, atomic storage APIs, durable attempt/retry-state transitions, and encrypted recovery export are implemented but not connected to POS checkout. Remote run #106 passed all eight real-browser storage/safety/recovery-export tests plus typecheck, lint, build, unit tests and print-agent checks. Additional failure modes and integration remain open.
 **Task ID:** T50  
 **Feature:** Offline storage  
 **Priority:** Critical  
