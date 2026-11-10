@@ -709,3 +709,29 @@ test('recovery export encrypts legacy queues and rejects another passphrase or a
   expect(result.wrongPassphraseRejected).toBe(true);
   expect(result.wrongScopeRejected).toBe(true);
 });
+
+test('offline storage quota and conflict errors give safe recovery guidance', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { normalizeOfflineStorageError } = await import('/src/lib/offline-db.ts');
+    const quota = normalizeOfflineStorageError(new DOMException('sensitive underlying storage detail', 'QuotaExceededError'));
+    const conflict = normalizeOfflineStorageError(new DOMException('sensitive underlying storage detail', 'ConstraintError'));
+    return {
+      quotaName: quota.name,
+      quotaCode: (quota as Error & { code?: string }).code,
+      quotaMessage: quota.message,
+      conflictName: conflict.name,
+      conflictCode: (conflict as Error & { code?: string }).code,
+      conflictMessage: conflict.message,
+    };
+  });
+
+  expect(result.quotaName).toBe('OfflineStorageError');
+  expect(result.quotaCode).toBe('QUOTA');
+  expect(result.quotaMessage).toContain('operation was not saved');
+  expect(result.quotaMessage).toContain('keep the cart');
+  expect(result.conflictName).toBe('OfflineStorageError');
+  expect(result.conflictCode).toBe('CORRUPT');
+  expect(result.conflictMessage).toContain('conflicts with an existing local record');
+  expect(result.quotaMessage).not.toContain('sensitive underlying storage detail');
+  expect(result.conflictMessage).not.toContain('sensitive underlying storage detail');
+});

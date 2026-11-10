@@ -136,7 +136,7 @@ export function openOfflineDatabase(options: {
     return database;
   }).catch((error: unknown) => {
     if (error instanceof OfflineStorageError) throw error;
-    throw normalizeStorageError(error);
+    throw normalizeOfflineStorageError(error);
   });
 }
 
@@ -269,7 +269,7 @@ export async function enqueueOfflineOperation(input: EnqueueOfflineOperationInpu
     return { operation, inserted: true };
   } catch (error) {
     abortTransaction(tx);
-    throw normalizeStorageError(error);
+    throw normalizeOfflineStorageError(error);
   }
 }
 
@@ -316,7 +316,7 @@ export async function beginOfflineOperationAttempt(input: {
     return updated;
   } catch (error) {
     abortTransaction(tx);
-    throw normalizeStorageError(error);
+    throw normalizeOfflineStorageError(error);
   }
 }
 
@@ -372,7 +372,7 @@ export async function recordOfflineOperationFailure(input: {
     return updated;
   } catch (error) {
     abortTransaction(tx);
-    throw normalizeStorageError(error);
+    throw normalizeOfflineStorageError(error);
   }
 }
 
@@ -470,7 +470,7 @@ export async function persistOperationAcknowledgement(input: {
     await tx.done;
   } catch (error) {
     abortTransaction(tx);
-    throw normalizeStorageError(error);
+    throw normalizeOfflineStorageError(error);
   }
 }
 
@@ -673,7 +673,7 @@ function abortTransaction(transaction: { abort: () => void; done: Promise<unknow
   void transaction.done.catch(() => undefined);
 }
 
-function normalizeStorageError(error: unknown): Error {
+export function normalizeOfflineStorageError(error: unknown): Error {
   const candidate = error as { name?: string; message?: string } | null;
   if (candidate?.name === 'QuotaExceededError') {
     return new OfflineStorageError('Device storage is full. The operation was not saved; keep the cart and retry after freeing storage.', 'QUOTA');
