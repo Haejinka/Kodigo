@@ -1,6 +1,6 @@
 # T04 — Add inventory locations and structured ledger fields
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; additive SQL is prepared and reviewed against the recorded deployed schema, but has not been applied.  
 **Task ID:** T04  
 **Feature:** Inventory foundation  
 **Priority:** Critical  
@@ -23,12 +23,16 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 
 ## Files to modify
 
-None.
+- `docs/implementation/TASK_STATUS.md`
+- `docs/implementation/SCHEMA_BASELINE.md`
 
 ## New files
 
 - `supabase/tests/enhancements/T04_inventory_schema.sql`
-- CLI-generated migration: `supabase/migrations/<generated-timestamp>_t04_inventory_ledger_structure.sql`. Run the pinned CLI's verified `migration new t04_inventory_ledger_structure` command; record its exact returned path in SCHEMA_BASELINE/TASK_STATUS. Do not hand-invent the timestamp.
+- CLI-generated `supabase/migrations/20261110203314_t04_inventory_ledger_structure.sql`
+- CLI-generated `supabase/migrations/20261110205156_t04_inventory_shadow_constraints.sql`
+
+The second migration is deliberately separate: apply the first migration, run the bounded idempotent lot-location, product-balance, and lot-location-balance helpers in committed batches, reconcile, then apply the second migration's preflight and validated constraints. Both migrations remain unapplied until the existing production project's required predeployment backup is confirmed. No new project, branch, or database is part of this work.
 
 ## Database changes
 

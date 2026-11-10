@@ -151,6 +151,16 @@ Before deployment, the existing project was checked for the T03 tables and RPCs;
 
 Post-deployment read-only checks passed for RLS on all five tables, no direct `anon`/`authenticated`/`service_role` table access, authenticated-only blank-search-path public wrappers, private helper denial, active grant uniqueness, and feature flag allowlist/type checks. The dedicated catalog script returned `T03 capability and approval catalog checks OK` before and after the follow-up. Capability grants, store settings, approval requests, decisions and applications all remain empty. After the follow-up, the catalog contains 52 relations, 116 routines, 54 user triggers and 84 policies. Supabase security advisors still report the project's existing broad SECURITY DEFINER warnings and expected warnings for signed-in command RPCs; the new T03 wrappers have no `anon` or `service_role` execute grant. The T03 migrations did not insert or update business records.
 
+### T04 predeployment inventory check
+
+A read-only preflight against the same deployed project, recorded 2026-11-10 before any T04 DDL, found 32 products, 34 source lots, 10 sale-item lot allocations, 15 inventory movements, eight sales and seven stock adjustments. No product had negative stock. For every product, `current_stock` equaled the sum of its source lots' `quantity_remaining`; the query found no cross-store lot/product, allocation/sale, or movement/product mismatches. Deployed precision was confirmed as `inventory_stock_lots.unit_cost numeric(14,6)` and `sale_items.cost_per_base_unit numeric(12,4)`. These are a preflight snapshot, not a guarantee about later activity. The T04 migrations and shadow backfill remain unapplied; no production schema or business data was changed for T04.
+
+| Prepared artifact | Canonical LF SHA-256 | State |
+| --- | --- | --- |
+| `supabase/migrations/20261110203314_t04_inventory_ledger_structure.sql` | `b173ad6142c6a950b4f2fea6df0d13820f507dee04442593dd28c5e1fd1b3b33` | Prepared; unapplied |
+| `supabase/migrations/20261110205156_t04_inventory_shadow_constraints.sql` | `786718bb33f206768c303d257879f56abe633e35e1f3d6f03623c8fe2127564c` | Prepared; unapplied |
+| `supabase/tests/enhancements/T04_inventory_schema.sql` | `e73f158c2004848ada36fd2dc53ab2c81e255f0dd42420d87aa6c3e0f75aaa74` | Read-only catalog/reconciliation assertions; unexecuted |
+
 The following T00 acceptance evidence is still pending and blocks any feature-write activation:
 
 - Confirm the checksummed manifest replays successfully on the approved isolated target. This remains blocked by the user's instruction not to create a fresh database. Run #111 demonstrates that the candidate order reaches `migration_21_reporting_snapshots_and_reports.sql`, where `MIN(si.category_id)` fails with `function min(uuid) does not exist`; no source correction to this historical migration has been made. The populated deployed project has no `min(uuid)` aggregate and has a different `v_category_sales` definition, confirmed by read-only catalog query. Do not run the candidate manifest or historical SQL on the deployed project.
