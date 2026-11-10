@@ -1,0 +1,498 @@
+import { openDB } from 'idb';
+import type { DBSchema, IDBPDatabase, IDBPTransaction, StoreNames } from 'idb';
+import type { Product, Sale } from '@/types';
+import type { OperationCommandV1, OfflineQueueState } from '@/types/operations';
+import type {
+  LegacyRecoveryRecord,
+  OfflineGrantEvent,
+  OfflineLeaseSnapshot,
+  OfflineOperationAck,
+  OfflineOperationPayload,
+  OfflineQueuedOperation,
+  OfflineStockGrant,
+  OfflineTerminalMetadata,
+  OfflineCatalogSnapshot,
+} from '@/types/offline';
+import { decryptOfflinePayload, encryptOfflinePayload, OfflineKeySession } from './offline-crypto.ts';
+import { hashCanonicalOperationValue, hashOperationCommand } from './pos-operations.ts';
+
+export interface OfflineDatabase extends DBSchema {
+  products_cache: { key: string; value: Product };
+  sales_queue: {
+    key: string;
+    value: Sale & { _syncStatus: 'pending' | 'error'; _syncError?: string };
+    indexes: { 'by-status': string };
+  };
+  generic_mutations: {
+    key: string;
+    value: {
+      id: string;
+      table: string;
+      operation: 'INSERT' | 'UPDATE' | 'DELETE';
+      payload: unknown;
+      matchKey?: string;
+      matchValue?: unknown;
+      _syncStatus: 'pending' | 'error';
+      _syncError?: string;
+    };
+    indexes: { 'by-status': string };
+  };
+  terminal_meta: {
+    key: string;
+    value: OfflineTerminalMetadata;
+    indexes: { 'by-scope': IDBValidKey };
+  };
+  catalog_snapshots: {
+    key: string;
+    value: OfflineCatalogSnapshot;
+    indexes: { 'by-store-product-version': IDBValidKey };
+  };
+  offline_leases: {
+    key: string;
+    value: OfflineLeaseSnapshot;
+    indexes: { 'by-store-terminal': IDBValidKey; 'by-cashier': string };
+  };
+  stock_grants: {
+    key: string;
+    value: OfflineStockGrant;
+    indexes: { 'by-lease': string; 'by-product': IDBValidKey; 'by-lot': string };
+  };
+  offline_grant_events: {
+    key: string;
+    value: OfflineGrantEvent;
+    indexes: { 'by-operation-grant': IDBValidKey; 'by-grant': string };
+  };
+  operations_outbox: {
+    key: string;
+    value: OfflineQueuedOperation;
+    indexes: { 'by-state': OfflineQueueState; 'by-lane-sequence': IDBValidKey };
+  };
+  operation_acks: {
+    key: string;
+    value: OfflineOperationAck;
+    indexes: { 'by-lane-sequence': IDBValidKey };
+  };
+  legacy_recovery: {
+    key: string;
+    value: LegacyRecoveryRecord;
+    indexes: { 'by-source': string };
+  };
+}
+
+export const OFFLINE_DATABASE_NAME = 'kodigo-pos-db';
+export const OFFLINE_DATABASE_VERSION = 2;
+
+export class OfflineStorageError extends Error {
+  constructor(message: string, readonly code: 'UNAVAILABLE' | 'QUOTA' | 'BLOCKED' | 'CORRUPT' = 'UNAVAILABLE') {
+    super(message);
+    this.name = 'OfflineStorageError';
+  }
+}
+
+export function openOfflineDatabase(options: {
+  name?: string;
+  onBlocked?: (currentVersion: number, requestedVersion: number | null) => void;
+} = {}): Promise<IDBPDatabase<OfflineDatabase>> {
+  if (typeof indexedDB === 'undefined') {
+    return Promise.reject(new OfflineStorageError('This browser does not provide IndexedDB; the sale was not saved.', 'UNAVAILABLE'));
+  }
+
+  let connection: IDBPDatabase<OfflineDatabase> | null = null;
+  const opening = openDB<OfflineDatabase>(options.name ?? OFFLINE_DATABASE_NAME, OFFLINE_DATABASE_VERSION, {
+    upgrade(database, oldVersion, _newVersion, transaction) {
+      if (oldVersion < 1) createLegacyStores(database);
+      if (oldVersion < 2) {
+        createOfflineStores(database);
+        if (oldVersion >= 1) {
+          preserveLegacyStore(transaction, 'sales_queue');
+          preserveLegacyStore(transaction, 'generic_mutations');
+        }
+      }
+    },
+    blocked(currentVersion, requestedVersion) {
+      options.onBlocked?.(currentVersion, requestedVersion);
+      if (!options.onBlocked && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('kodigo:offline-db-upgrade-blocked', {
+          detail: { currentVersion, requestedVersion },
+        }));
+      }
+    },
+    blocking() {
+      connection?.close();
+    },
+  });
+  return opening.then((database) => {
+    connection = database;
+    return database;
+  }).catch((error: unknown) => {
+    if (error instanceof OfflineStorageError) throw error;
+    throw normalizeStorageError(error);
+  });
+}
+
+export interface EnqueueOfflineOperationInput {
+  database: IDBPDatabase<OfflineDatabase>;
+  keySession: OfflineKeySession;
+  scope: { storeId: string; actorId: string; terminalId: string };
+  command: OperationCommandV1;
+  operationKind: string;
+  leaseId: string;
+  grantConsumptions: Array<{ grantId: string; quantity: number }>;
+  now?: Date;
+}
+
+export interface EnqueueOfflineOperationResult {
+  operation: OfflineQueuedOperation;
+  inserted: boolean;
+}
+
+/** Stores ciphertext, consumes local grants, and advances one terminal sequence atomically. */
+export async function enqueueOfflineOperation(input: EnqueueOfflineOperationInput): Promise<EnqueueOfflineOperationResult> {
+  const { database, keySession, scope, command, operationKind, leaseId } = input;
+  const now = input.now ?? new Date();
+  const sequence = command.terminal_sequence;
+  if (!operationKind.trim()) throw new TypeError('Operation kind is required.');
+  if (sequence === null || !Number.isInteger(sequence) || sequence < 0) throw new TypeError('Offline operation requires a non-negative terminal sequence.');
+  if (!command.shift_id) throw new TypeError('Offline operation requires an open shift.');
+  if (command.store_id !== scope.storeId || command.terminal_id !== scope.terminalId) {
+    throw new Error('Offline command scope does not match the signed-in store and terminal.');
+  }
+  const grantConsumptions = normalizeGrantConsumptions(input.grantConsumptions);
+  const hash = await hashCanonicalOperationValue({
+    operation_kind: operationKind,
+    command_hash: await hashOperationCommand(command),
+    grant_consumptions: grantConsumptions,
+  });
+  const key = keySession.getKey();
+  const payloadScope = { recordId: command.operation_id, ...scope };
+  // Encrypt before opening the transaction so no crypto wait can close it.
+  const sealed = await encryptOfflinePayload({
+    command,
+    grant_consumptions: grantConsumptions.map(({ grantId, quantity }) => ({ grant_id: grantId, quantity })),
+  }, key, payloadScope);
+  const tx = database.transaction(
+    ['terminal_meta', 'offline_leases', 'stock_grants', 'offline_grant_events', 'operations_outbox'],
+    'readwrite',
+    { durability: 'strict' },
+  );
+  try {
+    const outbox = tx.objectStore('operations_outbox');
+    const existing = await outbox.get(command.operation_id);
+    if (existing) {
+      if (existing.payload_hash !== hash || existing.operation_kind !== operationKind
+        || existing.store_id !== scope.storeId || existing.actor_id !== scope.actorId
+        || existing.terminal_id !== scope.terminalId) {
+        throw new Error('Operation ID was already used for a different offline request.');
+      }
+      await tx.done;
+      return { operation: existing, inserted: false };
+    }
+
+    const scopeKey = offlineScopeKey(scope);
+    const metaStore = tx.objectStore('terminal_meta');
+    const metadata = await metaStore.get(scopeKey);
+    const lease = await tx.objectStore('offline_leases').get(leaseId);
+    if (!metadata || !lease) throw new Error('Offline authorization data is missing; nothing was saved.');
+    if (lease.id !== metadata.lease_id || lease.id !== leaseId || lease.store_id !== scope.storeId
+      || lease.terminal_id !== scope.terminalId || lease.cashier_id !== scope.actorId
+      || lease.shift_id !== command.shift_id || lease.state !== 'active'
+      || !Number.isFinite(Date.parse(lease.expires_at)) || Date.parse(lease.expires_at) <= now.getTime()) {
+      throw new Error('Offline authorization is expired or does not match this cashier, shift, or terminal.');
+    }
+    if (metadata.store_id !== scope.storeId || metadata.actor_id !== scope.actorId
+      || metadata.terminal_id !== scope.terminalId || metadata.lease_id !== leaseId
+      || metadata.next_sequence !== sequence || sequence < lease.sequence_start || sequence > lease.sequence_end) {
+      throw new Error('Offline sequence is stale, exhausted, or belongs to another terminal.');
+    }
+
+    const grantStore = tx.objectStore('stock_grants');
+    const eventStore = tx.objectStore('offline_grant_events');
+    for (const grantConsumption of grantConsumptions) {
+      const grant = await grantStore.get(grantConsumption.grantId);
+      if (!grant || grant.store_id !== scope.storeId || grant.lease_id !== leaseId
+        || grant.terminal_id !== scope.terminalId || grant.state !== 'active'
+        || grant.quantity_consumed + grant.quantity_released + grantConsumption.quantity > grant.quantity_allocated) {
+        throw new Error('Offline stock authorization is missing or exhausted; nothing was saved.');
+      }
+      const consumed = grant.quantity_consumed + grantConsumption.quantity;
+      const updatedGrant: OfflineStockGrant = {
+        ...grant,
+        quantity_consumed: consumed,
+        state: consumed + grant.quantity_released >= grant.quantity_allocated ? 'exhausted' : 'active',
+      };
+      await grantStore.put(updatedGrant);
+      await eventStore.add({
+        id: `${command.operation_id}:${grant.id}`,
+        grant_id: grant.id,
+        operation_id: command.operation_id,
+        kind: 'consume',
+        quantity: grantConsumption.quantity,
+        created_at_local: now.toISOString(),
+      });
+    }
+
+    const operation: OfflineQueuedOperation = {
+      operation_id: command.operation_id,
+      operation_kind: operationKind,
+      store_id: scope.storeId,
+      actor_id: scope.actorId,
+      terminal_id: scope.terminalId,
+      terminal_sequence: sequence,
+      payload_hash: hash,
+      encrypted_payload: sealed,
+      state: 'local_pending',
+      attempt_count: 0,
+      next_attempt_at: null,
+      last_error_code: null,
+      acknowledgement_id: null,
+      lease_id: leaseId,
+      shift_id: command.shift_id,
+      created_at_local: now.toISOString(),
+      updated_at_local: now.toISOString(),
+    };
+    await outbox.add(operation);
+    await metaStore.put({
+      ...metadata,
+      next_sequence: sequence + 1,
+      updated_at_local: now.toISOString(),
+    });
+    await tx.done;
+    return { operation, inserted: true };
+  } catch (error) {
+    abortTransaction(tx);
+    throw normalizeStorageError(error);
+  }
+}
+
+export async function decryptQueuedOperation(
+  operation: OfflineQueuedOperation,
+  keySession: OfflineKeySession,
+): Promise<OfflineOperationPayload> {
+  return decryptOfflinePayload<OfflineOperationPayload>(operation.encrypted_payload, keySession.getKey(), {
+    recordId: operation.operation_id,
+    storeId: operation.store_id,
+    actorId: operation.actor_id,
+    terminalId: operation.terminal_id,
+  });
+}
+
+/** Persist the acknowledgement before a synchronization coordinator advances its lane. */
+export async function persistOperationAcknowledgement(input: {
+  database: IDBPDatabase<OfflineDatabase>;
+  keySession: OfflineKeySession;
+  scope: { storeId: string; actorId: string; terminalId: string };
+  operationId: string;
+  payloadHash: string;
+  result: unknown;
+  acknowledgedAtServer: string;
+  now?: Date;
+}): Promise<void> {
+  const now = input.now ?? new Date();
+  if (!Number.isFinite(Date.parse(input.acknowledgedAtServer))) throw new TypeError('Server acknowledgement time is invalid.');
+  const key = input.keySession.getKey();
+  const encryptedResult = await encryptOfflinePayload(input.result, key, {
+    recordId: `ack:${input.operationId}`,
+    ...input.scope,
+  });
+  const resultHash = await hashCanonicalOperationValue(input.result);
+  if (!input.result || typeof input.result !== 'object'
+    || !('operation_id' in input.result) || input.result.operation_id !== input.operationId) {
+    throw new Error('Server acknowledgement operation ID does not match the queued operation.');
+  }
+  const tx = input.database.transaction(
+    ['operations_outbox', 'operation_acks', 'terminal_meta'],
+    'readwrite',
+    { durability: 'strict' },
+  );
+  try {
+    const outbox = tx.objectStore('operations_outbox');
+    const operation = await outbox.get(input.operationId);
+    if (!operation || operation.payload_hash !== input.payloadHash
+      || operation.store_id !== input.scope.storeId || operation.actor_id !== input.scope.actorId
+      || operation.terminal_id !== input.scope.terminalId) {
+      throw new Error('Server acknowledgement does not match a queued operation in this account scope.');
+    }
+    const ackStore = tx.objectStore('operation_acks');
+    const existingAck = await ackStore.get(input.operationId);
+    if (existingAck) {
+      if (existingAck.payload_hash !== input.payloadHash || existingAck.result_hash !== resultHash) {
+        throw new Error('Stored acknowledgement conflicts with the queued operation.');
+      }
+      await tx.done;
+      return;
+    }
+    const acknowledgement: OfflineOperationAck = {
+      operation_id: input.operationId,
+      store_id: input.scope.storeId,
+      actor_id: input.scope.actorId,
+      terminal_id: input.scope.terminalId,
+      terminal_sequence: operation.terminal_sequence,
+      payload_hash: input.payloadHash,
+      result_hash: resultHash,
+      encrypted_result: encryptedResult,
+      acknowledged_at_server: input.acknowledgedAtServer,
+      stored_at_local: now.toISOString(),
+    };
+    await ackStore.add(acknowledgement);
+    await outbox.put({ ...operation, state: 'synchronized', acknowledgement_id: input.operationId, updated_at_local: now.toISOString() });
+
+    const metaStore = tx.objectStore('terminal_meta');
+    const metadata = await metaStore.get(offlineScopeKey(input.scope));
+    if (!metadata) throw new Error('Terminal metadata is missing for the acknowledged operation.');
+    let lastAcknowledged = metadata.last_acknowledged_sequence;
+    let nextSequence = lastAcknowledged + 1;
+    while (true) {
+      const nextOperation = await outbox.index('by-lane-sequence').get([
+        input.scope.storeId, input.scope.terminalId, nextSequence,
+      ]);
+      if (!nextOperation || nextOperation.state !== 'synchronized'
+        || !(await ackStore.get(nextOperation.operation_id))) break;
+      lastAcknowledged = nextSequence;
+      nextSequence += 1;
+    }
+    await metaStore.put({ ...metadata, last_acknowledged_sequence: lastAcknowledged, updated_at_local: now.toISOString() });
+    await tx.done;
+  } catch (error) {
+    abortTransaction(tx);
+    throw normalizeStorageError(error);
+  }
+}
+
+export async function readOperationAcknowledgement(
+  database: IDBPDatabase<OfflineDatabase>,
+  keySession: OfflineKeySession,
+  scope: { storeId: string; actorId: string; terminalId: string },
+  operationId: string,
+): Promise<unknown | null> {
+  const ack = await database.get('operation_acks', operationId);
+  if (!ack) return null;
+  if (ack.store_id !== scope.storeId || ack.actor_id !== scope.actorId || ack.terminal_id !== scope.terminalId) {
+    throw new Error('Acknowledgement belongs to another account scope.');
+  }
+  return decryptOfflinePayload(ack.encrypted_result, keySession.getKey(), {
+    recordId: `ack:${operationId}`,
+    ...scope,
+  });
+}
+
+export function offlineScopeKey(scope: { storeId: string; actorId: string; terminalId: string }): string {
+  return `${scope.storeId}:${scope.actorId}:${scope.terminalId}`;
+}
+
+function normalizeGrantConsumptions(consumptions: Array<{ grantId: string; quantity: number }>): Array<{ grantId: string; quantity: number }> {
+  const quantities = new Map<string, number>();
+  for (const consumption of consumptions) {
+    if (!consumption.grantId || !Number.isSafeInteger(consumption.quantity) || consumption.quantity <= 0) {
+      throw new TypeError('Offline grant consumption requires a grant ID and positive integer quantity.');
+    }
+    const quantity = (quantities.get(consumption.grantId) ?? 0) + consumption.quantity;
+    if (!Number.isSafeInteger(quantity)) throw new TypeError('Combined offline grant consumption is too large.');
+    quantities.set(consumption.grantId, quantity);
+  }
+  return Array.from(quantities, ([grantId, quantity]) => ({ grantId, quantity }))
+    .sort((left, right) => left.grantId.localeCompare(right.grantId));
+}
+
+function createLegacyStores(database: IDBPDatabase<OfflineDatabase>): void {
+  if (!database.objectStoreNames.contains('products_cache')) database.createObjectStore('products_cache', { keyPath: 'id' });
+  if (!database.objectStoreNames.contains('sales_queue')) {
+    const store = database.createObjectStore('sales_queue', { keyPath: 'id' });
+    store.createIndex('by-status', '_syncStatus');
+  }
+  if (!database.objectStoreNames.contains('generic_mutations')) {
+    const store = database.createObjectStore('generic_mutations', { keyPath: 'id' });
+    store.createIndex('by-status', '_syncStatus');
+  }
+}
+
+function createOfflineStores(database: IDBPDatabase<OfflineDatabase>): void {
+  if (!database.objectStoreNames.contains('terminal_meta')) {
+    const store = database.createObjectStore('terminal_meta', { keyPath: 'scope_key' });
+    store.createIndex('by-scope', ['store_id', 'actor_id', 'terminal_id']);
+  }
+  if (!database.objectStoreNames.contains('catalog_snapshots')) {
+    const store = database.createObjectStore('catalog_snapshots', { keyPath: 'id' });
+    store.createIndex('by-store-product-version', ['store_id', 'product_id', 'catalog_version']);
+  }
+  if (!database.objectStoreNames.contains('offline_leases')) {
+    const store = database.createObjectStore('offline_leases', { keyPath: 'id' });
+    store.createIndex('by-store-terminal', ['store_id', 'terminal_id']);
+    store.createIndex('by-cashier', 'cashier_id');
+  }
+  if (!database.objectStoreNames.contains('stock_grants')) {
+    const store = database.createObjectStore('stock_grants', { keyPath: 'id' });
+    store.createIndex('by-lease', 'lease_id');
+    store.createIndex('by-product', ['store_id', 'terminal_id', 'product_id']);
+    store.createIndex('by-lot', 'lot_id');
+  }
+  if (!database.objectStoreNames.contains('offline_grant_events')) {
+    const store = database.createObjectStore('offline_grant_events', { keyPath: 'id' });
+    store.createIndex('by-operation-grant', ['operation_id', 'grant_id'], { unique: true });
+    store.createIndex('by-grant', 'grant_id');
+  }
+  if (!database.objectStoreNames.contains('operations_outbox')) {
+    const store = database.createObjectStore('operations_outbox', { keyPath: 'operation_id' });
+    store.createIndex('by-state', 'state');
+    store.createIndex('by-lane-sequence', ['store_id', 'terminal_id', 'terminal_sequence'], { unique: true });
+  }
+  if (!database.objectStoreNames.contains('operation_acks')) {
+    const store = database.createObjectStore('operation_acks', { keyPath: 'operation_id' });
+    store.createIndex('by-lane-sequence', ['store_id', 'terminal_id', 'terminal_sequence'], { unique: true });
+  }
+  if (!database.objectStoreNames.contains('legacy_recovery')) {
+    const store = database.createObjectStore('legacy_recovery', { keyPath: 'id' });
+    store.createIndex('by-source', 'source_store');
+  }
+}
+
+function preserveLegacyStore(
+  transaction: IDBPTransaction<OfflineDatabase, StoreNames<OfflineDatabase>[], 'versionchange'>,
+  sourceName: 'sales_queue' | 'generic_mutations',
+): void {
+  if (!transaction.objectStoreNames.contains(sourceName)) return;
+  const source = transaction.objectStore(sourceName);
+  const recovery = transaction.objectStore('legacy_recovery');
+  void (async () => {
+    try {
+      for await (const cursor of source) {
+        const original = cursor.value;
+        const record: LegacyRecoveryRecord = {
+          id: `v1:${sourceName}:${String(cursor.key)}`,
+          source_store: sourceName,
+          source_key: String(cursor.key),
+          original_payload: original,
+          imported_at_local: new Date().toISOString(),
+          recovery_state: 'unreviewed',
+        };
+        await recovery.add(record);
+      }
+    } catch {
+      try {
+        transaction.abort();
+      } catch {
+        // The version-change transaction may already have aborted.
+      }
+    }
+  })();
+}
+
+function abortTransaction(transaction: IDBPTransaction<OfflineDatabase, StoreNames<OfflineDatabase>[], IDBTransactionMode>): void {
+  try {
+    transaction.abort();
+  } catch {
+    // The transaction may already have aborted or completed after its request failed.
+  }
+  void transaction.done.catch(() => undefined);
+}
+
+function normalizeStorageError(error: unknown): Error {
+  const candidate = error as { name?: string; message?: string } | null;
+  if (candidate?.name === 'QuotaExceededError') {
+    return new OfflineStorageError('Device storage is full. The operation was not saved; keep the cart and retry after freeing storage.', 'QUOTA');
+  }
+  if (candidate?.name === 'ConstraintError') {
+    return new OfflineStorageError('An operation or stock grant conflicts with an existing local record.', 'CORRUPT');
+  }
+  if (error instanceof Error && error.name === 'Error') return error;
+  return new OfflineStorageError(candidate?.message || 'Device storage is unavailable. The operation was not saved.', 'UNAVAILABLE');
+}
