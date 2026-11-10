@@ -1,6 +1,6 @@
 # T03 — Add scoped supervisor capabilities and approval guards
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; capability controls and additive schema are implemented, but authenticated role behavior and approval replay/apply tests remain.
 **Task ID:** T03  
 **Feature:** Permissions  
 **Priority:** Critical  

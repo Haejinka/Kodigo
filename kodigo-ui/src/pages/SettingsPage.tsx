@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Users, Store, Bell, Shield, X,
+  Users, Store, Bell, Shield, X, KeyRound,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
@@ -26,6 +26,22 @@ import { MfaSettings } from '@/components/settings/MfaSettings';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AssistedPasswordConfirmation } from '@/components/ui/assisted-password-confirmation';
 import { isSecurePassword, PasswordStrength } from '@/components/ui/password-strength';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  grantStoreCapability,
+  listStoreCapabilityGrants,
+  revokeStoreCapability,
+  STORE_CAPABILITY_OPTIONS,
+  type StoreCapability,
+  type StoreCapabilityGrant,
+} from '@/lib/capabilities';
 
 const inputCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
 type ManagedRole = 'admin' | 'cashier' | 'inventory';
@@ -684,6 +700,7 @@ export function UserManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [editTarget, setEditTarget] = useState<User | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [capabilityTarget, setCapabilityTarget] = useState<User | null>(null);
   const [resettingUserId, setResettingUserId] = useState<string | null>(null);
 
   const scopedStoreId = activeStoreId && activeStoreId !== 'all' ? activeStoreId : undefined;
@@ -751,7 +768,12 @@ export function UserManagementPage() {
     <div className="space-y-5">
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-900">System Users</h3>
+          <div>
+            <h3 className="font-semibold text-gray-900">System Users</h3>
+            {currentUser?.role === 'admin' && !scopedStoreId && (
+              <p className="mt-1 text-xs text-gray-500">Select a single store to manage staff capabilities.</p>
+            )}
+          </div>
           <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
             + Invite User
           </Button>
@@ -789,6 +811,20 @@ export function UserManagementPage() {
               <Badge variant={u.role === 'admin' ? 'info' : 'default'}>
                 {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
               </Badge>
+              {currentUser?.role === 'admin'
+                && scopedStoreId
+                && (u.role === 'cashier' || u.role === 'inventory')
+                && (u.storeIds?.includes(scopedStoreId) || u.storeId === scopedStoreId)
+                && (
+                  <button
+                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline font-medium"
+                    onClick={() => setCapabilityTarget(u)}
+                    aria-label={`Manage capabilities for ${u.name}`}
+                  >
+                    <KeyRound className="size-3.5" aria-hidden="true" />
+                    Permissions
+                  </button>
+                )}
               <button
                 className="text-xs text-blue-600 hover:underline font-medium"
                 onClick={() => setEditTarget(u)}
@@ -833,6 +869,19 @@ export function UserManagementPage() {
           />
       )}
 
+      {capabilityTarget && scopedStoreId && (
+        <CapabilityManagementDialog
+          user={capabilityTarget}
+          storeId={scopedStoreId}
+          storeName={stores.find((store) => store.id === scopedStoreId)?.name ?? 'Selected store'}
+          onClose={() => setCapabilityTarget(null)}
+          onSaved={() => {
+            toast('success', 'Staff capabilities updated.');
+            setCapabilityTarget(null);
+          }}
+        />
+      )}
+
       <ConfirmDialog
         open={!!deleteTarget}
         title="Remove User"
@@ -843,6 +892,182 @@ export function UserManagementPage() {
         onCancel={() => setDeleteTarget(null)}
       />
     </div>
+  );
+}
+
+function CapabilityManagementDialog({
+  user,
+  storeId,
+  storeName,
+  onClose,
+  onSaved,
+}: {
+  user: User;
+  storeId: string;
+  storeName: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [grants, setGrants] = useState<StoreCapabilityGrant[]>([]);
+  const [initialCapabilities, setInitialCapabilities] = useState<Set<StoreCapability>>(new Set());
+  const [selectedCapabilities, setSelectedCapabilities] = useState<Set<StoreCapability>>(new Set());
+  const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError(null);
+    void listStoreCapabilityGrants(storeId)
+      .then((rows) => {
+        if (!active) return;
+        const userGrants = rows.filter((grant) => grant.profile_id === user.id);
+        const next = new Set(userGrants.map((grant) => grant.capability));
+        setGrants(userGrants);
+        setInitialCapabilities(next);
+        setSelectedCapabilities(next);
+        setLoaded(true);
+      })
+      .catch((err) => {
+        if (active) setError(err instanceof Error ? err.message : 'Unable to load staff capabilities.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [loadAttempt, storeId, user.id]);
+
+  const availableCapabilities = STORE_CAPABILITY_OPTIONS.filter((option) => (
+    user.role === 'inventory'
+      ? option.code === 'approve_inventory_adjustment'
+      : option.code !== 'approve_inventory_adjustment'
+  ));
+  const hasChanges = availableCapabilities.some(({ code }) => (
+    initialCapabilities.has(code) !== selectedCapabilities.has(code)
+  ));
+
+  const toggleCapability = (capability: StoreCapability, enabled: boolean) => {
+    setSelectedCapabilities((current) => {
+      const next = new Set(current);
+      if (enabled) next.add(capability);
+      else next.delete(capability);
+      return next;
+    });
+  };
+
+  const handleSave = async () => {
+    const normalizedReason = reason.trim();
+    if (normalizedReason.length < 3 || normalizedReason.length > 500) {
+      setError('Enter a reason between 3 and 500 characters.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      for (const { code } of availableCapabilities) {
+        const wasEnabled = initialCapabilities.has(code);
+        const shouldEnable = selectedCapabilities.has(code);
+        if (wasEnabled === shouldEnable) continue;
+        if (shouldEnable) {
+          await grantStoreCapability({ storeId, profileId: user.id, capability: code, reason: normalizedReason });
+        } else {
+          const grant = grants.find((candidate) => candidate.capability === code);
+          if (grant) await revokeStoreCapability({ storeId, grantId: grant.grant_id, reason: normalizedReason });
+        }
+      }
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update staff capabilities.');
+      try {
+        const refreshed = (await listStoreCapabilityGrants(storeId)).filter((grant) => grant.profile_id === user.id);
+        const next = new Set(refreshed.map((grant) => grant.capability));
+        setGrants(refreshed);
+        setInitialCapabilities(next);
+        setSelectedCapabilities(next);
+      } catch {
+        // Keep the original failure visible if the refresh also fails.
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto"
+        onInteractOutside={(event) => { if (saving) event.preventDefault(); }}
+        onEscapeKeyDown={(event) => { if (saving) event.preventDefault(); }}
+      >
+        <DialogHeader className="pr-8">
+          <DialogTitle>Staff capabilities</DialogTitle>
+          <DialogDescription>
+            {user.name} · {storeName}. Admins manage these store-scoped permissions. A person cannot approve their own request.
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading ? (
+          <p className="py-5 text-center text-sm text-gray-500" role="status">Loading capabilities…</p>
+        ) : !loaded ? (
+          <div className="space-y-3">
+            {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
+            <Button variant="outline" type="button" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+              Try again
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <fieldset disabled={saving} className="space-y-2">
+              <legend className="mb-2 text-sm font-medium text-gray-900">Available permissions</legend>
+              {availableCapabilities.map(({ code, label, description }) => (
+                <label key={code} className="flex items-start gap-3 rounded-lg border border-gray-200 p-3">
+                  <input
+                    type="checkbox"
+                    className="mt-1 size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    checked={selectedCapabilities.has(code)}
+                    onChange={(event) => toggleCapability(code, event.target.checked)}
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-gray-900">{label}</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-gray-500">{description}</span>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+            <label className="block text-sm font-medium text-gray-700" htmlFor="capability-change-reason">
+              Reason for change
+              <textarea
+                id="capability-change-reason"
+                className={`${inputCls} mt-1 min-h-20 resize-y`}
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                minLength={3}
+                maxLength={500}
+                disabled={saving}
+                placeholder="Describe why these permissions are needed"
+              />
+            </label>
+            {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="secondary" type="button" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button
+            type="button"
+            onClick={() => void handleSave()}
+            loading={saving}
+            disabled={loading || !loaded || !hasChanges}
+          >
+            Save permissions
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
