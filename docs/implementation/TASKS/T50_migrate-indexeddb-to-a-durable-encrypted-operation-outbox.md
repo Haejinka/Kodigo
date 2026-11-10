@@ -1,6 +1,6 @@
 # T50 — Migrate IndexedDB to a durable encrypted operation outbox
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; encryption primitives and typed offline metadata are implemented but not connected to IndexedDB or POS checkout. Outbox migration, durable state transitions, and browser acceptance remain pending.
 **Task ID:** T50  
 **Feature:** Offline storage  
 **Priority:** Critical  
