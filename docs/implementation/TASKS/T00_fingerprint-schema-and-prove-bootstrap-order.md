@@ -1,6 +1,6 @@
 # T00 — Fingerprint schema and prove bootstrap order
 
-**Status:** In progress; source manifest and read-only deployed baseline captured, isolated bootstrap/restore proof pending.  
+**Status:** In progress; source manifest and read-only deployed baseline captured. A checksummed manifest replay job now provisions an ephemeral Supabase database in GitHub Actions; its first remote result and restored-clone comparison are pending.  
 **Task ID:** T00  
 **Feature:** Foundation  
 **Priority:** Critical  
@@ -30,11 +30,13 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 
 - `README.md`
 - `docs/production-ops.md`
+- `.github/workflows/ci.yml`
 
 ## New files
 
 - `docs/implementation/SCHEMA_BASELINE.md`
 - `supabase/bootstrap-manifest.json`
+- `scripts/run-bootstrap-manifest.mjs`
 
 ## Database changes
 
@@ -54,7 +56,7 @@ Deployed schema is unverified. Preserve full migrations and receipt/stock/consig
 
 ## Implementation steps
 
-1. Discover CLI/psql/server versions using --help; select an explicitly named disposable test project.
+1. Discover CLI/psql/server versions using --help; select an explicitly named disposable test target. The CI target is a temporary Supabase database in an isolated GitHub Actions runner, not a Supabase branch or project.
 2. Capture effective schema/functions/triggers/RLS/grants and compare root/datetime definitions; record every precedence choice.
 3. Restore clone and build empty isolated DB using ordered checksummed manifest; compare effective fingerprints and sample hashes.
 4. Document exact supported bootstrap/restore commands and unresolved deployment differences; register the test target without credentials.
