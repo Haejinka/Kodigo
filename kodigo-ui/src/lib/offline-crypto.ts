@@ -350,7 +350,14 @@ function recoveryExportAad(envelope: Pick<OfflineRecoveryExportEnvelope,
   'format' | 'version' | 'schema_version' | 'kdf' | 'iterations' | 'store_id' | 'actor_id' | 'terminal_id'>): Uint8Array {
   return new TextEncoder().encode(canonicalOperationJson({
     purpose: 'offline-recovery-export',
-    ...envelope,
+    format: envelope.format,
+    version: envelope.version,
+    schema_version: envelope.schema_version,
+    kdf: envelope.kdf,
+    iterations: envelope.iterations,
+    store_id: envelope.store_id,
+    actor_id: envelope.actor_id,
+    terminal_id: envelope.terminal_id,
   }));
 }
 
