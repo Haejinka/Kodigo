@@ -77,7 +77,10 @@ export function createShoppingListSnapshot(
 
 export function buildShoppingListText(snapshot: ShoppingListSnapshotV1) {
   const columns = ['Item', 'Quantity', 'Unit Price', 'Total'] as const;
-  const clean = (value: string) => value.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim();
+  const clean = (value: string) => Array.from(value, (character) => {
+    const code = character.charCodeAt(0);
+    return code <= 0x1f || (code >= 0x7f && code <= 0x9f) ? ' ' : character;
+  }).join('').replace(/\s+/g, ' ').trim();
   const money = (value: number) => new Intl.NumberFormat('en-PH', {
     style: 'currency', currency: 'PHP', minimumFractionDigits: 2, maximumFractionDigits: 2,
   }).format(value);

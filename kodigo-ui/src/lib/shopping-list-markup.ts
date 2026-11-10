@@ -1,7 +1,11 @@
 import type { ShoppingListPaperProfile, ShoppingListSnapshotV1 } from '../types/shopping-lists';
 
-const escapeHtml = (value: unknown) => String(value ?? '')
-  .replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ')
+const removeControlCharacters = (value: string) => Array.from(value, (character) => {
+  const code = character.charCodeAt(0);
+  return code <= 0x1f || (code >= 0x7f && code <= 0x9f) ? ' ' : character;
+}).join('');
+
+const escapeHtml = (value: unknown) => removeControlCharacters(String(value ?? ''))
   .replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char] ?? char));
 
 const money = (value: number) => new Intl.NumberFormat('en-PH', {
