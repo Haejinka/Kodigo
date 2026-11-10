@@ -42,60 +42,11 @@ jobs:
       - name: Test encrypted offline storage in Chromium
         run: npm run test:e2e -- tests/e2e/offline-storage.spec.ts
 
-  schema-bootstrap:
-    name: Isolated Supabase manifest bootstrap
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: 3.1.0
-
-      - name: Prepare an empty temporary Supabase project
-        shell: bash
-        run: |
-          test_project="$RUNNER_TEMP/kodigo-bootstrap"
-          mkdir -p "$test_project/supabase/migrations"
-          printf 'project_id = "kodigo-bootstrap-ci"\n' > "$test_project/supabase/config.toml"
-          cat "$GITHUB_WORKSPACE/supabase/config.toml" >> "$test_project/supabase/config.toml"
-          cp -R "$GITHUB_WORKSPACE/supabase/templates" "$test_project/supabase/templates"
-
-      - name: Start isolated Supabase database
-        shell: bash
+      - name: Smoke test deployed login screen (read-only)
+        run: npm run test:e2e -- tests/e2e/harness.spec.ts
         env:
-          SUPABASE_TELEMETRY_DISABLED: '1'
-        run: |
-          test_project="$RUNNER_TEMP/kodigo-bootstrap"
-          log_file="$RUNNER_TEMP/kodigo-bootstrap-start.log"
-          if ! (cd "$test_project" && supabase db start) >"$log_file" 2>&1; then
-            sed -E 's#postgres(ql)?://[^[:space:]\"]+#<redacted-db-url>#g; s/(ANON_KEY|SERVICE_ROLE_KEY|JWT_SECRET)=.*/\1=<redacted>/g' "$log_file" >&2
-            exit 1
-          fi
-
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install --yes postgresql-client
-
-      - name: Replay and validate the checksummed bootstrap manifest
-        shell: bash
-        env:
-          KODIGO_BOOTSTRAP_TARGET: github-actions-ephemeral
-          KODIGO_BOOTSTRAP_PROJECT_DIR: ${{ runner.temp }}/kodigo-bootstrap
-          SUPABASE_TELEMETRY_DISABLED: '1'
-        run: node scripts/run-bootstrap-manifest.mjs
-
-      - name: Stop isolated Supabase database
-        if: always()
-        shell: bash
-        env:
-          SUPABASE_TELEMETRY_DISABLED: '1'
-        run: |
-          if [[ -d "$RUNNER_TEMP/kodigo-bootstrap/supabase" ]]; then
-            (cd "$RUNNER_TEMP/kodigo-bootstrap" && supabase stop) >/dev/null 2>&1 || true
-          fi
-
+          KODIGO_E2E_BASE_URL: https://kodigo-blue.vercel.app
+          KODIGO_E2E_ALLOW_REMOTE_READ_ONLY: 'true'
 
   integration:
     name: Isolated Supabase integration tests

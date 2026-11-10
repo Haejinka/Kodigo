@@ -1,6 +1,6 @@
 # T00 — Fingerprint schema and prove bootstrap order
 
-**Status:** In progress; source manifest and read-only deployed baseline captured. Hosted replay confirmed the candidate order and reached SQL; it then exposed a baseline function comparing `user_role` to `super_admin` before migration 02 adds that enum value. The baseline now compares the role as text, preserving the same predicate while making the source order executable. A hosted rerun is pending. Restored-clone comparison remains pending.
+**Status:** Blocked on the requested verification target. The source manifest and read-only deployed baseline are captured. Exploratory hosted runs found source-order conflicts, but the user has directed that no fresh database be created; no further bootstrap/restore replay will be started. The deployed project remains read-only for T00. The baseline role predicate still includes `super_admin` unchanged in meaning.
 **Task ID:** T00  
 **Feature:** Foundation  
 **Priority:** Critical  
@@ -58,7 +58,7 @@ Deployed schema is unverified. Preserve full migrations and receipt/stock/consig
 
 1. Discover CLI/psql/server versions using --help; select an explicitly named disposable test target. The CI target is a temporary Supabase database in an isolated GitHub Actions runner, not a Supabase branch or project.
 2. Capture effective schema/functions/triggers/RLS/grants and compare root/datetime definitions; record every precedence choice.
-3. Restore clone and build empty isolated DB using ordered checksummed manifest; compare effective fingerprints and sample hashes. The empty-bootstrap failure showed `public.is_admin()` in the baseline references `super_admin` before root migration 02 creates the enum label; the minimal baseline compatibility correction casts `role` to text and leaves the predicate unchanged.
+3. Restore clone and build empty isolated DB using ordered checksummed manifest; compare effective fingerprints and sample hashes. Runs #109–#111 on short-lived GitHub Actions PostgreSQL containers reached migration 21 after a checksum correction and a baseline `role::text` compatibility correction, then stopped at `MIN(uuid)` in `migration_21_reporting_snapshots_and_reports.sql`. Further replay is stopped per the user's instruction not to create a fresh database. The deployed database is not a safe replacement for destructive/bootstrap verification.
 4. Document exact supported bootstrap/restore commands and unresolved deployment differences; register the test target without credentials.
 5. Run this task's checks against the declared environment; record actual results, skipped checks and unresolved gates in TASK_STATUS. Do not enable a dependent feature while its accounting/authorization prerequisites are incomplete.
 
