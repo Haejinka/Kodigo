@@ -325,7 +325,11 @@ export async function recordOfflineOperationFailure(input: {
 }): Promise<OfflineQueuedOperation> {
   const now = input.now ?? new Date();
   const errorCode = input.errorCode.trim();
-  if (!errorCode || errorCode.length > 80 || /[\u0000-\u001f\u007f]/.test(errorCode)) {
+  const containsControlCharacter = Array.from(errorCode).some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint <= 0x1f || codePoint === 0x7f;
+  });
+  if (!errorCode || errorCode.length > 80 || containsControlCharacter) {
     throw new TypeError('Offline operation error code must be a short, non-sensitive code.');
   }
   let nextAttemptAt: string | null = null;
