@@ -1,6 +1,6 @@
 # T00 — Fingerprint schema and prove bootstrap order
 
-**Status:** In progress; source manifest and read-only deployed baseline captured. A checksummed manifest replay job now provisions an ephemeral Supabase database in GitHub Actions; its first remote result and restored-clone comparison are pending.  
+**Status:** In progress; source manifest and read-only deployed baseline captured. The first hosted replay stopped at the preflight checksum because the manifest hashed Windows CRLF bytes while GitHub checked out LF. Manifest hashing is now canonical UTF-8/LF and awaits a remote rerun. Restored-clone comparison remains pending.
 **Task ID:** T00  
 **Feature:** Foundation  
 **Priority:** Critical  

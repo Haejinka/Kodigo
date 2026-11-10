@@ -58,8 +58,11 @@ for (const [index, entry] of manifest.files.entries()) {
   if (relativePath === '..' || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)) {
     throw new Error(`Bootstrap manifest path escapes the repository: ${entry.path}`);
   }
-  const source = await readFile(filePath);
-  const actualHash = createHash('sha256').update(source).digest('hex');
+  // Git checks out these SQL sources with LF on Linux and may use CRLF on
+  // Windows. Hash canonical UTF-8/LF bytes so the same committed source has
+  // one manifest fingerprint on both platforms.
+  const source = (await readFile(filePath, 'utf8')).replace(/\r\n/g, '\n');
+  const actualHash = createHash('sha256').update(source, 'utf8').digest('hex');
   if (actualHash.toLowerCase() !== entry.sha256.toLowerCase()) {
     throw new Error(`Bootstrap source checksum mismatch: ${entry.path}`);
   }

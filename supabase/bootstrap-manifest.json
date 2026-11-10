@@ -6,7 +6,7 @@
   "scope": "Candidate exact source order for a new empty disposable database only. Not an instruction to apply to a populated or deployed project.",
   "databaseBaseline": {
     "path": "supabase_schema.sql",
-    "sha256": "f991a9fca3e2ffcb5d7e4d3f97256d631360ea95dd78532c899e3d300e5fefd0"
+    "sha256": "b5ef1c1f7f4c1bc6bb6c69c2cc65226d1cc2951ca8d0c6aedd3cedd5b50125fd"
   },
   "ordering": {
     "rule": "Apply the baseline, then available root migrations in numeric order, then timestamped migrations in filename order. This places root migration 37 before date patches that replace its stock workflow definitions.",
@@ -28,14 +28,14 @@
       "order": 0,
       "path": "supabase_schema.sql",
       "kind": "baseline",
-      "sha256": "f991a9fca3e2ffcb5d7e4d3f97256d631360ea95dd78532c899e3d300e5fefd0",
+      "sha256": "b5ef1c1f7f4c1bc6bb6c69c2cc65226d1cc2951ca8d0c6aedd3cedd5b50125fd",
       "dependsOn": []
     },
     {
       "order": 1,
       "path": "migration_01_invite_codes.sql",
       "kind": "root-migration",
-      "sha256": "eef971db72a9d8b057fb374d618da030653dc2061e473d7167b69b25db5834a7",
+      "sha256": "cf2b8b0fab6a75b406b9e8735c093311884d4789a05675b0cfa5fe8b2a5e5672",
       "dependsOn": [
         "supabase_schema.sql"
       ]
@@ -44,7 +44,7 @@
       "order": 2,
       "path": "migration_02_super_admin.sql",
       "kind": "root-migration",
-      "sha256": "7bc40c33a95c28837b984788ae074daa31d6ba6e283c93463e8d15387f818769",
+      "sha256": "e84e1bdeec01ed99c5ed8428e5c3f23840e987f0bb086aacb81a7a9a3480a5a2",
       "dependsOn": [
         "migration_01_invite_codes.sql"
       ]
@@ -53,7 +53,7 @@
       "order": 3,
       "path": "migration_03_fix_trigger.sql",
       "kind": "root-migration",
-      "sha256": "cd84e2a0026893740d5a56f1e8e56e2d1a40e5d2a6c3370f920f7916e14fac46",
+      "sha256": "6619639fcaac20098b5d2f35b9ae8f3a7acc5f01d357da7293d02814e95cb015",
       "dependsOn": [
         "migration_02_super_admin.sql"
       ]
@@ -62,7 +62,7 @@
       "order": 4,
       "path": "migration_04_invite_creator_rls.sql",
       "kind": "root-migration",
-      "sha256": "f5d26cd3fa2159030d494bbecc864a4d6bf8453afc68ee5f19dd4003e73812d7",
+      "sha256": "176ee26b0929c2e1980f87062aed6646f2436336142aa637142c5bce5bb31ab2",
       "dependsOn": [
         "migration_03_fix_trigger.sql"
       ]
@@ -71,7 +71,7 @@
       "order": 5,
       "path": "migration_05_fix_orphaned_profiles.sql",
       "kind": "root-migration",
-      "sha256": "a0823a43e893765d5a2b8cd96394712fa2c8a59594a061091ccdb229475b8329",
+      "sha256": "7398fd22f208dc746bee47e00d265fdbaa24861183cf9687101196e0022b780d",
       "dependsOn": [
         "migration_04_invite_creator_rls.sql"
       ]
@@ -80,7 +80,7 @@
       "order": 6,
       "path": "migration_06_fix_permissions.sql",
       "kind": "root-migration",
-      "sha256": "fc0310445342de5756e5d856530fc2174ab2afacae370c4ac8c6ff69be245318",
+      "sha256": "702d2bde99917677312a073b244759ce7dee965ff217a0fb4078648f33aeb03c",
       "dependsOn": [
         "migration_05_fix_orphaned_profiles.sql"
       ]
@@ -89,7 +89,7 @@
       "order": 7,
       "path": "migration_07_multistore.sql",
       "kind": "root-migration",
-      "sha256": "a3349f4797dc08e9b1be9f69f16b3216f60122bef94729f121217aa4bc3f72b9",
+      "sha256": "7dbcebb3113e2dea7e5c1615abf5fc6b623261edd8171188c71b7f3fd95e889a",
       "dependsOn": [
         "migration_06_fix_permissions.sql"
       ]
@@ -98,7 +98,7 @@
       "order": 8,
       "path": "migration_08_multistore_rls.sql",
       "kind": "root-migration",
-      "sha256": "b9ca6a34ea1812ea09287e2526b30a805dfb273a12da27667abe5302d5ee28bc",
+      "sha256": "d9f537ae819e1ac75aad2906fa13e2bd8ca651a83baf0ec03dcf148d66e46498",
       "dependsOn": [
         "migration_07_multistore.sql"
       ]
@@ -134,7 +134,7 @@
       "order": 12,
       "path": "migration_12_revert_super_admin.sql",
       "kind": "root-migration",
-      "sha256": "8f95676e084614c0ad495f0ca93bfd452b57fdf31d2afa5e70cb51dfea161163",
+      "sha256": "a65b806f26e90ae45b4c706b52d22def5d1d7b73cf7de0db1097dc540a03b634",
       "dependsOn": [
         "migration_11_role_fixes.sql"
       ]
@@ -143,7 +143,7 @@
       "order": 13,
       "path": "migration_13_fix_store_creation.sql",
       "kind": "root-migration",
-      "sha256": "8b7a7cb25aca263181ffddd8eb6644e74ae90622584d0ead9c87fb4fc729ecd2",
+      "sha256": "70ee7a76c34dea7058923b508cbce82619aae7080d46fcf3ceaa650b1a821363",
       "dependsOn": [
         "migration_12_revert_super_admin.sql"
       ]
@@ -152,7 +152,7 @@
       "order": 14,
       "path": "migration_14_fix_store_update.sql",
       "kind": "root-migration",
-      "sha256": "4f23f7afc575cd52d1a3bbb20bce200de9c83b29bc25e5a182d317bf29dc29b9",
+      "sha256": "5c089d4c582191e1812a9bda6f6f80287ad84dd0a640e6b78d3bbae3a1a166c4",
       "dependsOn": [
         "migration_13_fix_store_creation.sql"
       ]
@@ -161,7 +161,7 @@
       "order": 15,
       "path": "migration_15_fix_store_admin_access.sql",
       "kind": "root-migration",
-      "sha256": "85460af2c40597cc8d5970ef15c8fdaa3e94151a4d1fd863eb3913b327180848",
+      "sha256": "ac44969a57ad49460e182d194ef47d0572a9bfaee6324af29dcbd4e1c25f2c3e",
       "dependsOn": [
         "migration_14_fix_store_update.sql"
       ]
@@ -170,7 +170,7 @@
       "order": 16,
       "path": "migration_16_fix_store_policies_final.sql",
       "kind": "root-migration",
-      "sha256": "870ec542e7248b5066be07b21af8e5f04143dd61836eda80f91e33203e85d2b4",
+      "sha256": "14408e808454dcb97addb0bfc59bf3361b98d1fd21c29b872d560efdf5b7018d",
       "dependsOn": [
         "migration_15_fix_store_admin_access.sql"
       ]
@@ -179,7 +179,7 @@
       "order": 17,
       "path": "migration_17_add_suppliers_updated_at.sql",
       "kind": "root-migration",
-      "sha256": "7792888e25d91ed333571e5300653c1b0fb4ae0f8532fff7d6c116f44147b8c5",
+      "sha256": "811f8cbac6e29eff622ef2710c63d3f6875d5b368bcab41898b1b1fd6dde00d3",
       "dependsOn": [
         "migration_16_fix_store_policies_final.sql"
       ]
@@ -413,7 +413,7 @@
       "order": 43,
       "path": "supabase/migrations/20260930090000_vat_inclusive_pos_totals.sql",
       "kind": "timestamped-migration",
-      "sha256": "f508c2b1d8e1c0d4db53ab89d43c8e422daaa3aa3a790dc39515794486c3b2be",
+      "sha256": "6f6ab4e4ec40ecbd2bfed8ed5a5d9df89dba666f99eac2578566e13f0fdf0b2a",
       "dependsOn": [
         "supabase/migrations/20260803023252_enforce_mfa_assurance.sql"
       ]
@@ -642,5 +642,6 @@
       "public.create_store_with_owner": "a5174d70b66c5e340db89cdcd030d41d"
     },
     "warning": "This is a deployed baseline fingerprint for comparison only. It is not evidence that the source manifest builds this schema; do not run SQL against this project."
-  }
+  },
+  "hashEncoding": "UTF-8 with CRLF normalized to LF"
 }

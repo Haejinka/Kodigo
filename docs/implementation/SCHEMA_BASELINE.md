@@ -127,11 +127,11 @@ Do not add a second stock or lot restoration path around these existing trigger 
 
 ## Source manifest and unresolved verification
 
-[`../../supabase/bootstrap-manifest.json`](../../supabase/bootstrap-manifest.json) contains all 60 current source files (baseline + 39 numbered root migrations + 20 timestamped migrations), their repository-relative paths, SHA-256 hashes, and a serialized candidate dependency order. Root migration 33 is explicitly absent. The candidate order puts the full root chain before timestamped patches; this ensures the November dynamic stock-cost patches have their root 37/receipt definitions. It is being exercised by a GitHub Actions job that starts a temporary Supabase database and replays only the checksummed manifest. The first remote execution is pending; no local bootstrap was run.
+[`../../supabase/bootstrap-manifest.json`](../../supabase/bootstrap-manifest.json) contains all 60 current source files (baseline + 39 numbered root migrations + 20 timestamped migrations), their repository-relative paths, SHA-256 hashes, and a serialized candidate dependency order. Hashes are over UTF-8 text with CRLF normalized to LF so GitHub Linux and Windows worktrees share a stable fingerprint. Root migration 33 is explicitly absent. The candidate order puts the full root chain before timestamped patches; this ensures the November dynamic stock-cost patches have their root 37/receipt definitions. It is exercised by a GitHub Actions job that starts a temporary Supabase database and replays only the checksummed manifest. The first run stopped before SQL replay because the original manifest hash reflected Windows CRLF bytes; canonical hashing is now implemented and the rerun is pending. No local bootstrap was run.
 
 The following T00 acceptance evidence is still pending and blocks any feature-write activation:
 
-- Compare the pinned Supabase CLI 3.1.0 behavior on the isolated CI target and confirm manifest replay succeeds there.
+- Compare the pinned Supabase CLI 3.1.0 behavior on the isolated CI target and confirm manifest replay succeeds there. The first CI run verified that the local database starts, then stopped at the pre-replay `supabase_schema.sql` checksum; no SQL file was applied. The correction normalizes CRLF to LF before hashing; a second CI run is pending.
 - Restore an isolated historical copy and compare effective RPC, trigger-order, RLS/grant, precision, and fixture fingerprints.
 - Run V47, V48, and V51 on that isolated environment; preserve receipt hashes and avoid fabricated stock/cash history.
 - Confirm deployed login/workflows separately with the authorized test account. Do not include its credentials in reports or screenshots.
