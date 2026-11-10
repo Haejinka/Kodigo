@@ -1,6 +1,6 @@
 # T02 — Add operation identity and replay contract
 
-**Status:** In progress; typed command/result contracts and client-side canonical hashing are implemented. The database replay contract, generated migration, and isolated concurrency proof remain pending.
+**Status:** In progress; typed command/result contracts, server operation tables/helpers, and the read-result RPC are implemented and applied to the existing deployed project. Domain write wrappers and isolated replay/concurrency proof remain pending.
 **Task ID:** T02  
 **Feature:** Transaction foundation  
 **Priority:** Critical  

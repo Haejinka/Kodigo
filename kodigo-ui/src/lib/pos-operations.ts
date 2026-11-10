@@ -1,4 +1,4 @@
-import type { OperationCommandV1, OperationJsonValue } from '@/types/operations';
+import type { ConfirmedOperationResult, OperationCommandV1, OperationJsonValue } from '@/types/operations';
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== 'object') return false;
@@ -69,6 +69,52 @@ export async function hashCanonicalOperationValue(value: unknown): Promise<strin
   const bytes = new TextEncoder().encode(canonicalOperationJson(value));
   const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/** Validate the persisted server response before treating it as confirmed. */
+export function parseConfirmedOperationResult<T>(value: unknown): ConfirmedOperationResult<T> {
+  if (!isPlainObject(value)) throw new TypeError('Server operation result must be an object.');
+  const expectedKeys = [
+    'aggregate_id', 'aggregate_type', 'aggregate_version', 'confirmed_at',
+    'contract_version', 'operation_id', 'outcome', 'result',
+  ];
+  const actualKeys = Object.keys(value).sort();
+  if (actualKeys.length !== expectedKeys.length || actualKeys.some((key, index) => key !== expectedKeys[index])) {
+    throw new TypeError('Server operation result has missing or unsupported fields.');
+  }
+  if (value.contract_version !== 1) throw new TypeError('Server operation result contract version is unsupported.');
+  if (typeof value.operation_id !== 'string' || !isUuid(value.operation_id)) {
+    throw new TypeError('Server operation result ID must be a UUID.');
+  }
+  if (value.outcome !== 'confirmed' && value.outcome !== 'pending_external') {
+    throw new TypeError('Server operation result outcome is invalid.');
+  }
+  if (typeof value.aggregate_type !== 'string' || value.aggregate_type.length === 0
+    || typeof value.aggregate_id !== 'string' || value.aggregate_id.length === 0) {
+    throw new TypeError('Server operation aggregate identity is invalid.');
+  }
+  if (!Number.isSafeInteger(value.aggregate_version) || Number(value.aggregate_version) < 0) {
+    throw new TypeError('Server operation aggregate version is invalid.');
+  }
+  if (typeof value.confirmed_at !== 'string' || Number.isNaN(Date.parse(value.confirmed_at))) {
+    throw new TypeError('Server operation confirmation time is invalid.');
+  }
+  if (!isPlainObject(value.result)) throw new TypeError('Server operation domain result must be an object.');
+
+  return value as unknown as ConfirmedOperationResult<T>;
+}
+
+/** Read the prior committed response after a lost reply; null means no committed result exists. */
+export async function getPosOperation<T>(storeId: string, operationId: string): Promise<ConfirmedOperationResult<T> | null> {
+  if (!isUuid(storeId) || !isUuid(operationId)) throw new TypeError('Store and operation IDs must be UUIDs.');
+  const { supabase } = await import('./supabase');
+  const { data, error } = await supabase.rpc('get_pos_operation', {
+    p_store_id: storeId.toLowerCase(),
+    p_operation_id: operationId.toLowerCase(),
+  });
+  if (error) throw error;
+  if (data === null) return null;
+  return parseConfirmedOperationResult<T>(data);
 }
 
 /** Create a command once and persist it unchanged for every retry. */

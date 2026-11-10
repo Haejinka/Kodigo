@@ -4,6 +4,7 @@ import {
   canonicalOperationJson,
   createOperationCommand,
   hashOperationCommand,
+  parseConfirmedOperationResult,
 } from '../../src/lib/pos-operations.ts';
 
 const validCommand = (payload = { amount: '12.00', lines: [{ product_id: 'item-1', quantity: 2 }] }) => createOperationCommand({
@@ -55,4 +56,22 @@ test('operation hash is stable for reordered object keys and changes for semanti
   assert.equal(await hashOperationCommand(reordered), firstHash);
   assert.equal(await hashOperationCommand(retryId), firstHash);
   assert.notEqual(await hashOperationCommand(changed), firstHash);
+});
+
+test('server result parser accepts only confirmed versioned responses', () => {
+  const response = {
+    contract_version: 1,
+    operation_id: '11111111-1111-4111-8111-111111111111',
+    outcome: 'pending_external',
+    aggregate_type: 'refund',
+    aggregate_id: '44444444-4444-4444-8444-444444444444',
+    aggregate_version: 2,
+    confirmed_at: '2026-11-11T10:00:00.000Z',
+    result: { workflow_state: 'awaiting_external' },
+  };
+
+  assert.deepEqual(parseConfirmedOperationResult(response), response);
+  assert.throws(() => parseConfirmedOperationResult({ ...response, outcome: 'recorded_locally' }), /outcome is invalid/);
+  assert.throws(() => parseConfirmedOperationResult({ ...response, operation_id: 'not-a-uuid' }), /UUID/);
+  assert.throws(() => parseConfirmedOperationResult({ ...response, extra: true }), /missing or unsupported/);
 });
