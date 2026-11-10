@@ -101,8 +101,8 @@ foreach (var (profile, width) in new[] { ("58mm", 32), ("80mm", 48) })
     {
         throw new Exception("Shopping-list output attempted a cash-drawer pulse.");
     }
-    var printableText = Regex.Replace(text, "\\x1b(?:@|t.|a.|E.|p.)", "", RegexOptions.CultureInvariant);
-    foreach (var line in printableText.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+    var shoppingListPrintableText = Regex.Replace(text, "\\x1b(?:@|t.|a.|E.|p.)", "", RegexOptions.CultureInvariant);
+    foreach (var line in shoppingListPrintableText.Split('\n', StringSplitOptions.RemoveEmptyEntries))
     {
         if (line.Length > width) throw new Exception($"A {profile} shopping-list line exceeds {width} columns: {line}");
     }
