@@ -559,45 +559,48 @@ test('server acknowledgements are encrypted, durable, and idempotent', async ({ 
   expect(result.ackContainsReceiptNumber).toBe(false);
 });
 
-test('offline checkout does not save a legacy sale or return a confirmed result', async ({ page }) => {
+test('offline checkout queues the sale for sync and never reports it as server-confirmed', async ({ page }) => {
   const result = await page.evaluate(async () => {
-    const { processSale, SaleConfirmationUncertainError } = await import('/src/lib/offline-sync.ts');
+    const { processSale } = await import('/src/lib/offline-sync.ts');
     const saleId = crypto.randomUUID();
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
     let errorName = '';
-    let errorMessage = '';
-    let returnedSale = false;
+    let returned: { pendingSync?: boolean; receiptNumber?: string } | null = null;
     try {
-      returnedSale = Boolean(await processSale({ id: saleId } as never));
+      returned = await processSale({ id: saleId, cashierId: 'cashier-1' } as never);
     } catch (error) {
-      errorName = error instanceof Error ? error.name : '';
-      errorMessage = error instanceof Error ? error.message : '';
+      errorName = error instanceof Error ? error.name : 'error';
     }
-    const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('kodigo-pos-db', 1);
+    const open = (name: string, version?: number) => new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open(name, version);
       request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve(request.result);
     });
-    const queuedSale = await new Promise<unknown>((resolve, reject) => {
-      const request = database.transaction('sales_queue', 'readonly').objectStore('sales_queue').get(saleId);
+    const get = (database: IDBDatabase, store: string) => new Promise<unknown>((resolve, reject) => {
+      const request = database.transaction(store, 'readonly').objectStore(store).get(saleId);
       request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve(request.result ?? null);
     });
-    database.close();
+    const offlineDb = await open('kodigo-offline-sales');
+    const queued = await get(offlineDb, 'sales') as { userId?: string } | null;
+    offlineDb.close();
+    const legacyDb = await open('kodigo-pos-db', 1);
+    const legacyQueued = await get(legacyDb, 'sales_queue');
+    legacyDb.close();
     return {
       errorName,
-      errorMessage,
-      returnedSale,
-      isUncertainOutcome: errorName === new SaleConfirmationUncertainError('').name,
-      queuedSale,
+      pendingSync: returned?.pendingSync === true,
+      hasReceiptNumber: Boolean(returned?.receiptNumber),
+      queuedForUser: queued?.userId ?? null,
+      legacyQueued,
     };
   });
 
-  expect(result.errorName).toBe('SaleConfirmationUncertainError');
-  expect(result.errorMessage).toContain('No sale was submitted');
-  expect(result.returnedSale).toBe(false);
-  expect(result.isUncertainOutcome).toBe(true);
-  expect(result.queuedSale).toBeNull();
+  expect(result.errorName).toBe('');
+  expect(result.pendingSync).toBe(true);
+  expect(result.hasReceiptNumber).toBe(false);
+  expect(result.queuedForUser).toBe('cashier-1');
+  expect(result.legacyQueued).toBeNull();
 });
 
 test('legacy sale records remain untouched instead of auto-replaying on reconnect', async ({ page }) => {
