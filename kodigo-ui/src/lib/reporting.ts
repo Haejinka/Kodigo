@@ -1301,7 +1301,7 @@ function buildSalesReport(
       : 0;
     const returnedQuantity = lineFact.returned_quantity ?? returnedQuantityByItem.get(item.id) ?? 0;
     const lineRefund = lineFact.net_revenue == null ? 0 : financialFact.confirmed_refunds * lineShare;
-    const cost = lineFact.line_cost ?? getNetCogs(item, 0);
+    const cost = lineFact.line_cost ?? getNetCogs(item);
     const line = mapSaleLine(
       item, sale, cashierNames, returnedQuantity,
       lineFact.gross_revenue ?? 0,
@@ -1759,10 +1759,6 @@ function getUnitsPerPackage(item: SaleItemRow): number {
 
 function getBaseUnitQuantity(item: SaleItemRow): number {
   return Math.max(0, toNumber(item.base_unit_quantity ?? item.quantity * getUnitsPerPackage(item)));
-}
-
-function getReturnedBaseUnitQuantity(item: SaleItemRow, returnedPackages: number): number {
-  return Math.max(0, returnedPackages) * getUnitsPerPackage(item);
 }
 
 function getNetCogs(item: SaleItemRow): number {
