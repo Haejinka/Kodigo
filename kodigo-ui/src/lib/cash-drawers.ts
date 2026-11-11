@@ -1,6 +1,6 @@
 import type { ConfirmedOperationResult, OperationCommandV1 } from '@/types/operations';
 import type { CashCustodySnapshot, CashDrawer, CashierShift, PosTerminal } from '@/types/cash-drawers';
-import { createOperationCommand } from './pos-operations';
+import { createOperationCommand } from './pos-operations.ts';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const openingCashPattern = /^([0-9]{1,12})(?:\.([0-9]{1,2}))?$/;
