@@ -40,7 +40,7 @@ jobs:
         run: npm run test:unit
 
       - name: Install Chromium for IndexedDB acceptance tests
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium || npx playwright install chromium
 
       - name: Test encrypted offline storage in Chromium
         run: npm run test:e2e -- tests/e2e/offline-storage.spec.ts
@@ -144,7 +144,7 @@ jobs:
         run: npm ci
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium || npx playwright install chromium
 
       - name: Test deployed public login screen
         run: npm run test:e2e -- tests/e2e/harness.spec.ts --reporter=list
