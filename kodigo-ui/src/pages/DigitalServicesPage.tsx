@@ -14,6 +14,7 @@ import {
   buildManualDigitalServiceCommand,
   createDigitalProviderAccount,
   createDigitalServiceProduct,
+  addWalletBalance,
   applyDigitalWalletAdjustment,
   decideDigitalWalletAdjustment,
   getDigitalServiceWorkspace,
@@ -117,6 +118,9 @@ export function DigitalServicesPage() {
   const [additionalCharge, setAdditionalCharge] = useState('0.00');
   const [productBusy, setProductBusy] = useState(false);
   const [productOperationId, setProductOperationId] = useState('');
+  const [addBalanceAmount, setAddBalanceAmount] = useState('');
+  const [addBalanceNote, setAddBalanceNote] = useState('');
+  const [addBalanceBusy, setAddBalanceBusy] = useState(false);
   const [walletId, setWalletId] = useState('');
   const [walletAmount, setWalletAmount] = useState('');
   const [walletReason, setWalletReason] = useState('');
@@ -371,6 +375,21 @@ export function DigitalServicesPage() {
     } catch (error) {
       setLoadError(safeMessage(error, 'Setup did not finish. Run it again to continue where it stopped.'));
     } finally { setSetupBusy(false); }
+  };
+
+  const submitAddBalance = async () => {
+    if (!storeId || storeId === 'all' || !walletId) return;
+    setAddBalanceBusy(true);
+    setLoadError('');
+    try {
+      const result = await addWalletBalance({ storeId, walletId, amount: addBalanceAmount, note: addBalanceNote });
+      toast('success', `Balance added. New recorded balance: ${currency(result.result.balance_after)}.`);
+      setAddBalanceAmount('');
+      setAddBalanceNote('');
+      await reload();
+    } catch (error) {
+      setLoadError(safeMessage(error, 'Could not add balance.'));
+    } finally { setAddBalanceBusy(false); }
   };
 
   const requestWalletFunding = async () => {
@@ -666,6 +685,20 @@ export function DigitalServicesPage() {
                   </div>)}
                 </div> : <p className="text-sm text-[var(--muted-foreground)]">No manual provider accounts are set up yet.</p>}
                 {isAdmin && <div className="mt-5 border-t border-[var(--border)] pt-4">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]">Add balance <HelpTip text="Use this when you buy load from your supplier or want to set your starting GCash balance. The wallet balance goes up right away. Sales then subtract from it so you can see what is left." /></h3>
+                  <div className="mt-3 grid gap-3">
+                    <Field label="Wallet"><select value={walletId} onChange={(event) => setWalletId(event.target.value)} className={inputClass} disabled={addBalanceBusy || !walletOptions.length}>
+                      {walletOptions.map((account) => <option key={account.wallet_account_id} value={account.wallet_account_id ?? ''}>{account.account_label} · {currency(account.balance)}</option>)}
+                      {!walletOptions.length && <option value="">Set up your accounts first</option>}
+                    </select></Field>
+                    <Field label="Amount to add"><Input inputMode="decimal" value={addBalanceAmount} onChange={(event) => setAddBalanceAmount(event.target.value)} placeholder="0.00" disabled={addBalanceBusy} /></Field>
+                    <Field label="Note (optional)"><Input value={addBalanceNote} onChange={(event) => setAddBalanceNote(event.target.value)} maxLength={300} placeholder="Bought load from supplier" disabled={addBalanceBusy} /></Field>
+                    <Button size="sm" onClick={() => void submitAddBalance()} loading={addBalanceBusy} disabled={!walletId || !addBalanceAmount.trim()}>Add balance</Button>
+                  </div>
+                </div>}
+                {isAdmin && <details className="mt-5 border-t border-[var(--border)] pt-4">
+                  <summary className="cursor-pointer select-none text-sm font-semibold text-[var(--foreground)]">Optional: require a second admin's approval</summary>
+                  <div className="pt-3">
                   <h3 className="text-sm font-semibold text-[var(--foreground)]">Record wallet funding</h3>
                   <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">Opening balances and external top-ups require a second admin’s approval. The application then records the reference and evidence used to verify the real funding.</p>
                   <div className="mt-3 grid gap-3">
@@ -701,7 +734,8 @@ export function DigitalServicesPage() {
                       </article>;
                     })}
                   </div>}
-                </div>}
+                  </div>
+                </details>}
                 {isAdmin && <div className="mt-5 border-t border-[var(--border)] pt-4">
                   <h3 className="text-sm font-semibold text-[var(--foreground)]">Add a manual account</h3>
                   <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">The system stores only the provider name, a label, and an optional masked identifier. No credentials are collected.</p>

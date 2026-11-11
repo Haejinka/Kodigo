@@ -356,3 +356,24 @@ export async function resolveManualDigitalServiceOutcome(input: {
     wallet_movement_id: string | null; reconciliation_case_id: string | null; message: string;
   }>(data);
 }
+
+export async function addWalletBalance(input: {
+  storeId: string;
+  walletId: string;
+  amount: string;
+  note?: string | null;
+  operationId?: string;
+}) {
+  const command = newCommand({
+    operationId: input.operationId,
+    storeId: input.storeId,
+    payload: {
+      wallet_id: normalizeId(input.walletId, 'Wallet ID'),
+      amount: normalizeDigitalAmount(input.amount),
+      note: input.note?.trim() || null,
+    },
+  });
+  const { data, error } = await supabase.rpc('add_wallet_balance', { p_command: command });
+  if (error) throw error;
+  return parseConfirmedOperationResult<{ wallet_id: string; added: string; balance_after: string }>(data);
+}
