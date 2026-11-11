@@ -48,8 +48,8 @@ B06/B09/D03. Without escrow approval only cart capture allowed, not fulfilled of
 
 ## Implementation steps
 
-1. Reserve exact product/lot quantity online with immutable quote snapshot.
-2. Deduct reserved quantity from online availability without changing physical on-hand.
+1. Reserve exact product/lot quantity online with immutable quote snapshot for a `pending_stock` lease.
+2. Deduct reserved quantity from online availability without changing physical on-hand; once all requested grants and snapshots pass, atomically activate the lease.
 3. Implement ingest consume reducing on-hand and grant outstanding together; release only reconciled unused remainder.
 4. Test multiple terminals, online competing sales, lease expiry/lost device and changed catalog.
 5. Run this task's checks against the declared environment; record actual results, skipped checks and unresolved gates in TASK_STATUS. Do not enable a dependent feature while its accounting/authorization prerequisites are incomplete.

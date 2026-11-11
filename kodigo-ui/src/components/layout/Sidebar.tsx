@@ -5,6 +5,7 @@ import {
   Truck, BarChart2, Trophy, Settings, ChevronLeft,
   ChevronRight,
   FileSpreadsheet, Bell,
+  UsersRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
@@ -30,6 +31,7 @@ const navItems: NavItem[] = [
   { label: 'Suppliers', path: '/suppliers', icon: Truck, roles: ['admin'] },
   { label: 'Analytics', path: '/analytics', icon: BarChart2, roles: ['admin'] },
   { label: 'Rankings', path: '/rankings', icon: Trophy, roles: ['admin'] },
+  { label: 'Customers', path: '/customers', icon: UsersRound, roles: ['admin'] },
   { label: 'Sales Reports', path: '/reports', icon: FileSpreadsheet, roles: ['admin', 'inventory'] },
   { label: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
   // Admins access security from Settings; keep this shortcut for roles without the admin settings area.

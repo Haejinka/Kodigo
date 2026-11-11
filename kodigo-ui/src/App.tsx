@@ -46,6 +46,7 @@ import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { RankingsPage } from '@/pages/RankingsPage';
 import { ReportsPage } from '@/pages/ReportsPage';
 import { NotificationsPage } from '@/pages/NotificationsPage';
+import { CustomersPage } from '@/pages/CustomersPage';
 import { AddSupplierPage } from '@/pages/AddSupplierPage';
 import { EditSupplierPage } from '@/pages/EditSupplierPage';
 import {
@@ -337,6 +338,7 @@ function AppRoutes() {
                   <Route path="/suppliers/:id/edit" element={<RequireAdmin><EditSupplierPage /></RequireAdmin>} />
                   <Route path="/analytics" element={<RequireAdmin><AnalyticsPage /></RequireAdmin>} />
                   <Route path="/rankings" element={<RequireAdmin><RankingsPage /></RequireAdmin>} />
+                  <Route path="/customers" element={<RequireAdmin><CustomersPage /></RequireAdmin>} />
                   <Route path="/reports" element={<ReportsPage />} />
                   <Route path="/settings" element={<RequireAdmin><SettingsLayout /></RequireAdmin>}>
                     <Route index element={<StoresPosSettingsPage />} />

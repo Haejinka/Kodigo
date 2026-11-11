@@ -1,6 +1,6 @@
 # T44 — Add customer profile screens and optional checkout selection
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; the admin customer directory supports store-scoped search, profile view/create/edit/archive. Optional checkout selection remains gated on T26 because the current checkout still uses the legacy sale path. No customer data was created during implementation.
 **Task ID:** T44  
 **Feature:** Customer UI  
 **Priority:** Medium  

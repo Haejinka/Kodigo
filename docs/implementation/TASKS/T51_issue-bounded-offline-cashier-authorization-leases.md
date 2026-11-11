@@ -37,7 +37,7 @@ M12 lease immutable authority snapshot keyed cashier/terminal/shift, issue/expir
 
 ## Backend work
 
-issue/revoke/get_offline_lease online only, MFA-valid session/open shift. Default8h; no offline login, privilege elevation, approvals or digital service completion.
+`issue_offline_lease` creates an online-only `pending_stock` identity/time/sequence envelope for a cashier's own active shift. It cannot authorize an offline sale. T52 attaches exact lots and server-computed quote snapshots and atomically activates it. `revoke_offline_lease` and `get_offline_lease` require current store authorization; revocation never releases stock grants. Defaults are 8 hours and at most 100 terminal operations. No offline login, privilege elevation, approvals or digital service completion.
 
 ## Frontend work
 
