@@ -28,6 +28,7 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 - `kodigo-ui/index.html`
 - `kodigo-ui/playwright.config.ts`
 - `.github/workflows/ci.yml`
+- `kodigo-ui/tests/e2e/harness.spec.ts`
 
 ## New files
 
@@ -61,8 +62,8 @@ A07/B09. Cold offline start unlocks existing lease only; no fresh offline login;
 1. Register versioned SW with explicit generated static asset allowlist and no Supabase/network API cache — implemented.
 2. Support SPA navigation fallback and first-online install — implemented.
 3. Gate the update prompt on IndexedDB schema, queued command contract, lease encryption, and key-wrapper compatibility; require a single open tab before immediate activation — implemented.
-4. Exercise built-bundle offline reload and API cache exclusion in hosted Chromium CI; test prior install/expired lease/update combinations as their offline authorization workflows become available.
-5. Verify the deployed HTTPS origin after push and record actual results, skipped checks, and remaining gates in TASK_STATUS. Do not enable a dependent feature while its accounting/authorization prerequisites are incomplete.
+4. Exercise built-bundle offline reload and API cache exclusion in hosted Chromium CI, then run the same read-only offline launch smoke against the deployed HTTPS origin; test prior install/expired lease/update combinations as their offline authorization workflows become available.
+5. Record actual results, skipped checks, and remaining gates in TASK_STATUS. Do not enable a dependent feature while its accounting/authorization prerequisites are incomplete.
 
 ## Edge cases
 

@@ -1,7 +1,12 @@
 import { expect, test } from 'playwright/test';
 
 test('previously loaded static app shell opens offline without caching API responses', async ({ page, context }) => {
+  const browserErrors: string[] = [];
+  page.on('pageerror', (error) => browserErrors.push(error.message));
+  page.on('requestfailed', (request) => browserErrors.push(`${request.method()} ${request.url()}: ${request.failure()?.errorText}`));
+
   await page.goto('/login');
+  await expect(page.getByText('Sign in to your account')).toBeVisible();
   await page.evaluate(async () => {
     await navigator.serviceWorker.register('/service-worker.js', { scope: '/' });
     await navigator.serviceWorker.ready;
@@ -37,7 +42,28 @@ test('previously loaded static app shell opens offline without caching API respo
   expect(apiWasCached).toBe(false);
 
   await context.setOffline(true);
-  await page.reload();
+  let reloadError: string | undefined;
+  try {
+    await page.reload();
+  } catch (error) {
+    reloadError = error instanceof Error ? error.message : String(error);
+  }
+  const offlineState = await page.evaluate(async () => {
+    const registration = await navigator.serviceWorker.getRegistration('/');
+    const cacheNames = (await caches.keys()).filter((name) => name.startsWith('kodigo-shell-'));
+    const cachedPaths = (await Promise.all(cacheNames.map(async (name) => (await caches.open(name)).keys())))
+      .flat()
+      .map((request) => new URL(request.url).pathname);
+    return {
+      controller: navigator.serviceWorker.controller?.scriptURL ?? null,
+      workerState: registration?.active?.state ?? null,
+      rootHtml: document.querySelector('#root')?.innerHTML ?? null,
+      cachedPaths,
+    };
+  });
+  if (!offlineState.rootHtml || !offlineState.rootHtml.trim()) {
+    console.error('Offline app shell diagnostics', JSON.stringify({ reloadError, offlineState, browserErrors }));
+  }
   await expect(page.locator('#root > *').first()).toBeVisible();
   await expect(page.getByText('Sign in to your account')).toBeVisible();
 });
