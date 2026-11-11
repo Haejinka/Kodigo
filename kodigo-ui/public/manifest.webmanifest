@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "KodiGo POS",
+  "short_name": "KodiGo",
+  "description": "KodiGo point of sale and inventory application",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/kodigo-icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

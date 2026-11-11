@@ -42,6 +42,11 @@ jobs:
       - name: Test encrypted offline storage in Chromium
         run: npm run test:e2e -- tests/e2e/offline-storage.spec.ts
 
+      - name: Test production offline app shell in Chromium
+        run: npm run test:e2e -- tests/e2e/offline-app-shell.spec.ts
+        env:
+          KODIGO_E2E_PRODUCTION_PREVIEW: 'true'
+
       - name: Smoke test deployed login screen (read-only)
         run: npm run test:e2e -- tests/e2e/harness.spec.ts
         env:

@@ -1,6 +1,6 @@
 # T56 — Add compatible offline app-shell caching and update gating
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; versioned static shell caching, the update notice/gate, and production-preview browser coverage are implemented. Hosted validation and deployed-site verification remain pending.  
 **Task ID:** T56  
 **Feature:** Offline cold launch  
 **Priority:** Medium  
@@ -26,6 +26,8 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 - `kodigo-ui/src/main.tsx`
 - `kodigo-ui/vite.config.ts`
 - `kodigo-ui/index.html`
+- `kodigo-ui/playwright.config.ts`
+- `.github/workflows/ci.yml`
 
 ## New files
 
@@ -33,6 +35,10 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 - `kodigo-ui/public/manifest.webmanifest`
 - `kodigo-ui/src/lib/app-shell.ts`
 - `kodigo-ui/tests/e2e/offline-app-shell.spec.ts`
+
+## Additional implementation artifact
+
+- `kodigo-ui/scripts/service-worker-template.js` — emitted by Vite with a content-specific cache name and exact built-asset allowlist.
 
 ## Database changes
 
@@ -52,11 +58,11 @@ A07/B09. Cold offline start unlocks existing lease only; no fresh offline login;
 
 ## Implementation steps
 
-1. Register versioned SW with explicit static asset allowlist and no Supabase/network API cache.
-2. Support SPA navigation fallback and first-online install.
-3. Gate activation/update by queue contract and durable data compatibility; preserve recovery after update.
-4. Test offline reload, no prior install, expired lease and old/new app with pending queue.
-5. Run this task's checks against the declared environment; record actual results, skipped checks and unresolved gates in TASK_STATUS. Do not enable a dependent feature while its accounting/authorization prerequisites are incomplete.
+1. Register versioned SW with explicit generated static asset allowlist and no Supabase/network API cache — implemented.
+2. Support SPA navigation fallback and first-online install — implemented.
+3. Gate the update prompt on IndexedDB schema, queued command contract, lease encryption, and key-wrapper compatibility; require a single open tab before immediate activation — implemented.
+4. Exercise built-bundle offline reload and API cache exclusion in hosted Chromium CI; test prior install/expired lease/update combinations as their offline authorization workflows become available.
+5. Verify the deployed HTTPS origin after push and record actual results, skipped checks, and remaining gates in TASK_STATUS. Do not enable a dependent feature while its accounting/authorization prerequisites are incomplete.
 
 ## Edge cases
 
@@ -72,7 +78,7 @@ Supported device can reopen previously installed shell offline without leaking A
 
 ## Verification commands
 
-Commands involving new harnesses/tests become available through T01 or this task; they are future verification instructions, not evidence they ran in planning. Set isolated test variables according to TEST_MATRIX; never use production credentials.
+The offline shell browser test runs against Vite's production preview in hosted CI. No local app test/build/lint command is run under the user's instruction to verify deployed changes remotely.
 
 ```text
 npm run typecheck

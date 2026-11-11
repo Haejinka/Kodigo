@@ -4,6 +4,7 @@ const baseURL = process.env.KODIGO_E2E_BASE_URL || 'http://127.0.0.1:4173';
 const parsedBaseURL = new URL(baseURL);
 const loopbackHosts = new Set(['localhost', '127.0.0.1', '::1']);
 const isLoopback = loopbackHosts.has(parsedBaseURL.hostname);
+const useProductionPreview = process.env.KODIGO_E2E_PRODUCTION_PREVIEW === 'true';
 
 if (parsedBaseURL.username || parsedBaseURL.password) {
   throw new Error('KODIGO_E2E_BASE_URL must not contain credentials.');
@@ -36,7 +37,9 @@ export default defineConfig({
   ],
   ...(isLoopback ? {
     webServer: {
-      command: 'npm run dev -- --host 127.0.0.1 --port 4173 --strictPort',
+      command: useProductionPreview
+        ? 'npm run preview -- --host 127.0.0.1 --port 4173 --strictPort'
+        : 'npm run dev -- --host 127.0.0.1 --port 4173 --strictPort',
       url: baseURL,
       reuseExistingServer: false,
       timeout: 30_000,
