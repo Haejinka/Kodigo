@@ -3,6 +3,8 @@ import type { DBSchema, IDBPDatabase } from 'idb';
 import { supabase } from './supabase';
 import { createOperationCommand, parseConfirmedOperationResult } from './pos-operations.ts';
 import { isInventoryLedgerEnabled } from './inventory-ledger';
+import { listOfflineSales, markOfflineSaleError, queueOfflineSale, removeOfflineSale } from './offline-sales';
+import { linkSaleCustomer } from './drawer';
 import type { Sale, Product } from '@/types';
 
 interface PosDB extends DBSchema {
@@ -271,27 +273,64 @@ export class SaleConfirmationUncertainError extends Error {
   }
 }
 
-/** A sale is complete only after the server returns its committed result. */
-export async function processSale(sale: Sale): Promise<Sale> {
-  if (typeof window !== 'undefined' && !navigator.onLine) {
-    throw new SaleConfirmationUncertainError(
-      'This terminal is offline. No sale was submitted; keep the cart and reconnect before retrying.',
-    );
-  }
+/** Submit one sale online. Server is idempotent on sale id, so retrying is safe. */
+async function submitSaleOnline(sale: Sale): Promise<Sale> {
   const inventoryLedgerEnabled = await isInventoryLedgerEnabled(sale.storeId);
   try {
     return inventoryLedgerEnabled
       ? await pushSaleToInventoryLedger(sale)
       : await pushSaleToSupabase(sale);
   } catch (err: any) {
-    if (isDatabaseRejection(err)) {
-      throw err;
-    }
+    if (isDatabaseRejection(err)) throw err;
     console.error('[Sync] Server response for sale was not received:', sale.id, err);
     throw new SaleConfirmationUncertainError(
-      'The server response was not received, so this sale may already have been committed. Keep this payment unchanged and retry the same request to check its result.',
+      'The server response was not received, so this sale may already have been committed.',
     );
   }
+}
+
+/**
+ * Online: completed only after the server confirms. Offline (or connection lost mid-request):
+ * the sale is saved on this device, flagged `pendingSync`, and uploaded automatically when back online.
+ */
+export async function processSale(sale: Sale, customerId: string | null = null): Promise<Sale & { pendingSync?: boolean }> {
+  const offline = typeof window !== 'undefined' && !navigator.onLine;
+  if (!offline) {
+    try {
+      const recorded = await submitSaleOnline(sale);
+      if (customerId) void linkSaleCustomer(recorded.id, customerId).catch((e) => console.warn('Customer link failed', e));
+      return recorded;
+    } catch (err) {
+      if (!(err instanceof SaleConfirmationUncertainError)) throw err;
+    }
+  }
+  await queueOfflineSale(sale, customerId);
+  return { ...sale, pendingSync: true };
+}
+
+let syncing = false;
+/** Upload queued offline sales for the signed-in cashier, oldest first. */
+export async function syncOfflineSales(userId: string): Promise<number> {
+  if (syncing || typeof window === 'undefined' || !navigator.onLine) return 0;
+  syncing = true;
+  let done = 0;
+  try {
+    const queued = (await listOfflineSales(userId)).sort((a, b) => a.queuedAt.localeCompare(b.queuedAt));
+    for (const q of queued) {
+      try {
+        const recorded = await submitSaleOnline(q.sale);
+        if (q.customerId) await linkSaleCustomer(recorded.id, q.customerId).catch(() => undefined);
+        await removeOfflineSale(q.sale.id);
+        done += 1;
+      } catch (err: any) {
+        if (err instanceof SaleConfirmationUncertainError) break; // still offline; try later
+        await markOfflineSaleError(q, err?.message ?? 'Rejected by server'); // e.g. stock ran out; needs admin review
+      }
+    }
+  } finally {
+    syncing = false;
+  }
+  return done;
 }
 
 // Global listener to sync when network comes back

@@ -35,6 +35,7 @@ import {
   updateCustomer,
 } from '@/lib/customers';
 import { useAuthStore } from '@/stores/authStore';
+import { CustomerHistoryPanel, CustomerRankingsPanel } from '@/components/customers/CustomerInsights';
 import type { CustomerOperationCommand, CustomerProfile, CustomerSummary } from '@/types/customers';
 
 interface CustomerFormValues {
@@ -364,6 +365,8 @@ export function CustomersPage() {
             </p>
           </Card>
 
+          {storeId && <CustomerRankingsPanel storeId={storeId} />}
+
           {searchError && <Alert variant="destructive"><AlertDescription>{searchError}</AlertDescription></Alert>}
 
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
@@ -467,6 +470,7 @@ export function CustomersPage() {
                       </Button>
                     )}
                   </div>
+                  <CustomerHistoryPanel customerId={selectedCustomer.id} />
                 </div>
               ) : (
                 <EmptyState

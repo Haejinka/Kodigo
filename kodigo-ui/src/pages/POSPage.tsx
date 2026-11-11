@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Clock, Store, Hash, LogOut, ReceiptText, LayoutDashboard, Shield, Moon, Sun, Smartphone } from 'lucide-react';
 import { ProductSearchPanel } from '@/components/pos/ProductSearchPanel';
 import { Cart } from '@/components/pos/Cart';
+import { OfflineSyncBanner } from '@/components/pos/OfflineSyncBanner';
 import { PaymentModal } from '@/components/pos/PaymentModal';
 import { TransactionLifecyclePanel } from '@/components/pos/TransactionLifecyclePanel';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -230,6 +231,7 @@ export function POSPage() {
           <span className="hidden sm:inline">Logout</span>
         </button>
       </header>
+      <OfflineSyncBanner />
 
       {/* Main Split Layout */}
       <div className="flex-1 flex overflow-hidden">

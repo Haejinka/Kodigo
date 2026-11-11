@@ -21,6 +21,8 @@ import {
 } from '@/types';
 import type { PaymentMethod, ReceiptSnapshot, Sale } from '@/types';
 import { fetchReceiptBySaleId, printReceipt, receiptSnapshotFromSale } from '@/lib/receipts';
+import { CheckoutCustomerPicker } from '@/components/pos/CheckoutCustomerPicker';
+import type { PickedCustomer } from '@/components/pos/CheckoutCustomerPicker';
 import { ReceiptPreviewModal } from '@/components/receipts/ReceiptPreviewModal';
 
 interface PaymentModalProps {
@@ -52,6 +54,8 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   } = useCartStore();
   const { user, profile, stores } = useAuthStore();
 
+  const [customer, setCustomer] = useState<PickedCustomer | null>(null);
+  const [pendingSync, setPendingSync] = useState(false);
   const [cashInput, setCashInput] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [paymentReference, setPaymentReference] = useState('');
@@ -181,7 +185,8 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
 
     let recordedSale: Sale;
     try {
-      recordedSale = await processSale(sale);
+      recordedSale = await processSale(sale, customer?.id ?? null);
+      setPendingSync(Boolean((recordedSale as { pendingSync?: boolean }).pendingSync));
     } catch (err) {
       console.error('Failed to record POS sale:', err);
       setUncertainSale(err instanceof SaleConfirmationUncertainError ? sale : null);
@@ -201,7 +206,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
     completedSaleIdRef.current = recordedSale.id;
     setStep('confirmed');
     setProcessing(false);
-    toast('success', 'Payment completed and saved.');
+    toast('success', (recordedSale as { pendingSync?: boolean }).pendingSync ? 'Offline: sale saved on this device and will sync automatically.' : 'Payment completed and saved.');
 
     void (async () => { try {
       useProductStore.setState((state) => ({
@@ -283,7 +288,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
           });
         }
       }
-      if (activeStore) {
+      if (activeStore && !(recordedSale as { pendingSync?: boolean }).pendingSync) {
         try {
           const receipt = await fetchReceiptBySaleId(recordedSale.id);
           if (completedSaleIdRef.current === recordedSale.id) {
@@ -302,6 +307,8 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
   const handleDone = () => {
     clearCart();
     setCashInput('');
+    setCustomer(null);
+    setPendingSync(false);
     setPaymentMethod('cash');
     setPaymentReference('');
     setStep('payment');
@@ -337,6 +344,9 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
         {step === 'payment' ? (
           <>
             <div className="min-h-0 overflow-y-auto overscroll-contain p-6 space-y-5">
+              {useAuthStore.getState().activeStoreId && useAuthStore.getState().activeStoreId !== 'all' && (
+                <CheckoutCustomerPicker storeId={useAuthStore.getState().activeStoreId as string} value={customer} onChange={setCustomer} disabled={processing || Boolean(uncertainSale)} />
+              )}
               <div className="bg-gray-50 rounded-xl p-4 space-y-2">
                 <div role="region" aria-label="Order items and discounts" tabIndex={0} className="max-h-[30dvh] space-y-2 overflow-y-auto overscroll-contain [overflow-wrap:anywhere]">
                   {items.map((item) => {
@@ -514,7 +524,7 @@ export function PaymentModal({ open, onClose, onSuccess }: PaymentModalProps) {
               </div>
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <span>Receipt</span>
-                <span className="font-mono text-gray-600">{completedSale?.receiptNumber ?? completedSale?.id ?? '-'}</span>
+                <span className="font-mono text-gray-600">{completedSale?.receiptNumber ?? (pendingSync ? 'Pending sync' : completedSale?.id) ?? '-'}</span>
               </div>
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <span>Time</span>

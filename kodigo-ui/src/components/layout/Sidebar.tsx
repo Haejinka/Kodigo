@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
+  Banknote,
   LayoutDashboard, ShoppingCart, Package,
   Truck, BarChart2, Trophy, Settings, ChevronLeft,
   ChevronRight,
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
   { label: 'Suppliers', path: '/suppliers', icon: Truck, roles: ['admin'] },
   { label: 'Analytics', path: '/analytics', icon: BarChart2, roles: ['admin'] },
   { label: 'Rankings', path: '/rankings', icon: Trophy, roles: ['admin'] },
+  { label: 'Closeouts & Approvals', path: '/closeouts', icon: Banknote, roles: ['admin'] },
   { label: 'Customers', path: '/customers', icon: UsersRound, roles: ['admin'] },
   { label: 'Sales Reports', path: '/reports', icon: FileSpreadsheet, roles: ['admin', 'inventory'] },
   { label: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },

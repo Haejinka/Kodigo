@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Banknote, RotateCcw, Undo2, X, ReceiptText, LockKeyhole, RefreshCw, Printer } from 'lucide-react';
+import { RotateCcw, Undo2, X, ReceiptText, RefreshCw, Printer, Check } from 'lucide-react';
+import { DrawerPanel } from '@/components/pos/DrawerPanel';
+import { decideAdjustment, listAdjustmentRequests, requestAdjustment } from '@/lib/drawer';
+import type { AdjustmentRequest } from '@/lib/drawer';
 import { Button } from '@/components/shared/Button';
 import { useToast } from '@/components/shared/Toast';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import {
-  closeCashierShift,
   fetchRecentSales,
   fetchSaleItems,
   refundSale,
@@ -47,10 +49,7 @@ export function TransactionLifecyclePanel({ open, storeId, onClose }: Transactio
   const [processing, setProcessing] = useState(false);
   const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
   const [returnDraft, setReturnDraft] = useState<Record<string, { quantity: number; restock: boolean }>>({});
-  const [openingCash, setOpeningCash] = useState('');
-  const [countedCash, setCountedCash] = useState('');
-  const [closeoutNotes, setCloseoutNotes] = useState('');
-  const [closeoutOpen, setCloseoutOpen] = useState(false);
+  const [requests, setRequests] = useState<AdjustmentRequest[]>([]);
   const [receiptPreview, setReceiptPreview] = useState<{ saleId: string; snapshot: ReceiptSnapshot } | null>(null);
 
   const isAdmin = role === 'admin';
@@ -59,6 +58,7 @@ export function TransactionLifecyclePanel({ open, storeId, onClose }: Transactio
     setLoading(true);
     try {
       setSales(await fetchRecentSales(storeId));
+      setRequests(await listAdjustmentRequests(storeId).catch(() => []));
     } catch (err) {
       toast('error', err instanceof Error ? err.message : 'Failed to load transactions.');
     } finally {
@@ -133,7 +133,21 @@ export function TransactionLifecyclePanel({ open, storeId, onClose }: Transactio
 
     setProcessing(true);
     try {
-      if (action === 'void') {
+      if (!isAdmin) {
+        const items = Object.entries(returnDraft)
+          .filter(([, line]) => line.quantity > 0)
+          .map(([saleItemId, line]) => ({ saleItemId, quantity: line.quantity, restock: line.restock }));
+        if (action === 'return' && items.length === 0) throw new Error('Choose at least one returned item.');
+        await requestAdjustment({
+          saleId: target.id,
+          kind: action,
+          reason: reason.trim(),
+          amount: action === 'refund' ? parseFloat(amount) || 0 : undefined,
+          method,
+          items: action === 'return' ? items : undefined,
+        });
+        toast('success', 'Request sent. An admin must approve it before anything changes.');
+      } else if (action === 'void') {
         await voidSale(target.id, reason.trim());
         toast('success', 'Sale voided and stock restored.');
       } else if (action === 'refund') {
@@ -162,23 +176,15 @@ export function TransactionLifecyclePanel({ open, storeId, onClose }: Transactio
     }
   };
 
-  const submitCloseout = async () => {
+  const decide = async (request: AdjustmentRequest, approve: boolean) => {
+    const note = approve ? undefined : (window.prompt('Reason for rejecting (optional)') ?? undefined);
     setProcessing(true);
     try {
-      const closeout = await closeCashierShift({
-        storeId,
-        openingCash: parseFloat(openingCash) || 0,
-        countedCash: parseFloat(countedCash) || 0,
-        notes: closeoutNotes.trim() || undefined,
-      });
-      toast('success', `Closeout saved. Variance: ${formatCurrency(closeout.variance)}.`);
-      setOpeningCash('');
-      setCountedCash('');
-      setCloseoutNotes('');
-      setCloseoutOpen(false);
+      await decideAdjustment(request.id, approve, note);
+      toast('success', approve ? 'Approved and applied.' : 'Request rejected.');
       await refresh();
     } catch (err) {
-      toast('error', err instanceof Error ? err.message : 'Failed to close cashier shift.');
+      toast('error', err instanceof Error ? err.message : 'Could not decide request.');
     } finally {
       setProcessing(false);
     }
@@ -204,49 +210,32 @@ export function TransactionLifecyclePanel({ open, storeId, onClose }: Transactio
         </header>
 
         <div className="px-5 py-4 border-b border-gray-100">
-          <button
-            type="button"
-            onClick={() => setCloseoutOpen((value) => !value)}
-            className="w-full flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-left hover:bg-gray-50"
-          >
-            <span className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-              <Banknote className="w-4 h-4 text-green-600" />
-              Cashier Closeout
-            </span>
-            <span className="text-xs text-gray-500">Count drawer</span>
-          </button>
-
-          {closeoutOpen && (
-            <div className="grid gap-3 sm:grid-cols-3 mt-3">
-              <input
-                type="number"
-                min={0}
-                value={openingCash}
-                onChange={(e) => setOpeningCash(e.target.value)}
-                placeholder="Opening cash"
-                className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <input
-                type="number"
-                min={0}
-                value={countedCash}
-                onChange={(e) => setCountedCash(e.target.value)}
-                placeholder="Counted cash"
-                className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <Button onClick={submitCloseout} loading={processing} disabled={!countedCash} variant="primary">
-                Close Shift
-              </Button>
-              <textarea
-                value={closeoutNotes}
-                onChange={(e) => setCloseoutNotes(e.target.value)}
-                placeholder="Notes"
-                className="sm:col-span-3 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                rows={2}
-              />
-            </div>
-          )}
+          <DrawerPanel storeId={storeId} />
         </div>
+
+        {requests.some((r) => r.state === 'pending' || isAdmin) && (
+          <div className="px-5 py-3 border-b border-gray-100 max-h-56 overflow-y-auto">
+            <p className="text-sm font-semibold text-gray-700 mb-2">{isAdmin ? 'Approval requests' : 'My requests'}</p>
+            <ul className="space-y-2">
+              {requests.slice(0, 20).map((r) => (
+                <li key={r.id} className="rounded-lg border border-gray-200 px-3 py-2 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold capitalize">{r.kind} · {r.receipt_number ?? r.sale_id.slice(0, 8)} · {formatCurrency(r.kind === 'refund' && r.amount ? r.amount : r.sale_total)}</span>
+                    <span className="capitalize text-gray-500">{r.state}</span>
+                  </div>
+                  <p className="text-gray-500 mt-0.5">By {r.requester_name ?? 'cashier'} — {r.reason}</p>
+                  {r.decision_note && <p className="text-gray-500">Note: {r.decision_note}</p>}
+                  {isAdmin && r.state === 'pending' && (
+                    <div className="flex gap-2 mt-2">
+                      <Button size="sm" variant="primary" icon={<Check className="w-3 h-3" />} onClick={() => void decide(r, true)}>Approve</Button>
+                      <Button size="sm" variant="danger" onClick={() => void decide(r, false)}>Reject</Button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto">
           <div className="px-5 py-3 flex items-center justify-between">
@@ -284,8 +273,7 @@ export function TransactionLifecyclePanel({ open, storeId, onClose }: Transactio
                     >
                       <Printer className="w-4 h-4" />
                     </button>
-                    {isAdmin ? (
-                      <div className="flex gap-1">
+                    <div className="flex gap-1">
                         <button
                           onClick={() => beginAction('void', sale)}
                           disabled={sale.status !== 'completed'}
@@ -310,13 +298,7 @@ export function TransactionLifecyclePanel({ open, storeId, onClose }: Transactio
                         >
                           <ReceiptText className="w-4 h-4" />
                         </button>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-gray-400 flex items-center gap-1">
-                        <LockKeyhole className="w-3 h-3" />
-                        Admin
-                      </span>
-                    )}
+                    </div>
                   </div>
                 </li>
               ))}
@@ -431,7 +413,7 @@ export function TransactionLifecyclePanel({ open, storeId, onClose }: Transactio
 
             <div className="mt-4 flex justify-end">
               <Button variant="primary" onClick={submitAction} loading={processing}>
-                Save {action}
+                {isAdmin ? `Save ${action}` : `Request ${action} approval`}
               </Button>
             </div>
           </div>
