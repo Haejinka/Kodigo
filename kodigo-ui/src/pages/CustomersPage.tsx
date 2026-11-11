@@ -183,7 +183,7 @@ export function CustomersPage() {
     return () => {
       current = false;
     };
-  }, [selectedId, storeId]);
+  }, [refreshKey, selectedId, storeId]);
 
   const openCreate = () => {
     setEditingCustomer(null);

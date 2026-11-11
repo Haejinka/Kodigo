@@ -1,6 +1,6 @@
 # T43 — Add store-scoped customer identity without rewriting history
 
-**Status:** In progress; additive schema and guarded RPCs are applied to the existing deployed project. Customer records and sale links remain empty. The deployed catalog check passed. Hosted typecheck, lint, build, unit, Chromium offline-storage, deployed login smoke, and print-agent validation passed in run #130; both Vercel deployments succeeded. Role-specific create/update/archive/association, operation replay, and foreign-store behavior remain unverified because no customer write was made to business data. Contact retention/redaction stays gated by D07.
+**Status:** In progress; additive schema and guarded RPCs are applied to the existing deployed project. Catalog checks passed, and one clearly labeled no-contact test customer exists from T44 live verification; its create and update commands succeeded after the T02 deferred-trigger fix. Sale links remain empty. Role-specific archive/association, operation replay, and foreign-store behavior remain unverified. Contact retention/redaction stays gated by D07.
 **Task ID:** T43  
 **Feature:** Customer foundation  
 **Priority:** Medium  

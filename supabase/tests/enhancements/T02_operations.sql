@@ -5,6 +5,7 @@ DECLARE
   v_finish_signature regprocedure;
   v_begin_signature regprocedure;
   v_get_signature regprocedure;
+  v_assert_signature regprocedure;
 BEGIN
   SELECT relation.relrowsecurity
   INTO v_operations_rls
@@ -42,6 +43,7 @@ BEGIN
   v_begin_signature := 'private.begin_pos_operation(text,jsonb)'::regprocedure;
   v_finish_signature := 'private.finish_pos_operation(uuid,uuid,text,text,text,text,text,bigint,jsonb)'::regprocedure;
   v_get_signature := 'public.get_pos_operation(uuid,uuid)'::regprocedure;
+  v_assert_signature := 'private.assert_pos_operation_committed()'::regprocedure;
   IF pg_catalog.has_function_privilege('authenticated', v_begin_signature, 'EXECUTE')
     OR pg_catalog.has_function_privilege('authenticated', v_finish_signature, 'EXECUTE') THEN
     RAISE EXCEPTION 'Private operation helpers must not be executable by authenticated clients';
@@ -58,6 +60,20 @@ BEGIN
       AND proc.proconfig @> ARRAY['search_path=""']::text[]
   ) THEN
     RAISE EXCEPTION 'get_pos_operation must be a blank-search-path security definer';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_proc AS proc
+    WHERE proc.oid = v_assert_signature
+      AND proc.prosecdef
+      AND proc.proconfig @> ARRAY['search_path=""']::text[]
+  ) THEN
+    RAISE EXCEPTION 'Deferred operation integrity trigger must read through a blank-search-path security definer';
+  END IF;
+  IF pg_catalog.has_function_privilege('anon', v_assert_signature, 'EXECUTE')
+    OR pg_catalog.has_function_privilege('authenticated', v_assert_signature, 'EXECUTE')
+    OR pg_catalog.has_function_privilege('service_role', v_assert_signature, 'EXECUTE') THEN
+    RAISE EXCEPTION 'Deferred operation integrity trigger must not be directly executable by API roles';
   END IF;
 
   IF NOT EXISTS (

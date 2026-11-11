@@ -1,6 +1,6 @@
 # T02 — Add operation identity and replay contract
 
-**Status:** In progress; typed command/result contracts, server operation tables/helpers, and the read-result RPC are implemented and applied to the existing deployed project. Domain write wrappers and isolated replay/concurrency proof remain pending.
+**Status:** In progress; typed command/result contracts, server operation tables/helpers, the read-result RPC, and a deployed customer command are implemented on the existing project. A live customer write exposed an invoker-context bug in the deferred commit trigger; the additive forward fix now runs that read-only check with a blank-search-path security definer while keeping direct table/function grants denied. Isolated replay/concurrency proof remains pending.
 **Task ID:** T02  
 **Feature:** Transaction foundation  
 **Priority:** Critical  
@@ -32,6 +32,7 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 - `supabase/tests/enhancements/T02_operations.sql`
 - `kodigo-ui/scripts/unit/pos-operations.test.mjs`
 - CLI-generated migration: `supabase/migrations/<generated-timestamp>_t02_pos_operations.sql`. Run the pinned CLI's verified `migration new t02_pos_operations` command; record its exact returned path in SCHEMA_BASELINE/TASK_STATUS. Do not hand-invent the timestamp.
+- Forward fix: CLI generated `supabase/migrations/20261111064855_t02_fix_pos_operation_commit_trigger_context.sql`; Supabase applied history version `20261111064952`, checked in as `supabase/migrations/20261111064952_t02_fix_pos_operation_commit_trigger_context.sql`.
 
 ## Database changes
 
@@ -52,10 +53,11 @@ A02, B01/B09. Lost response repeats same ID; different body/actor/store rejects,
 ## Implementation steps
 
 1. Create additive schema/grants/RLS and private helpers with blank search_path.
-2. Define validation/error details and canonical JSON fixtures.
-3. Implement read-result RPC and typed adapter returning decimal strings.
-4. Test concurrent identical commands, changed payload and failure rollback.
-5. Run this task's checks against the declared environment; record actual results, skipped checks and unresolved gates in TASK_STATUS. Do not enable a dependent feature while its accounting/authorization prerequisites are incomplete.
+2. Keep `private.assert_pos_operation_committed()` as a deferred trigger with no API execute grant; it must use a blank-search-path security definer because API roles intentionally have no `SELECT` on `pos_operations`.
+3. Define validation/error details and canonical JSON fixtures.
+4. Implement read-result RPC and typed adapter returning decimal strings.
+5. Test concurrent identical commands, changed payload and failure rollback.
+6. Run this task's checks against the declared environment; record actual results, skipped checks and unresolved gates in TASK_STATUS. Do not enable a dependent feature while its accounting/authorization prerequisites are incomplete.
 
 ## Edge cases
 
