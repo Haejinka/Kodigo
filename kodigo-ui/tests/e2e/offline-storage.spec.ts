@@ -619,6 +619,136 @@ test('outbox attempts and retry states persist atomically and prevent overlappin
   });
 });
 
+test('an interrupted send survives a browser restart without replaying or consuming stock twice', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const {
+      beginOfflineOperationAttempt,
+      decryptQueuedOperation,
+      enqueueOfflineOperation,
+      offlineScopeKey,
+      openOfflineDatabase,
+    } = await import('/src/lib/offline-db.ts');
+    const { createOfflineMasterKey, OfflineKeySession, unlockOfflineMasterKey } = await import('/src/lib/offline-crypto.ts');
+    const name = `offline-crash-resume-${crypto.randomUUID()}`;
+    const scope = {
+      storeId: '22222222-2222-4222-8222-222222222222',
+      actorId: '33333333-3333-4333-8333-333333333333',
+      terminalId: '44444444-4444-4444-8444-444444444444',
+    };
+    const leaseId = '55555555-5555-4555-8555-555555555555';
+    const shiftId = '77777777-7777-4777-8777-777777777777';
+    const grantId = '66666666-6666-4666-8666-666666666666';
+    const operationId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    const now = new Date('2026-11-11T00:00:00.000Z');
+    const passphrase = 'crash-resume test-only passphrase';
+    const material = await createOfflineMasterKey(passphrase, scope);
+    const firstKeySession = new OfflineKeySession(material.key, 60_000);
+    const firstDatabase = await openOfflineDatabase({ name });
+    await firstDatabase.put('terminal_meta', {
+      scope_key: offlineScopeKey(scope), store_id: scope.storeId, actor_id: scope.actorId,
+      terminal_id: scope.terminalId, lease_id: leaseId, next_sequence: 1,
+      last_acknowledged_sequence: 0, wrapped_master_key: material.wrapped,
+      updated_at_local: now.toISOString(),
+    });
+    await firstDatabase.put('offline_leases', {
+      id: leaseId, store_id: scope.storeId, terminal_id: scope.terminalId,
+      shift_id: shiftId, cashier_id: scope.actorId, issued_at: now.toISOString(),
+      expires_at: '2030-01-01T00:00:00.000Z', last_mfa_at: now.toISOString(),
+      state: 'active', catalog_version: 'v1', price_policy_hash: 'hash',
+      sequence_start: 1, sequence_end: 10, contract_version: 1,
+    });
+    await firstDatabase.put('stock_grants', {
+      id: grantId, store_id: scope.storeId, terminal_id: scope.terminalId, lease_id: leaseId,
+      product_id: '99999999-9999-4999-8999-999999999999',
+      location_id: '88888888-8888-4888-8888-888888888888', lot_id: grantId,
+      quantity_allocated: 2, quantity_consumed: 0, quantity_released: 0,
+      state: 'active', version: 1,
+    });
+
+    const command = {
+      contract_version: 1 as const,
+      operation_id: operationId,
+      store_id: scope.storeId,
+      terminal_id: scope.terminalId,
+      shift_id: shiftId,
+      occurred_at_local: now.toISOString(),
+      terminal_sequence: 1,
+      expected_version: null,
+      payload: { total: '8.00' },
+    };
+    await enqueueOfflineOperation({
+      database: firstDatabase,
+      keySession: firstKeySession,
+      scope,
+      command,
+      operationKind: 'physical_sale',
+      leaseId,
+      grantConsumptions: [{ grantId, quantity: 1 }],
+      now,
+    });
+    await beginOfflineOperationAttempt({ database: firstDatabase, scope, operationId, now });
+
+    // Closing the first connection/key session models a tab or browser process exiting mid-request.
+    firstKeySession.lock();
+    firstDatabase.close();
+
+    const resumedDatabase = await openOfflineDatabase({ name });
+    const resumedOperation = await resumedDatabase.get('operations_outbox', operationId);
+    const resumedMetadata = await resumedDatabase.get('terminal_meta', offlineScopeKey(scope));
+    const resumedGrant = await resumedDatabase.get('stock_grants', grantId);
+    const resumedEvents = await resumedDatabase.getAll('offline_grant_events');
+    const recoveredKey = await unlockOfflineMasterKey(passphrase, material.wrapped, scope);
+    const resumedKeySession = new OfflineKeySession(recoveredKey, 60_000);
+    const decrypted = resumedOperation
+      ? await decryptQueuedOperation(resumedOperation, resumedKeySession)
+      : null;
+    let duplicateAttemptRejected = false;
+    try {
+      await beginOfflineOperationAttempt({ database: resumedDatabase, scope, operationId, now: new Date(now.getTime() + 1) });
+    } catch {
+      duplicateAttemptRejected = true;
+    }
+
+    const operationAfterRejectedRetry = await resumedDatabase.get('operations_outbox', operationId);
+    const resultSnapshot = {
+      state: resumedOperation?.state,
+      attemptCount: resumedOperation?.attempt_count,
+      operationCount: await resumedDatabase.count('operations_outbox'),
+      sequence: resumedMetadata?.next_sequence,
+      lastAcknowledgedSequence: resumedMetadata?.last_acknowledged_sequence,
+      consumedQuantity: resumedGrant?.quantity_consumed,
+      grantEventCount: resumedEvents.length,
+      payloadRecovered: decrypted?.command.operation_id === operationId,
+      duplicateAttemptRejected,
+      stateAfterRejectedRetry: operationAfterRejectedRetry?.state,
+      attemptCountAfterRejectedRetry: operationAfterRejectedRetry?.attempt_count,
+    };
+    resumedKeySession.lock();
+    resumedDatabase.close();
+    await new Promise<void>((resolve) => {
+      const request = indexedDB.deleteDatabase(name);
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
+      request.onblocked = () => resolve();
+    });
+    return resultSnapshot;
+  });
+
+  expect(result).toEqual({
+    state: 'syncing',
+    attemptCount: 1,
+    operationCount: 1,
+    sequence: 2,
+    lastAcknowledgedSequence: 0,
+    consumedQuantity: 1,
+    grantEventCount: 1,
+    payloadRecovered: true,
+    duplicateAttemptRejected: true,
+    stateAfterRejectedRetry: 'syncing',
+    attemptCountAfterRejectedRetry: 1,
+  });
+});
+
 test('recovery export encrypts legacy queues and rejects another passphrase or account scope', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const {
