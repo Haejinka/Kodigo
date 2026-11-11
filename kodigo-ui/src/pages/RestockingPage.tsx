@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { ShoppingCart, ClipboardList, RefreshCw, AlertTriangle, PackageCheck, Printer, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
@@ -142,6 +142,7 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [restockDrafts, setRestockDrafts] = useState<Record<string, RestockDraft>>({});
   const [receiptDrafts, setReceiptDrafts] = useState<Record<string, ReceiptDraft>>({});
+  const receiptOperationIds = useRef(new Map<string, { proposalKey: string; operationId: string }>());
   const [priceReviews, setPriceReviews] = useState<Record<string, RestockResult>>({});
   const [receiptReviewId, setReceiptReviewId] = useState<string | null>(null);
   const [bulkReceiptOpen, setBulkReceiptOpen] = useState(false);
@@ -292,6 +293,18 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
   const applyReceipt = async (item: RestockItem, quantityReceived: number, actualCost?: number) => {
     const calculation = getDraftCalculation(item);
     const baseUnitsReceived = quantityReceived * Math.max(1, Number(calculation.option.conversionFactor) || 1);
+    const proposalKey = JSON.stringify({
+      quantityReceived,
+      actualCost: actualCost ?? null,
+      restockingOptionId: calculation.option.id || null,
+      purchaseUnit: calculation.option.label,
+      piecesPerUnit: calculation.option.conversionFactor,
+    });
+    const priorCommand = receiptOperationIds.current.get(item.productId);
+    const operationId = priorCommand?.proposalKey === proposalKey
+      ? priorCommand.operationId
+      : crypto.randomUUID();
+    receiptOperationIds.current.set(item.productId, { proposalKey, operationId });
     const result = await adjustStock(
       item.productId,
       undefined,
@@ -305,8 +318,10 @@ export function RestockingPage({ embedded = false }: { embedded?: boolean }) {
         piecesPerUnit: calculation.option.conversionFactor,
         totalSupplierCost: actualCost,
       },
+      operationId,
     );
-    if (result && result.costChangePercent != null && Math.abs(result.costChangePercent) >= 0.01 && result.newCostPerBaseUnit !== result.previousCostPerBaseUnit) {
+    receiptOperationIds.current.delete(item.productId);
+    if (result && 'costChangePercent' in result && result.costChangePercent != null && Math.abs(result.costChangePercent) >= 0.01 && result.newCostPerBaseUnit !== result.previousCostPerBaseUnit) {
       setPriceReviews((previous) => ({ ...previous, [item.productId]: result }));
     }
     setSelected((previous) => new Set([...previous].filter((productId) => productId !== item.productId)));

@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { useToast } from '@/components/shared/Toast';
 import type { AdjustmentReason, ProductRestockingOption, ProductSellingOption, RestockResult, Supplier } from '@/types';
+import type { InventoryAdjustmentCommandResult } from '@/lib/inventory-ledger';
 import { getOptionInventoryMultiplier, isBulkSellingOption } from '@/types';
 
 interface StockAdjustmentModalProps {
@@ -22,7 +23,7 @@ interface StockAdjustmentModalProps {
   /** Retained for compatibility with older inventory page variants; stock is always product-level. */
   sellingOptions?: ProductSellingOption[];
   onClose: () => void;
-  onSubmit: (sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { restockingOptionId?: string; quantity: number; purchaseUnit: string; piecesPerUnit: number; totalSupplierCost?: number; ownership?: 'store_owned' | 'consigned'; supplierId?: string }) => Promise<RestockResult | void>;
+  onSubmit: (sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { restockingOptionId?: string; quantity: number; purchaseUnit: string; piecesPerUnit: number; totalSupplierCost?: number; ownership?: 'store_owned' | 'consigned'; supplierId?: string }, operationId?: string) => Promise<RestockResult | InventoryAdjustmentCommandResult | void>;
   onUpdateSuggestedPrice?: (sellingPrice: number) => Promise<void>;
 }
 
@@ -64,6 +65,7 @@ export function StockAdjustmentModal({
   const [ownership, setOwnership] = useState<'store_owned' | 'consigned'>('store_owned');
   const [supplierId, setSupplierId] = useState('');
   const [restockResult, setRestockResult] = useState<RestockResult | null>(null);
+  const pendingOperationRef = useRef<{ key: string; id: string } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -76,6 +78,7 @@ export function StockAdjustmentModal({
     setOwnership('store_owned');
     setSupplierId('');
     setRestockResult(null);
+    pendingOperationRef.current = null;
   }, [open, productId]);
 
   const availableRestockingOptions = restockingOptions.length > 0
@@ -129,6 +132,22 @@ export function StockAdjustmentModal({
     if (deltaNum === 0) { toast('warning', 'Stock is already at that count.'); return; }
     setLoading(true);
     try {
+      const proposalKey = JSON.stringify({
+        mode,
+        quantity: quantity.trim(),
+        reason,
+        note: note.trim(),
+        restockingOptionId: mode === 'add' ? selectedRestockingOption?.id || null : null,
+        purchaseUnit: mode === 'add' ? selectedPurchaseUnit : null,
+        piecesPerUnit: mode === 'add' ? selectedConversionFactor : null,
+        purchasePrice: mode === 'add' ? purchasePrice.trim() : null,
+        ownership: mode === 'add' ? ownership : null,
+        supplierId: mode === 'add' ? supplierId || null : null,
+      });
+      const operationId = pendingOperationRef.current?.key === proposalKey
+        ? pendingOperationRef.current.id
+        : crypto.randomUUID();
+      pendingOperationRef.current = { key: proposalKey, id: operationId };
       const result = await onSubmit(undefined, deltaNum, reason, note, mode === 'add' ? {
         restockingOptionId: selectedRestockingOption?.id || undefined,
         quantity: rawNum,
@@ -137,10 +156,20 @@ export function StockAdjustmentModal({
         totalSupplierCost: purchasePrice.trim() ? parseFloat(purchasePrice) || 0 : undefined,
         ownership,
         supplierId: ownership === 'consigned' ? supplierId : undefined,
-      } : undefined);
-      if (result && result.costChangePercent != null && Math.abs(result.costChangePercent) >= 0.01 && result.newCostPerBaseUnit !== result.previousCostPerBaseUnit) {
+      } : undefined, operationId);
+      if (result && 'workflow_state' in result && result.workflow_state === 'requested') {
+        pendingOperationRef.current = null;
+        toast('info', 'Stock change requested. Inventory remains unchanged until an independent approver reviews it.');
+        onClose();
+        setQuantity('');
+        setNote('');
+        setAdjustmentMode('add');
+        return;
+      }
+      if (result && 'costChangePercent' in result && result.costChangePercent != null && Math.abs(result.costChangePercent) >= 0.01 && result.newCostPerBaseUnit !== result.previousCostPerBaseUnit) {
         setRestockResult(result);
       } else {
+        pendingOperationRef.current = null;
         const label = mode === 'add'
           ? `+${rawNum} ${selectedPurchaseUnit}${rawNum !== 1 ? 's' : ''} (${deltaNum} ${unit}s)`
           : `${deltaNum > 0 ? '+' : ''}${deltaNum} ${unit}`;

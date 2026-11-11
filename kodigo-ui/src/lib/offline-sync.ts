@@ -1,6 +1,8 @@
 import { openDB } from 'idb';
 import type { DBSchema, IDBPDatabase } from 'idb';
 import { supabase } from './supabase';
+import { createOperationCommand, parseConfirmedOperationResult } from './pos-operations.ts';
+import { isInventoryLedgerEnabled } from './inventory-ledger';
 import type { Sale, Product } from '@/types';
 
 interface PosDB extends DBSchema {
@@ -184,6 +186,67 @@ async function pushSaleToSupabase(sale: Sale): Promise<Sale> {
   return mapSaleResponse(sale, data);
 }
 
+async function pushSaleToInventoryLedger(sale: Sale): Promise<Sale> {
+  const command = createOperationCommand({
+    operation_id: sale.id,
+    store_id: sale.storeId,
+    terminal_id: null,
+    shift_id: null,
+    occurred_at_local: sale.createdAt,
+    terminal_sequence: null,
+    expected_version: null,
+    payload: {
+      id: sale.id,
+      subtotal: sale.subtotal,
+      tax: sale.tax,
+      discount: sale.discount,
+      total: sale.total,
+      amount_tendered: sale.cashReceived,
+      change: sale.change,
+      payment_method: sale.paymentMethod,
+      payment_reference: sale.paymentReference ?? null,
+      discount_type: sale.discountType,
+      discount_value: sale.discountValue,
+      tax_rate: sale.taxRate,
+      customer_name: sale.customerName ?? null,
+      customer_tin: sale.customerTin ?? null,
+      customer_address: sale.customerAddress ?? null,
+      terminal_identifier: sale.terminalIdentifier ?? null,
+      discount_category: sale.discountCategory ?? 'regular',
+      customer_id: null,
+      items: sale.items.map((item) => ({
+        product_id: item.productId,
+        selling_option_id: item.sellingOptionId ?? null,
+        quantity: item.quantity,
+        discount_per_unit: item.itemDiscountPerUnit ?? 0,
+      })),
+    },
+  });
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 30_000);
+  let data: unknown;
+  let error: unknown;
+  try {
+    const response = await supabase.rpc('process_pos_sale_v5', { p_command: command })
+      .abortSignal(controller.signal);
+    data = response.data;
+    error = response.error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+  if (error) throw error;
+  const result = parseConfirmedOperationResult<{ sale: unknown }>(data);
+  if (result.operation_id !== command.operation_id
+    || result.outcome !== 'confirmed'
+    || result.aggregate_type !== 'sale'
+    || result.aggregate_id !== sale.id
+    || !result.result.sale || typeof result.result.sale !== 'object'
+    || (result.result.sale as { id?: unknown }).id !== sale.id) {
+    throw new Error('The server did not return a matching committed ledger sale. Retry the same cart to check its result.');
+  }
+  return mapSaleResponse(sale, result.result.sale);
+}
+
 /** Preserve legacy sale evidence without replaying it outside the leased outbox protocol. */
 export async function syncPendingSales() {
   if (!dbPromise || !navigator.onLine) return;
@@ -215,8 +278,11 @@ export async function processSale(sale: Sale): Promise<Sale> {
       'This terminal is offline. No sale was submitted; keep the cart and reconnect before retrying.',
     );
   }
+  const inventoryLedgerEnabled = await isInventoryLedgerEnabled(sale.storeId);
   try {
-    return await pushSaleToSupabase(sale);
+    return inventoryLedgerEnabled
+      ? await pushSaleToInventoryLedger(sale)
+      : await pushSaleToSupabase(sale);
   } catch (err: any) {
     if (isDatabaseRejection(err)) {
       throw err;
@@ -272,12 +338,49 @@ export async function syncPendingMutations() {
     return;
   }
 
+  const ledgerRestrictedTables = new Set([
+    'products',
+    'product_selling_options',
+    'product_restocking_options',
+    'stock_adjustments',
+    'inventory_stock_lots',
+    'restock_history',
+    'purchase_orders',
+    'purchase_order_items',
+  ]);
+
   for (const mut of pending) {
     try {
       if ((mut.operation === 'UPDATE' || mut.operation === 'DELETE') && (!mut.matchKey || mut.matchValue == null)) {
         console.warn(`[Sync] Dropping unsafe queued ${mut.operation} on ${mut.table}: missing match condition`, mut);
         await idbRetry(() => db.delete('generic_mutations', mut.id));
         continue;
+      }
+
+      if (ledgerRestrictedTables.has(mut.table)) {
+        const payloadRows = Array.isArray(mut.payload) ? mut.payload : [mut.payload];
+        const payloadStoreIds = [...new Set(payloadRows
+          .map((row) => row?.store_id)
+          .filter((storeId): storeId is string => typeof storeId === 'string' && storeId.length > 0))];
+        let storeId = payloadStoreIds.length === 1 ? payloadStoreIds[0] : null;
+        if (!storeId && mut.matchKey && mut.matchValue != null) {
+          const { data, error } = await (supabase as any)
+            .from(mut.table)
+            .select('store_id')
+            .eq(mut.matchKey, mut.matchValue)
+            .maybeSingle();
+          if (error) throw error;
+          storeId = typeof data?.store_id === 'string' ? data.store_id : null;
+        }
+        if (!storeId) {
+          throw new Error('Store scope could not be checked; this legacy offline mutation was preserved for review.');
+        }
+        if (await isInventoryLedgerEnabled(storeId)) {
+          mut._syncStatus = 'error';
+          mut._syncError = 'This legacy offline catalog, purchase, or stock change is blocked because this store uses the inventory ledger. Review it before retrying.';
+          await idbRetry(() => db.put('generic_mutations', mut));
+          continue;
+        }
       }
 
       if (mut.operation === 'INSERT') {

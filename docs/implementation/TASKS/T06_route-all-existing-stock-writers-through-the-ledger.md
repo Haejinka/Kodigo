@@ -1,6 +1,6 @@
 # T06 — Route all existing stock writers through the ledger
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; the additive writer/cutover migration and ledger-mode adapters are prepared but not applied or cut over. No production business write has been performed for T06.  
 **Task ID:** T06  
 **Feature:** Inventory cutover and checkout  
 **Priority:** Critical  
@@ -19,6 +19,10 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 
 - `kodigo-ui/src/stores/productStore.ts`
 - `kodigo-ui/src/lib/offline-sync.ts`
+- `kodigo-ui/src/lib/inventory-ledger.ts`
+- `kodigo-ui/src/components/inventory/StockAdjustmentModal.tsx`
+- `kodigo-ui/src/pages/InventoryPage.tsx`
+- `kodigo-ui/src/pages/RestockingPage.tsx`
 - `migration_31_receive_po_status_only.sql`
 - `migration_34_bulk_purchase_base_units.sql`
 - `migration_37_unit_aware_inventory_workflow.sql`
@@ -28,6 +32,14 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 
 - `kodigo-ui/src/stores/productStore.ts`
 - `kodigo-ui/src/lib/offline-sync.ts`
+- `kodigo-ui/src/lib/inventory-ledger.ts`
+- `kodigo-ui/src/components/inventory/StockAdjustmentModal.tsx`
+- `kodigo-ui/src/pages/InventoryPage.tsx`
+- `kodigo-ui/src/pages/RestockingPage.tsx`
+- `docs/implementation/API_CONTRACTS.md`
+- `docs/implementation/ARCHITECTURE.md`
+- `docs/implementation/DATABASE_MIGRATION_PLAN.md`
+- `docs/implementation/TASK_STATUS.md`
 
 ## New files
 
@@ -36,11 +48,11 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 
 ## Database changes
 
-M02 gated cutover baseline and trigger replacement; process_pos_sale_v5 command shell retains full v4 pricing/discount/tax/snapshot logic. Revoke direct projection writes; old signatures delegate or fail upgrade-required.
+M02 gated cutover baseline and trigger replacement, including an immutable `inventory_cutover_items` row for every product (also zero-stock products) and its exact lot-location provenance snapshot; process_pos_sale_v5 command shell retains full v4 pricing/discount/tax/snapshot logic. Revoke direct projection writes; old signatures delegate or fail upgrade-required.
 
 ## Backend work
 
-Route sale, product opening stock, manual adjust, supplier receive and legacy reversal stock paths through T05. Manual decreases/corrections request independent approve_inventory_adjustment through T03 infrastructure before apply; live version revalidated. Disable note-prefix/status-trigger duplicate restores for new operations. Lifecycle money writes stay disabled until T13/T22/T26.
+Route sale, product opening stock, manual adjust, supplier receive and legacy reversal stock paths through T05. Manual decreases/corrections request independent approve_inventory_adjustment through T03 infrastructure before apply; live version revalidated. Inventory approvals use the `inventory_ledger_v2` gate; cutover must not enable the generic `approval_workflows` gate for cash and wallet consumers. Disable note-prefix/status-trigger duplicate restores for new operations. Lifecycle money writes stay disabled until T13/T22/T26.
 
 ## Frontend work
 

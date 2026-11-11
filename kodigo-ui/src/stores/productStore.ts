@@ -5,6 +5,8 @@ import type { Product, AdjustmentReason, StockAdjustment, Category, ProductSelli
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from './authStore';
 import { cacheProductsLocally, getCachedProducts, executeOrQueueMutation } from '@/lib/offline-sync';
+import { createInventoryProduct, getInventoryLedgerBalance, isInventoryLedgerEnabled, receiveInventoryStock, requestInventoryAdjustment } from '@/lib/inventory-ledger';
+import type { InventoryAdjustmentCommandResult } from '@/lib/inventory-ledger';
 
 type ProductFormData = Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'categoryName' | 'supplierName'>;
 
@@ -24,7 +26,7 @@ interface ProductStore {
   updateProduct: (id: string, data: ProductFormData, supplierName?: string) => Promise<void>;
   setProductActive: (id: string, isActive: boolean) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
-  adjustStock: (id: string, sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { restockingOptionId?: string; quantity: number; purchaseUnit: string; piecesPerUnit: number; totalSupplierCost?: number; ownership?: 'store_owned' | 'consigned'; supplierId?: string }) => Promise<RestockResult | void>;
+  adjustStock: (id: string, sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { restockingOptionId?: string; quantity: number; purchaseUnit: string; piecesPerUnit: number; totalSupplierCost?: number; ownership?: 'store_owned' | 'consigned'; supplierId?: string }, operationId?: string) => Promise<RestockResult | InventoryAdjustmentCommandResult | void>;
   updateSellingPrice: (id: string, sellingPrice: number, reason?: string, updateFixedBundles?: boolean) => Promise<void>;
 }
 
@@ -647,12 +649,23 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     }
     if (!storeId) return undefined;
 
+    if (!navigator.onLine) {
+      throw new Error('Connect to the internet before changing the catalog or opening stock. These changes are not queued offline.');
+    }
+    const ledgerEnabled = await isInventoryLedgerEnabled(storeId);
+    const openingStock = Math.max(0, Math.round(Number(data.currentStock) || 0));
+    const stockForInsert = ledgerEnabled ? 0 : openingStock;
+    const productData = { ...data, currentStock: stockForInsert };
+
     const barcodeErrors = validateProductBarcodes({ ...data, storeId }, get().products);
     if (Object.keys(barcodeErrors).length) throw new Error(Object.values(barcodeErrors)[0]);
     const newId = crypto.randomUUID();
     const supplierIds = normalizeSupplierIds(data);
     const primarySupplierId = supplierIds[0] || null;
-    const sellingOptions = normalizeSellingOptions(data, newId, storeId);
+    const normalizedSellingOptions = normalizeSellingOptions(productData, newId, storeId);
+    const sellingOptions = ledgerEnabled
+      ? normalizedSellingOptions.map((option) => ({ ...option, stockQuantity: 0 }))
+      : normalizedSellingOptions;
     const restockingOptions = normalizeRestockingOptions(data, newId, storeId);
     const newProd = {
       id: newId,
@@ -661,13 +674,13 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       sku: data.sku,
       barcode: data.barcode?.trim() || null,
       category_id: data.categoryId,
-       cost_price: data.costPrice,
-       selling_price: data.sellingPrice,
-       current_stock: Math.round(data.currentStock),
-       min_stock_level: Math.round(data.minStockLevel),
-      safety_stock: data.safetyStock,
-      reorder_level: data.reorderLevel,
-      lead_time_days: data.leadTimeDays,
+       cost_price: Number(data.costPrice) || 0,
+       selling_price: Number(data.sellingPrice) || 0,
+       current_stock: stockForInsert,
+       min_stock_level: Math.round(Number(data.minStockLevel) || 0),
+       safety_stock: Math.round(Number(data.safetyStock) || 0),
+       reorder_level: Math.round(Number(data.reorderLevel) || 0),
+       lead_time_days: Math.round(Number(data.leadTimeDays) || 0),
        unit: data.unit,
       purchase_unit: data.purchaseUnit || null,
       conversion_factor: data.conversionFactor || 1,
@@ -690,7 +703,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       isActive: true,
        unit: data.unit,
        sellingPrice: data.sellingPrice,
-       currentStock: Math.round(data.currentStock),
+       currentStock: stockForInsert,
       minStockLevel: Math.round(data.minStockLevel),
       supplierId: primarySupplierId || undefined,
       supplierIds,
@@ -708,16 +721,59 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       set(s => ({ products: [...s.products, optimisticProd] }));
     }
 
+    let productPersisted = false;
     try {
-      await executeOrQueueMutation('products', 'INSERT', newProd);
-      await executeOrQueueMutation('product_selling_options', 'INSERT', sellingOptions.map(toSellingOptionRow));
-      if (restockingOptions.length > 0) {
-        await executeOrQueueMutation('product_restocking_options', 'INSERT', restockingOptions.map(toRestockingOptionRow));
+      if (ledgerEnabled) {
+        await createInventoryProduct({
+          storeId,
+          product: {
+            ...newProd,
+            barcode: newProd.barcode,
+            category_id: data.categoryId || null,
+            purchase_unit: data.purchaseUnit || null,
+            bulk_purchase_price: data.bulkPurchasePrice ?? null,
+            margin_percentage: data.marginPercentage ?? null,
+            supplier_id: primarySupplierId,
+            image_url: data.imageUrl || null,
+          },
+          sellingOptions: sellingOptions.map((option) => ({
+            ...toSellingOptionRow(option),
+            kind: option.kind ?? (option.unitLabel === 'kg' ? 'kilo' : 'unit'),
+            unit_label: option.unitLabel || data.unit || 'unit',
+            stock_quantity: 0,
+          })),
+          restockingOptions: restockingOptions.map(toRestockingOptionRow),
+          supplierIds,
+          initialStock: openingStock,
+        });
+        productPersisted = true;
+      } else {
+        await executeOrQueueMutation('products', 'INSERT', newProd);
+        productPersisted = navigator.onLine;
+        await executeOrQueueMutation('product_selling_options', 'INSERT', sellingOptions.map(toSellingOptionRow));
+        if (restockingOptions.length > 0) {
+          await executeOrQueueMutation('product_restocking_options', 'INSERT', restockingOptions.map(toRestockingOptionRow));
+        }
+        await replaceProductSuppliers(newId, supplierIds);
       }
-      await replaceProductSuppliers(newId, supplierIds);
-      return optimisticProd;
+      const committedProduct = ledgerEnabled
+        ? {
+            ...optimisticProd,
+            currentStock: openingStock,
+            sellingOptions: optimisticProd.sellingOptions.map((option) => ({
+              ...option,
+              stockQuantity: Math.floor(openingStock / Math.max(1, option.isBulk ? option.inventoryMultiplier : 1)),
+            })),
+          }
+        : optimisticProd;
+      if (ledgerEnabled && (currentActiveStoreId === 'all' || currentActiveStoreId === storeId)) {
+        set((state) => ({ products: state.products.map((product) => product.id === newId ? committedProduct : product) }));
+      }
+      return committedProduct;
     } catch (err) {
-      if (currentActiveStoreId === 'all' || currentActiveStoreId === storeId) {
+      if (productPersisted) {
+        await get().fetchProducts();
+      } else if (currentActiveStoreId === 'all' || currentActiveStoreId === storeId) {
         set(s => ({ products: s.products.filter(p => p.id !== newId) }));
       }
       if ((err as { code?: string })?.code === '23505') throw new Error('Product SKU or barcode already exists in this store.');
@@ -738,20 +794,31 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     }
     if (!storeId) return;
 
+    if (!navigator.onLine) {
+      throw new Error('Connect to the internet before editing product details. Catalog changes are not queued offline.');
+    }
+    const ledgerEnabled = await isInventoryLedgerEnabled(storeId);
+    const editableData = ledgerEnabled ? { ...data, currentStock: targetProduct.currentStock } : data;
+
     const barcodeErrors = validateProductBarcodes({ ...data, storeId }, get().products, id);
     if (Object.keys(barcodeErrors).length) throw new Error(Object.values(barcodeErrors)[0]);
     const supplierIds = normalizeSupplierIds(data);
     const primarySupplierId = supplierIds[0] || null;
-    const sellingOptions = normalizeSellingOptions(data, id, storeId);
+    const normalizedSellingOptions = normalizeSellingOptions(editableData, id, storeId);
+    const sellingOptions = ledgerEnabled
+      ? normalizedSellingOptions.map((option) => ({
+          ...option,
+          stockQuantity: Math.floor(targetProduct.currentStock / Math.max(1, option.isBulk ? option.inventoryMultiplier : 1)),
+        }))
+      : normalizedSellingOptions;
     const restockingOptions = normalizeRestockingOptions(data, id, storeId);
-    const updates = {
+    const updates: Record<string, unknown> = {
       name: data.name,
       sku: data.sku,
       barcode: data.barcode?.trim() || null,
       category_id: data.categoryId,
       cost_price: data.costPrice,
        selling_price: data.sellingPrice,
-       current_stock: Math.round(data.currentStock),
        min_stock_level: Math.round(data.minStockLevel),
       safety_stock: data.safetyStock,
       reorder_level: data.reorderLevel,
@@ -769,6 +836,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       is_active: data.isActive !== false,
       updated_at: new Date().toISOString(),
     };
+    if (!ledgerEnabled) updates.current_stock = Math.round(data.currentStock);
 
     const previousProducts = get().products;
 
@@ -782,7 +850,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
           barcode: normalizeBarcode(data.barcode) || undefined,
            unit: data.unit,
            sellingPrice: data.sellingPrice,
-           currentStock: Math.round(data.currentStock),
+           currentStock: ledgerEnabled ? targetProduct.currentStock : Math.round(data.currentStock),
            minStockLevel: Math.round(data.minStockLevel),
           supplierId: primarySupplierId || undefined,
           supplierIds,
@@ -815,7 +883,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
               unit_label: row.unit_label,
               quantity_value: row.quantity_value,
               quantity_unit: row.quantity_unit,
-              stock_quantity: row.stock_quantity,
+              ...(ledgerEnabled ? {} : { stock_quantity: row.stock_quantity }),
               selling_price: row.selling_price,
               low_stock_threshold: row.low_stock_threshold,
               inventory_multiplier: row.inventory_multiplier,
@@ -875,6 +943,9 @@ export const useProductStore = create<ProductStore>((set, get) => ({
   },
 
   deleteProduct: async (id) => {
+    if (!navigator.onLine) {
+      throw new Error('Connect to the internet before deleting a product. Catalog changes are not queued offline.');
+    }
     const previousProducts = get().products;
 
     // Optimistic Update
@@ -899,6 +970,9 @@ export const useProductStore = create<ProductStore>((set, get) => ({
   },
 
   setProductActive: async (id, isActive) => {
+    if (!navigator.onLine) {
+      throw new Error('Connect to the internet before changing product availability. Catalog changes are not queued offline.');
+    }
     const previousProducts = get().products;
     const targetProduct = previousProducts.find((product) => product.id === id);
     if (!targetProduct) {
@@ -929,13 +1003,75 @@ export const useProductStore = create<ProductStore>((set, get) => ({
     }
   },
 
-  adjustStock: async (id, sellingOptionId, delta, reason, note, restock) => {
+  adjustStock: async (id, sellingOptionId, delta, reason, note, restock, operationId) => {
     let storeId = useAuthStore.getState().activeStoreId;
     const product = get().products.find((p) => p.id === id);
     if (!product) return;
 
     if (storeId === 'all') storeId = product.storeId;
     if (!storeId) return;
+
+    if (!navigator.onLine) {
+      throw new Error('Stock changes require a live server confirmation; offline stock changes are not queued.');
+    }
+    if (await isInventoryLedgerEnabled(storeId)) {
+      const balance = await getInventoryLedgerBalance(storeId, id);
+      if (reason === 'restock') {
+        if (!restock) throw new Error('Enter the received purchase quantity and unit before recording a stock receipt.');
+        const receipt = await receiveInventoryStock({
+          storeId,
+          productId: id,
+          balance,
+          restockingOptionId: restock.restockingOptionId,
+          quantity: restock.quantity,
+          purchaseUnit: restock.purchaseUnit,
+          piecesPerUnit: restock.piecesPerUnit,
+          totalSupplierCost: restock.totalSupplierCost,
+          ownership: restock.ownership,
+          supplierId: restock.supplierId,
+          reason: note.trim() || 'Supplier stock receipt',
+          note,
+          operationId,
+        });
+        const received = receipt.result as Record<string, unknown>;
+        await Promise.all([get().fetchProducts(), get().fetchStockAdjustments()]);
+        return {
+          restockId: String(received.restockId ?? ''),
+          productId: id,
+          purchaseUnit: String(received.purchaseUnit ?? restock.purchaseUnit),
+          quantityReceived: Number(received.quantityReceived ?? restock.quantity),
+          conversionFactor: Number(received.conversionFactor ?? restock.piecesPerUnit),
+          baseUnitsAdded: Number(received.baseUnitsAdded ?? delta),
+          stockBefore: Number(received.stockBefore ?? balance.quantity_on_hand),
+          stockAfter: Number(received.stockAfter ?? balance.quantity_on_hand + delta),
+          totalSupplierCost: received.totalSupplierCost == null ? restock.totalSupplierCost : Number(received.totalSupplierCost),
+          previousCostPerBaseUnit: Number(received.previousCostPerBaseUnit ?? product.costPrice),
+          newCostPerBaseUnit: Number(received.newCostPerBaseUnit ?? product.costPrice),
+          costChangePercent: received.costChangePercent == null ? undefined : Number(received.costChangePercent),
+          previousGrossMargin: Number(received.previousGrossMargin ?? 0),
+          newGrossMargin: Number(received.newGrossMargin ?? 0),
+          currentSellingPrice: Number(received.currentSellingPrice ?? product.sellingPrice),
+          suggestedSellingPrice: Number(received.suggestedSellingPrice ?? product.sellingPrice),
+          rawSuggestedSellingPrice: Number(received.rawSuggestedSellingPrice ?? product.sellingPrice),
+          priceRounding: Number(received.priceRounding ?? product.priceRounding ?? 1),
+        } satisfies RestockResult;
+      }
+
+      const stockAfter = Math.max(0, Math.round(product.currentStock + delta));
+      const mode = reason === 'manual-count' ? 'count' as const : delta > 0 ? 'add' as const : 'remove' as const;
+      const result = await requestInventoryAdjustment({
+        storeId,
+        productId: id,
+        balance,
+        mode,
+        quantity: mode === 'count' ? stockAfter : Math.abs(Math.round(delta)),
+        reason,
+        note,
+        operationId,
+      });
+      await Promise.all([get().fetchProducts(), get().fetchStockAdjustments()]);
+      return result.result;
+    }
 
     const selectedOption = product.sellingOptions.find((option) => option.id === sellingOptionId);
     // Bulk options are pricing modes only. Every adjustment is recorded against

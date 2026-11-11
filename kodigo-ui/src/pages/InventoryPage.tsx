@@ -566,10 +566,10 @@ export function InventoryPage() {
     }
   };
 
-  const handleAdjust = async (sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { restockingOptionId?: string; quantity: number; purchaseUnit: string; piecesPerUnit: number; totalSupplierCost?: number; ownership?: 'store_owned' | 'consigned'; supplierId?: string }) => {
+  const handleAdjust = async (sellingOptionId: string | undefined, delta: number, reason: AdjustmentReason, note: string, restock?: { restockingOptionId?: string; quantity: number; purchaseUnit: string; piecesPerUnit: number; totalSupplierCost?: number; ownership?: 'store_owned' | 'consigned'; supplierId?: string }, operationId?: string) => {
     await new Promise((r) => setTimeout(r, 600));
     if (!adjustTarget) throw new Error('Select a product before adjusting stock.');
-    return adjustStock(adjustTarget.id, sellingOptionId, delta, reason, note, restock);
+    return adjustStock(adjustTarget.id, sellingOptionId, delta, reason, note, restock, operationId);
   };
 
   const handleImportProduct = async (row: InventoryImportRow) => {
