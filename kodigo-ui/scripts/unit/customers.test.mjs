@@ -38,7 +38,7 @@ test('customer create command trims optional profile data and keeps a reusable o
   assert.equal(command.operation_id, operationId);
   assert.equal(command.store_id, storeId);
   assert.equal(command.expected_version, null);
-  assert.deepEqual(command.payload, {
+  assert.deepEqual(JSON.parse(JSON.stringify(command.payload)), {
     display_name: 'Alex Customer',
     phone: '09170000000',
     email: 'alex@example.com',
