@@ -694,7 +694,7 @@ function CreateUserModal({ onCreate, onClose }: CreateUserModalProps) {
 
 export function UserManagementPage() {
   const { toast } = useToast();
-  const { user: currentUser, stores, activeStoreId } = useAuthStore();
+  const { user: currentUser, role: currentRole, stores, activeStoreId } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
@@ -772,7 +772,7 @@ export function UserManagementPage() {
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
             <h3 className="font-semibold text-gray-900">System Users</h3>
-            {currentUser?.role === 'admin' && !scopedStoreId && (
+            {currentRole === 'admin' && !scopedStoreId && (
               <p className="mt-1 text-xs text-gray-500">Select a single store to manage staff capabilities.</p>
             )}
           </div>
@@ -813,7 +813,7 @@ export function UserManagementPage() {
               <Badge variant={u.role === 'admin' ? 'info' : 'default'}>
                 {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
               </Badge>
-              {currentUser?.role === 'admin'
+              {currentRole === 'admin'
                 && scopedStoreId
                 && (u.role === 'cashier' || u.role === 'inventory')
                 && (u.storeIds?.includes(scopedStoreId) || u.storeId === scopedStoreId)
