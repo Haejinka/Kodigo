@@ -232,7 +232,7 @@ export function DigitalServicesPage() {
   };
 
   const submitRecord = async () => {
-    if (!storeId || storeId === 'all' || !selectedProduct) return;
+    if (!storeId || storeId === 'all' || !workspace || !selectedProduct) return;
     if (!navigator.onLine) {
       setLoadError('Digital service recording is online-only. Reconnect before recording a service.');
       return;
