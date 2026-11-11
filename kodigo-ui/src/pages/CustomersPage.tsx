@@ -48,11 +48,23 @@ const emptyForm: CustomerFormValues = { displayName: '', phone: '', email: '' };
 function customerErrorMessage(error: unknown): string {
   const candidate = error as { code?: string; message?: string } | null;
   const message = candidate?.message ?? '';
-  const code = candidate?.code ?? '';
+  const code = candidate?.code?.toUpperCase() ?? '';
 
   if (error instanceof TypeError) return error.message;
+  if (code === 'AUTH_REQUIRED' || /AUTH_REQUIRED|Authentication is required/.test(message)) {
+    return 'Your sign-in session has expired. Sign in again, then retry this customer request.';
+  }
+  if (code === 'MFA_REQUIRED' || /MFA_REQUIRED|valid MFA session/.test(message)) {
+    return 'Complete the required two-factor verification, then retry this customer request.';
+  }
+  if (code === 'STORE_FORBIDDEN' || /STORE_FORBIDDEN|not assigned to this store/.test(message)) {
+    return 'Your account is not assigned to the selected store. Select an assigned store or contact the store administrator.';
+  }
+  if (code === 'CAPABILITY_REQUIRED' || /CAPABILITY_REQUIRED|store capability is not active|cannot manage customer/.test(message)) {
+    return 'Your account does not have permission to manage customer profiles in this store.';
+  }
   if (code === '42501' || /MFA_REQUIRED|STORE_FORBIDDEN|CAPABILITY_REQUIRED/.test(message)) {
-    return 'Your account is not allowed to manage customer profiles in this store, or your secure session needs refreshing.';
+    return 'The server denied this customer request. Refresh your secure session and verify your store access.';
   }
   if (/VERSION_CONFLICT|OPERATION_CONFLICT/.test(message)) {
     return 'This profile changed in another session. Reload it and apply your update again.';
@@ -61,8 +73,14 @@ function customerErrorMessage(error: unknown): string {
 }
 
 function hasDefinitiveHttpResponse(error: unknown): boolean {
-  const status = (error as { status?: unknown } | null)?.status;
-  return typeof status === 'number' && status >= 400 && status < 500;
+  const candidate = error as { status?: unknown; code?: unknown } | null;
+  const status = candidate?.status;
+  if (typeof status === 'number' && status >= 400 && status < 500) return true;
+
+  // PostgreSQL SQLSTATE and PostgREST schema/API errors are definitive failed transactions.
+  // Preserve the operation ID only when transport outcome is genuinely ambiguous.
+  return typeof candidate?.code === 'string'
+    && (/^[0-9A-Z]{5}$/.test(candidate.code.toUpperCase()) || /^PGRST\d{3}$/.test(candidate.code.toUpperCase()));
 }
 
 function formatProfileDate(value: string): string {
