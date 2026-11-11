@@ -174,6 +174,19 @@ The T24 API shorthand originally omitted the operation ID/envelope for writes, c
 
 The T24 opening RPC checks the existing `drawer_shifts` flag, which defaults off; it cannot create an active shift until T25 can post the opening movement in the same transaction. No terminal/drawer/shift UI was added by T24, and no flag was enabled.
 
+### T25 predeployment cash-ledger check
+
+Read-only inspection of the existing deployed project confirmed that `cash_movements`, `cash_reservations`, `cash_reservation_events`, `payment_cash_links`, and `payment_service_links` do not exist yet; no T25 migration or cash record was applied. The deployed `sale_payments` table has `id`, `store_id`, `method`, `status`, and `amount`, with `id` as its primary key but no `(store_id,id)` unique key. T25 therefore uses the existing payment ID FK plus a locked store/method scope trigger rather than adding an unnecessary uniqueness index to historical payment rows. The pre-existing T24 read-only check found no cashier shifts and no historical closeout rows.
+
+Two exact specification conflicts were corrected before SQL application. First, M07 originally sent reservation lifecycle events to `pos_operation_events`, but the deployed T02 `event_type` constraint is exactly `started|committed` and that table is a command lifecycle log. T25 adds a dedicated immutable `cash_reservation_events` table linked to operation IDs. Second, T24 explicitly accepts `opening_cash = 0`, while B07/M07 reserve zero-delta movements for close counts. T25 preserves both contracts: positive opening cash posts one opening movement; a zero opening records shift custody only and produces no cash-ledger row. These are documented in the database plan, API contract, and T24/T25 specifications.
+
+The pinned Supabase CLI `3.1.0` was invoked via `npm exec`; its `migration new --help` confirmed local-only generation. It created `supabase/migrations/20261111040311_t25_cash_movements_and_reservations.sql`. The migration is prepared only; no DB, branch, migration, hold, or business row was created.
+
+| Prepared artifact | Canonical LF SHA-256 | State |
+| --- | --- | --- |
+| `supabase/migrations/20261111040311_t25_cash_movements_and_reservations.sql` | `22a5c5a9095255f960d2b9c6b7a54e79d68e6ba5e7aaa02cb9db52acda48f5ec` | Prepared; unapplied |
+| `supabase/tests/enhancements/T25_cash_ledger.sql` | `4c739e4394d3b8b9b68bde0dab15aab616b1a55dc60a7cea762d787c6901322f` | Catalog-only assertions; unexecuted |
+
 The following T00 acceptance evidence is still pending and blocks any feature-write activation:
 
 - Confirm the checksummed manifest replays successfully on the approved isolated target. This remains blocked by the user's instruction not to create a fresh database. Run #111 demonstrates that the candidate order reaches `migration_21_reporting_snapshots_and_reports.sql`, where `MIN(si.category_id)` fails with `function min(uuid) does not exist`; no source correction to this historical migration has been made. The populated deployed project has no `min(uuid)` aggregate and has a different `v_category_sales` definition, confirmed by read-only catalog query. Do not run the candidate manifest or historical SQL on the deployed project.

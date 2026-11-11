@@ -40,6 +40,8 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 
 The original T24 API shorthand listed only business fields for terminal registration, drawer registration, and shift opening. That conflicts with the already deployed T02 requirement that every retryable write use `CommandV1` with a stable operation ID and server-derived actor. The API contract is corrected to use `CommandV1`; operation IDs and the full envelope are now mandatory, and the actor is never supplied in the payload. This is the smallest correction that preserves T02 idempotency and avoids duplicate custody on response loss.
 
+T24 accepts a non-negative opening amount. A zero opening amount creates shift custody with no cash-ledger row; a positive amount must have exactly one opening movement when T25 is applied. This preserves the T24 zero-amount contract while keeping zero-delta ledger entries exclusive to closing-count observations.
+
 ## Database changes
 
 M07 terminals/drawers/shifts with registered UUIDs, opening amount/start/actor/version; active-custody unique indexes. Add operation terminal/shift same-store FKs.

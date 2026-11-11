@@ -1,6 +1,6 @@
 # T25 — Post append-only physical cash movements and holds
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; forward migration and typed read adapter are being prepared, unapplied.
 **Task ID:** T25  
 **Feature:** Cash accounting  
 **Priority:** Critical  
@@ -28,14 +28,17 @@ None.
 
 - `supabase/tests/enhancements/T25_cash_ledger.sql`
 - CLI-generated migration: `supabase/migrations/<generated-timestamp>_t25_cash_movements_and_reservations.sql`. Run the pinned CLI's verified `migration new t25_cash_movements_and_reservations` command; record its exact returned path in SCHEMA_BASELINE/TASK_STATUS. Do not hand-invent the timestamp.
+- `kodigo-ui/src/types/cash-drawers.ts`
+- `kodigo-ui/src/lib/cash-drawers.ts`
+- `kodigo-ui/scripts/unit/cash-drawers.test.mjs`
 
 ## Database changes
 
-M07 cash_movements/reservations/payment_cash_links/payment_service_links, ledger sequence, unique operation-source, arithmetic and nonnegative available projection. Counts are zero-delta observations only; payment links permit fee slice of preposted principal+fee cash.
+M07 cash_movements/reservations/cash_reservation_events/payment_cash_links/payment_service_links, ledger sequence, unique operation-source, arithmetic and nonnegative available projection. Counts are zero-delta observations only; payment links permit fee slice of preposted principal+fee cash. A zero-amount opening is a valid shift custody record with no movement row; positive openings post one positive opening movement.
 
 ## Backend work
 
-post_cash_movement and reserve/consume/release cash helpers; complete shift opening positive movement; expected cash computed from movement ledger, independent of sale status.
+post_cash_movement and reserve/consume/release cash helpers; positive shift openings post a movement in the same transaction; expected cash computed from movement ledger, independent of sale status. Expose an authorized read of posted, reserved, and available shift cash.
 
 ## Frontend work
 
@@ -59,7 +62,7 @@ Duplicate opening, refund different employee, late original-shift cash, closeout
 
 ## Tests
 
-V21–V24,V26; opening500+100+50−20−10=620 and card200 excluded. Add the named SQL/unit/browser tests above rather than only manual button checks. Where SQL is involved, include migration compatibility, wrong-role/foreign-store rejection, rollback after injected failure and identical-operation replay. Use the real database harness for locks/constraints, with at least two independent connections for declared concurrency cases. UI-only and printing tasks retain existing unit regressions and exercise the user-visible states specified for that screen.
+V21–V24,V26; opening500+100+50−20−10=620 and card200 excluded. The existing `pos_operation_events.event_type` constraint allows only `started` and `committed`, so cash reserve/consume/release lifecycle records use a dedicated append-only `cash_reservation_events` table linked to their operation IDs; do not widen the T02 command-lifecycle event enum. Opening cash remains non-negative per T24; zero cash produces no zero-delta opening row, preserving the rule that only a closing count may have a zero cash delta. Add the named SQL/unit/browser tests above rather than only manual button checks. Where SQL is involved, include migration compatibility, wrong-role/foreign-store rejection, rollback after injected failure and identical-operation replay. Use the real database harness for locks/constraints, with at least two independent connections for declared concurrency cases. UI-only and printing tasks retain existing unit regressions and exercise the user-visible states specified for that screen.
 
 ## Acceptance criteria
 

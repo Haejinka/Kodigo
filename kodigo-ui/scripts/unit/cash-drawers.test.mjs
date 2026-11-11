@@ -4,6 +4,7 @@ import {
   buildOpenCashierShiftCommand,
   buildRegisterCashDrawerCommand,
   buildRegisterPosTerminalCommand,
+  parseCashierShiftPosition,
 } from '../../src/lib/cash-drawers.ts';
 
 const context = {
@@ -77,4 +78,40 @@ test('cash custody command builders reject malformed IDs, names, and unsupported
     drawerId: '44444444-4444-4444-8444-444444444444',
     openingCash: '1.005',
   }), /at most two decimals/);
+});
+
+test('cash position parser preserves centavos and verifies the server balance projection', () => {
+  const position = parseCashierShiftPosition({
+    shift_id: '44444444-4444-4444-8444-444444444444',
+    state: 'active',
+    version: 4,
+    last_cash_sequence: '12',
+    posted_balance: '620.00',
+    reserved_balance: '20.50',
+    available_balance: '599.50',
+    movement_count: 5,
+  });
+  assert.equal(position.posted_balance, '620.00');
+  assert.equal(position.reserved_balance, '20.50');
+  assert.equal(position.available_balance, '599.50');
+  assert.throws(() => parseCashierShiftPosition({
+    shift_id: '44444444-4444-4444-8444-444444444444',
+    state: 'active',
+    version: 4,
+    last_cash_sequence: '12',
+    posted_balance: '620.00',
+    reserved_balance: '20.50',
+    available_balance: '600.00',
+    movement_count: 5,
+  }), /invalid cash shift position/);
+  assert.throws(() => parseCashierShiftPosition({
+    shift_id: '44444444-4444-4444-8444-444444444444',
+    state: 'active',
+    version: 4,
+    last_cash_sequence: '12',
+    posted_balance: '620',
+    reserved_balance: '20.50',
+    available_balance: '599.50',
+    movement_count: 5,
+  }), /invalid posted cash balance/);
 });

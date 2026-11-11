@@ -74,7 +74,7 @@ Opening baseline starts at the cutover balance, not at zero plus reconstructed h
 
 ## B07 — Physical cash and closeout
 
-Shift opening records opening counted cash, drawer, terminal, actor and server start before sale. One active/submitting shift per drawer and one per cashier/store; drawer handover is close-and-open. Opening is a positive physical movement; closing count is an observation with `cash_delta=0`, not a cash deposit.
+Shift opening records opening counted cash, drawer, terminal, actor and server start before sale. One active/submitting shift per drawer and one per cashier/store; drawer handover is close-and-open. A positive opening amount is one positive physical movement; zero opening cash records custody with no cash-ledger row. Closing count is an observation with `cash_delta=0`, not a cash deposit.
 
 Signed cash deltas: cash sale `+net cash tender (tendered-change)`; cash refund/void reversal negative; GCash cash-in `+(principal+fee)`; GCash cash-out `-principal`; add positive; remove/drop negative; approved adjustment signed. Noncash retail payments produce zero drawer delta. Each actual cash effect is posted once against an explicit current shift.
 

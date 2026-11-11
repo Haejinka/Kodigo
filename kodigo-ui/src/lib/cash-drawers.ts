@@ -1,5 +1,5 @@
 import type { ConfirmedOperationResult, OperationCommandV1 } from '@/types/operations';
-import type { CashCustodySnapshot, CashDrawer, CashierShift, PosTerminal } from '@/types/cash-drawers';
+import type { CashCustodySnapshot, CashDrawer, CashierShift, CashierShiftPosition, PosTerminal } from '@/types/cash-drawers';
 import { createOperationCommand } from './pos-operations.ts';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -174,6 +174,32 @@ function isCashierShift(value: unknown): value is CashierShift {
     && (shift.occurred_at_local === null || typeof shift.occurred_at_local === 'string');
 }
 
+const cashAmountPattern = /^(0|[1-9][0-9]{0,11})\.[0-9]{2}$/;
+
+function cashAmountMinor(value: unknown, field: string): bigint {
+  if (typeof value !== 'string' || !cashAmountPattern.test(value)) {
+    throw new TypeError(`Server returned an invalid ${field}.`);
+  }
+  const [whole, fraction] = value.split('.');
+  return BigInt(whole) * 100n + BigInt(fraction);
+}
+
+export function parseCashierShiftPosition(value: unknown): CashierShiftPosition {
+  const position = asRecord(value, 'Cash shift position');
+  const posted = cashAmountMinor(position.posted_balance, 'posted cash balance');
+  const reserved = cashAmountMinor(position.reserved_balance, 'reserved cash balance');
+  const available = cashAmountMinor(position.available_balance, 'available cash balance');
+  if (typeof position.shift_id !== 'string' || !uuidPattern.test(position.shift_id)
+    || (position.state !== 'active' && position.state !== 'submitting' && position.state !== 'closed')
+    || !Number.isSafeInteger(position.version) || (position.version as number) < 1
+    || typeof position.last_cash_sequence !== 'string' || !/^(0|[1-9][0-9]*)$/.test(position.last_cash_sequence)
+    || !Number.isSafeInteger(position.movement_count) || (position.movement_count as number) < 0
+    || reserved > posted || posted - reserved !== available) {
+    throw new TypeError('Server returned an invalid cash shift position.');
+  }
+  return position as unknown as CashierShiftPosition;
+}
+
 export async function listStoreCashCustody(storeId: string): Promise<CashCustodySnapshot> {
   const { supabase } = await import('./supabase');
   const { data, error } = await supabase.rpc('list_store_cash_custody', {
@@ -217,4 +243,14 @@ export async function openCashierShift(input: CommandContext & {
   const result = parseConfirmedResult<CashierShift>(data, command.operation_id, 'cashier_shift');
   if (!isCashierShift(result.result)) throw new TypeError('Server returned an invalid cashier shift.');
   return result;
+}
+
+/** Read the server-computed physical cash and active holds for one shift. */
+export async function getCashierShiftPosition(shiftId: string): Promise<CashierShiftPosition> {
+  const { supabase } = await import('./supabase');
+  const { data, error } = await supabase.rpc('get_cashier_shift_position', {
+    p_shift_id: normalizeUuid(shiftId, 'Shift ID'),
+  });
+  if (error) throw error;
+  return parseCashierShiftPosition(data);
 }
