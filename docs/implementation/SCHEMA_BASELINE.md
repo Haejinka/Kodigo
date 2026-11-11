@@ -168,6 +168,22 @@ The first live backfill call failed before changing any lot row because PostgreS
 
 The user explicitly authorized additive migrations on this existing project and prohibited creating a separate database or backup database. Accordingly, no backup database, branch or isolated project was created. Destructive rollback, write-path, and concurrency checks remain unrun because they require an isolated target; T05/T06 writers and cutover remain the next gates.
 
+### T05 private inventory mutation service
+
+The pinned Supabase CLI generated `20261111045323_t05_inventory_mutation_service.sql`. The existing project recorded the migration as `20261111052012 / t05_inventory_mutation_service`; the checked-in migration filename follows the applied history so a later migration push will not replay the definitions.
+
+| CLI-generated file | Applied history / checked-in file | Canonical LF SHA-256 | Result |
+| --- | --- | --- | --- |
+| `20261111045323_t05_inventory_mutation_service.sql` | `20261111052012` / `t05_inventory_mutation_service` / `20261111052012_t05_inventory_mutation_service.sql` | `DEEB10173BBA4A46A1751C10786743DB420FA624A9C3A54F317EEA53FFD98AAB` | Applied additively to the existing deployed project; private service definitions only |
+| `20261111052420_t05_fix_quarantine_release_recovery.sql` | `20261111052533` / `t05_fix_quarantine_release_recovery` / `20261111052533_t05_fix_quarantine_release_recovery.sql` | `EF4019117647056AEB48ABA4643ABCF388A20109821885D3BA8FBD1CE8307D01` | Forward fix; paired quarantine-release transfer records COGS recovery without decreasing net sold quantity twice |
+| `supabase/tests/enhancements/T05_inventory_service.sql` | — | `AF0740F74C52AFC3FDE8471299479A9B5E87308CE4192237FACE7D98A03755EE` | Deployed read-only catalog assertions passed |
+
+The private layer defines `apply_inventory_movement`, `allocate_sale_lots`, `restore_allocation_slices`, `transfer_inventory`, and `dispose_quarantined_stock`. It locks balance/source rows in deterministic order, requires an active processing operation and completed store cutover, uses FIFO for sale allocation, links restorations to source allocations, snapshots six-decimal source-lot costs, updates product and selling-option projections, and uses paired same-store transfer movements. The helpers are SECURITY DEFINER with an empty search path; direct execute grants to `anon`, `authenticated`, and `service_role` are revoked. No legacy sale/adjustment/return/void trigger or application call site is connected in T05; T06 owns that cutover.
+
+The first hosted apply attempt was rejected before its migration recorded because `allocate_sale_lots` used an undeclared loop record; the declaration was added and the migration then applied successfully. During review, the quarantine inspection-release path was corrected in a separate generated forward fix: it uses paired transfer movement types, adds COGS recovery from source-lot cost, and does not decrement net sold quantity a second time. The first forward-fix apply was rejected before commit due to a CASE-expression parse error; the corrected migration applied successfully. The deployed catalog test passed after both migrations. Read-only counts before and after remain 32 products, 34 lots, 10 allocations, 15 movements, eight sales, and seven adjustments. There are still zero cutovers, POS operations/events, and movement-lot slices. No business record was created or updated by T05.
+
+FIFO allocation, source restoration, paired transfer, quarantine disposal, injected rollback, wrong-scope denial, and two-connection concurrency were not executed against the populated deployed database. They remain acceptance gaps because the user prohibited a fresh database and destructive/write/concurrency tests are limited to an explicitly isolated target. T05 remains in progress, feature-gated and unconnected; T06 must establish the reconciled cutover before routing any writer.
+
 ### T24 cash-custody schema deployment
 
 Before T24, read-only inspection found no `pos_terminals`, `cash_drawers`, or `cashier_shifts` relations; `public.pos_operations` and historical `public.cashier_closeouts` contained zero rows. Existing closeouts remain untouched. T02/T03 operation identity, MFA, store membership, admin assertion, and the existing `drawer_shifts` default-off feature flag are the implementation baseline.

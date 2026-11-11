@@ -1,6 +1,6 @@
 # T05 — Implement the centralized stock mutation service
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; private service migration is deployed, but operational write-path acceptance remains unverified.
 **Task ID:** T05  
 **Feature:** Inventory correctness  
 **Priority:** Critical  
@@ -22,14 +22,16 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 - `supabase/migrations/20260930130000_consignment_inventory_lots.sql`
 - `supabase/migrations/20261019120000_pos_reporting_and_consignment_revisions.sql`
 
-## Files to modify
+## Files modified
 
-None.
+- `supabase/tests/enhancements/T05_inventory_service.sql` — deployed catalog and authorization assertions.
+- `docs/implementation/TASK_STATUS.md` — actual implementation and verification state.
+- `docs/implementation/SCHEMA_BASELINE.md` — applied migration version and deployed schema evidence.
 
 ## New files
 
 - `supabase/tests/enhancements/T05_inventory_service.sql`
-- CLI-generated migration: `supabase/migrations/<generated-timestamp>_t05_inventory_mutation_service.sql`. Run the pinned CLI's verified `migration new t05_inventory_mutation_service` command; record its exact returned path in SCHEMA_BASELINE/TASK_STATUS. Do not hand-invent the timestamp.
+- CLI-generated migration: `supabase/migrations/20261111045323_t05_inventory_mutation_service.sql`. Supabase recorded applied version `20261111052012`; the checked-in path is aligned to that deployed history as `supabase/migrations/20261111052012_t05_inventory_mutation_service.sql`. A CLI-generated forward fix `20261111052420_t05_fix_quarantine_release_recovery.sql` was recorded as `20261111052533` and is checked in as `supabase/migrations/20261111052533_t05_fix_quarantine_release_recovery.sql`. Do not hand-invent the timestamp.
 
 ## Database changes
 
@@ -52,8 +54,8 @@ B06. One nonzero balance delta→one movement with lot slices; no negative avail
 1. Prelock balance and lots in deterministic order and validate expected version/available holds.
 2. Write balance, lot slices, movement, projection and operation event in one transaction.
 3. Implement source-allocation restoration and quarantine transfer with bounds.
-4. Force mid-write failure and run concurrent sale/adjustment and restore tests.
-5. Run this task's checks against the declared environment; record actual results, skipped checks and unresolved gates in TASK_STATUS. Do not enable a dependent feature while its accounting/authorization prerequisites are incomplete.
+4. Force mid-write failure and run concurrent sale/adjustment and restore tests on an isolated database.
+5. Run the read-only catalog test on the deployed project; run write-path, rollback and concurrency tests only on the explicitly identified isolated database. Record actual results, unavailable checks and unresolved gates in TASK_STATUS. Do not enable a dependent feature while its accounting/authorization prerequisites are incomplete.
 
 ## Edge cases
 
@@ -69,13 +71,12 @@ All helper effects are atomic/idempotent; no direct grant lets a cashier invoke 
 
 ## Verification commands
 
-Commands involving new harnesses/tests become available through T01 or this task; they are future verification instructions, not evidence they ran in planning. Set isolated test variables according to TEST_MATRIX; never use production credentials.
+The catalog test is run against the existing deployed project. The user-directed no-new-database boundary prevents destructive/write-path/concurrency checks until an isolated target is explicitly available; do not use production data for those tests. No local application build, lint, or test commands are run under the active user instruction.
 
 ```text
-npm run typecheck
-npm run lint
-npm run test:unit
-npm run test:db:enhancements -- --case T05
+Hosted CI: typecheck, lint, build, and unit suite after push
+Hosted Supabase: execute supabase/tests/enhancements/T05_inventory_service.sql
+Isolated database required: sale/return/void write paths, injected rollback, wrong-role, and concurrent locking tests
 ```
 
 For SQL tasks, create the migration only after T00 has established the installed CLI workflow. Use `--help` to confirm commands/target; apply only to the explicit disposable target. Review the complete migration and execute its task-specific test before changing TASK_STATUS.
