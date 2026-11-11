@@ -220,3 +220,20 @@ The following T00 acceptance evidence is still pending and blocks any feature-wr
 - Confirm deployed login/workflows separately with the authorized test account. Do not include its credentials in reports or screenshots.
 
 No bootstrap correction or historical SQL was applied to the deployed project. The additive T02, T03, T04, T24 and T25 migrations above are separate forward changes and did not replay the candidate manifest. If empty/restore evidence proves the candidate order wrong, make the smallest forward correction and record the changed specification paths here and in TASK_STATUS; never edit or replay the old deployed history to make the hashes match.
+
+### T43 customer schema and RPC deployment
+
+Before applying T43 on 2026-11-11, the deployed project had no customer tables. The existing `sales` table had eight rows, retained its `customer_name`, `customer_tin`, and `customer_address` receipt snapshots, and had only its existing `id` primary key; the applied T05 migration was the latest history entry. The T43 migration adds a nullable `sales.customer_id`, same-store composite foreign keys, store-local customer profiles, immutable sale-link events, restricted command/search RPCs, and lookup indexes. It does not backfill or edit any sale or receipt snapshot.
+
+The pinned Supabase CLI `3.1.0` generated `20261111055259_t43_store_customers.sql`. Supabase recorded the applied migration as `20261111060332 / t43_store_customers`; the checked-in migration filename is aligned with the deployed history so a later push will not replay it.
+
+| CLI-generated file | Applied history / checked-in file | Canonical LF SHA-256 | Result |
+| --- | --- | --- | --- |
+| `20261111055259_t43_store_customers.sql` | `20261111060332` / `t43_store_customers` / `20261111060332_t43_store_customers.sql` | `c6810546324b7f0f9f9bbc9d994d27018797078f25856d4b25ae9472e1ce94f9` | Applied additively to the existing project; no customer or sale data was written |
+| `supabase/tests/enhancements/T43_customer_schema.sql` | — | `47265094ddc9524d309f8ba8133a5869c3843419c58bf7392429ff7432e4f4bc` | Executed read-only against the deployed project; catalog assertions passed |
+
+Post-migration catalog verification confirmed that both customer tables have RLS and no direct table privileges for `anon`, `authenticated`, or `service_role`; all six public customer RPCs have blank search paths, are executable by `authenticated` only, and validate store membership/MFA, with `manage_customers` required for profile/contact writes. The immutable customer-link trigger and same-store foreign keys are present. Read-only counts remain eight sales, zero customer-linked sales, zero customer profiles, zero customer-link events, and zero POS operations. No customer PII was created.
+
+The security advisor reports authenticated SECURITY DEFINER warnings for the six intentionally exposed RPCs. These routines are the narrow API boundary because direct table access is denied; each write path checks the authenticated actor, store capability, command envelope and operation identity. No new anon-executable customer definer function or mutable-search-path finding appeared. Performance advice reports the new indexes unused while customer tables are empty. The project already has unrelated pre-existing security/performance findings.
+
+T43 remains in progress. The catalog check does not exercise authenticated profile writes, foreign-store denial, version conflicts, archive, identical-operation replay, or two-connection races. Those need an isolated integration target or authorized role-specific workflow tests. Contact retention/redaction remains gated by D07; the optional customer UI is T44 and is not connected yet.

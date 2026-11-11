@@ -1,6 +1,6 @@
 # T50 — Migrate IndexedDB to a durable encrypted operation outbox
 
-**Status:** In progress; encryption primitives, typed offline metadata, the v2 IndexedDB schema/upgrader, atomic storage APIs, durable attempt/retry-state transitions, and encrypted recovery export are implemented but not connected to POS checkout. Remote run #119 passed all ten Chromium storage/safety/recovery tests plus typecheck, lint, build, unit tests, deployed read-only login smoke, and print-agent checks. A new IndexedDB fault-injection test verifies atomic rollback when a write raises `QuotaExceededError`; it does not exhaust browser storage. Actual quota exhaustion, crash-resume, additional failure modes, and integration remain open.
+**Status:** In progress; encryption primitives, typed offline metadata, the v2 IndexedDB schema/upgrader, atomic storage APIs, durable attempt/retry-state transitions, encrypted recovery export, and a fail-closed crash-resume check are implemented but not connected to POS checkout. Hosted run [#126](https://github.com/Haejinka/Kodigo/actions/runs/42967621610) passed typecheck, lint, build, unit tests, eleven Chromium offline-storage tests, deployed read-only login smoke, and print-agent checks; both Vercel deployments succeeded. The new browser test reopens a syncing operation after a simulated restart and verifies the client refuses automatic replay while the server outcome is ambiguous. Actual quota exhaustion, server reconciliation, and POS integration remain open.
 **Task ID:** T50  
 **Feature:** Offline storage  
 **Priority:** Critical  
