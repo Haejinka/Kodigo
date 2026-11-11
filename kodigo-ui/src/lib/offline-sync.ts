@@ -358,10 +358,12 @@ export async function syncPendingMutations() {
       }
 
       if (ledgerRestrictedTables.has(mut.table)) {
-        const payloadRows = Array.isArray(mut.payload) ? mut.payload : [mut.payload];
+        const payloadRows: unknown[] = Array.isArray(mut.payload) ? mut.payload : [mut.payload];
         const payloadStoreIds = [...new Set(payloadRows
-          .map((row) => row?.store_id)
-          .filter((storeId): storeId is string => typeof storeId === 'string' && storeId.length > 0))];
+          .map((row: unknown) => row && typeof row === 'object'
+            ? (row as Record<string, unknown>).store_id
+            : undefined)
+          .filter((storeId: unknown): storeId is string => typeof storeId === 'string' && storeId.length > 0))];
         let storeId = payloadStoreIds.length === 1 ? payloadStoreIds[0] : null;
         if (!storeId && mut.matchKey && mut.matchValue != null) {
           const { data, error } = await (supabase as any)

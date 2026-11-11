@@ -1,6 +1,6 @@
 # T06 — Route all existing stock writers through the ledger
 
-**Status:** In progress; the additive writer/cutover migration and ledger-mode adapters are prepared but not applied or cut over. No production business write has been performed for T06.  
+**Status:** In progress; additive schema is applied and the feature gate remains off. Remote CI found TypeScript errors in the first pushed client build; the fix is awaiting hosted revalidation. No production business write or cutover has been performed for T06.  
 **Task ID:** T06  
 **Feature:** Inventory cutover and checkout  
 **Priority:** Critical  

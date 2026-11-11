@@ -812,6 +812,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
         }))
       : normalizedSellingOptions;
     const restockingOptions = normalizeRestockingOptions(data, id, storeId);
+    const updatedAt = new Date().toISOString();
     const updates: Record<string, unknown> = {
       name: data.name,
       sku: data.sku,
@@ -834,7 +835,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       supplier_id: primarySupplierId,
       image_url: data.imageUrl || null,
       is_active: data.isActive !== false,
-      updated_at: new Date().toISOString(),
+      updated_at: updatedAt,
     };
     if (!ledgerEnabled) updates.current_stock = Math.round(data.currentStock);
 
@@ -858,7 +859,7 @@ export const useProductStore = create<ProductStore>((set, get) => ({
           priceRounding: data.priceRounding ?? 1,
           sellingOptions,
           categoryName: get().categories.find(c => c.id === data.categoryId)?.name || '',
-          updatedAt: updates.updated_at,
+          updatedAt,
         } : p
       )
     }));

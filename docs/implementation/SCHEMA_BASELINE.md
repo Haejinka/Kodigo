@@ -185,6 +185,18 @@ The first hosted apply attempt was rejected before its migration recorded becaus
 
 FIFO allocation, source restoration, paired transfer, quarantine disposal, injected rollback, wrong-scope denial, and two-connection concurrency were not executed against the populated deployed database. They remain acceptance gaps because the user prohibited a fresh database and destructive/write/concurrency tests are limited to an explicitly isolated target. T05 remains in progress, feature-gated and unconnected; T06 must establish the reconciled cutover before routing any writer.
 
+### T06 gated inventory writer migration
+
+The CLI generated `20261111085103_t06_centralize_stock_writers.sql`; the existing project recorded it as `20261111102228 / t06_centralize_stock_writers`, so the checked-in path follows deployed history. It adds the zero-inclusive immutable cutover snapshot and RPC/trigger wrappers while leaving every store's inventory ledger gate off. The migration does not run the cutover.
+
+| CLI-generated file | Applied history / checked-in file | Canonical LF SHA-256 | Result |
+| --- | --- | --- | --- |
+| `20261111085103_t06_centralize_stock_writers.sql` | `20261111102228` / `t06_centralize_stock_writers` / `20261111102228_t06_centralize_stock_writers.sql` | `0FB3FAE34D3E135CBAB1C8EAD814B84A4EE3FEDADFE8CACAC76FB0319994EED6` | Applied; additive functions/triggers and compatibility wrappers only |
+| `20261111102410_t06_revoke_service_role_execute_grants.sql` | `20261111102435` / `t06_revoke_service_role_execute_grants` / `20261111102435_t06_revoke_service_role_execute_grants.sql` | `C371EB3814B3D18A67239A0DBD9BEC8E57CF90A8EF3751938F8545264E09D6D2` | Forward fix removes inherited explicit `service_role` execution grants; authenticated remains the callable API role |
+| `supabase/tests/enhancements/T06_stock_cutover.sql` | — | `735847ACF9F0A1DB94525E250F46BC682EB9CF19DF719871EFDE27515BE04197` | Read-only deployed catalog/release-gate assertions passed after the ACL fix |
+
+The first deployed T06 catalog assertion caught explicit historical `service_role` grants preserved by `CREATE OR REPLACE`. The forward fix revoked only those function grants. The T06 catalog assertions then passed. Read-only counts remain 32 products, 34 lots, 10 sale-item stock allocations, 15 inventory movements, eight sales, seven stock adjustments, zero inventory cutovers and zero stores with `inventory_ledger_v2` enabled. Three prior POS operations and six prior events remain unchanged; no T06 business operation or stock row was created. The current code still requires hosted CI and deployed UI smoke. Write-path, rollback, replay and two-connection concurrency tests remain unrun because the live database is not an isolated test target. Keep cutover off.
+
 ### T24 cash-custody schema deployment
 
 Before T24, read-only inspection found no `pos_terminals`, `cash_drawers`, or `cashier_shifts` relations; `public.pos_operations` and historical `public.cashier_closeouts` contained zero rows. Existing closeouts remain untouched. T02/T03 operation identity, MFA, store membership, admin assertion, and the existing `drawer_shifts` default-off feature flag are the implementation baseline.
