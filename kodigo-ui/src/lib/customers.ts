@@ -32,6 +32,14 @@ function isIsoDate(value: unknown): value is string {
   return typeof value === 'string' && !Number.isNaN(Date.parse(value));
 }
 
+function containsControlCharacters(value: string): boolean {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    if (codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f)) return true;
+  }
+  return false;
+}
+
 function requireUuid(value: string, label: string): string {
   if (!uuidPattern.test(value)) throw new TypeError(`${label} must be a UUID.`);
   return value.toLowerCase();
@@ -41,7 +49,7 @@ function normalizeOptionalContact(value: string | null | undefined, label: strin
   if (value === null || value === undefined) return null;
   if (typeof value !== 'string') throw new TypeError(`${label} must be text or null.`);
   const normalized = value.trim();
-  if (normalized.length > maxLength || /[\u0000-\u001f\u007f]/u.test(normalized)) {
+  if (normalized.length > maxLength || containsControlCharacters(normalized)) {
     throw new TypeError(`${label} exceeds the allowed format.`);
   }
   return normalized || null;
@@ -50,7 +58,7 @@ function normalizeOptionalContact(value: string | null | undefined, label: strin
 function normalizeCustomerName(value: string): string {
   if (typeof value !== 'string') throw new TypeError('Customer name must be text.');
   const normalized = value.trim();
-  if (normalized.length < 1 || normalized.length > 100 || /[\u0000-\u001f\u007f]/u.test(normalized)) {
+  if (normalized.length < 1 || normalized.length > 100 || containsControlCharacters(normalized)) {
     throw new TypeError('Customer name must contain 1 to 100 printable characters.');
   }
   return normalized;
@@ -59,7 +67,7 @@ function normalizeCustomerName(value: string): string {
 function normalizeReason(value: string): string {
   if (typeof value !== 'string') throw new TypeError('Reason must be text.');
   const normalized = value.trim();
-  if (normalized.length < 3 || normalized.length > 500 || /[\u0000-\u001f\u007f]/u.test(normalized)) {
+  if (normalized.length < 3 || normalized.length > 500 || containsControlCharacters(normalized)) {
     throw new TypeError('Reason must contain 3 to 500 printable characters.');
   }
   return normalized;
@@ -210,7 +218,8 @@ function parseCustomerCommandResult(
 export async function searchCustomers(storeId: string, query: string, limit = 20): Promise<CustomerSummary[]> {
   const normalizedQuery = query.trim();
   if (normalizedQuery.length < 2 || normalizedQuery.length > 80
-    || /[%_\\\u0000-\u001f\u007f]/u.test(normalizedQuery)
+    || normalizedQuery.includes('%') || normalizedQuery.includes('_') || normalizedQuery.includes('\\')
+    || containsControlCharacters(normalizedQuery)
     || !Number.isInteger(limit) || limit < 1 || limit > 50) {
     throw new TypeError('Customer search query or limit is invalid.');
   }
