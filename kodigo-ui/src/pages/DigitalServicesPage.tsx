@@ -1,5 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CircleDollarSign, Clock3, Smartphone, Wallet } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Circle, CircleDollarSign, Clock3, Smartphone, Wallet } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { HelpTip } from '@/components/shared/HelpTip';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/shared/Button';
 import { useToast } from '@/components/shared/Toast';
@@ -35,6 +37,8 @@ const serviceLabels: Record<DigitalServiceKind, string> = {
   gcash_cash_in: 'GCash cash-in',
   gcash_cash_out: 'GCash cash-out',
 };
+
+const quickKinds: DigitalServiceKind[] = ['eload', 'gcash_cash_in', 'gcash_cash_out'];
 
 const currency = (value: string | number | null | undefined) => `₱${Number(value ?? 0).toLocaleString('en-PH', {
   minimumFractionDigits: 2,
@@ -99,6 +103,7 @@ export function DigitalServicesPage() {
   const [providerName, setProviderName] = useState('GCash');
   const [accountLabel, setAccountLabel] = useState('Store GCash wallet');
   const [maskedIdentifier, setMaskedIdentifier] = useState('');
+  const [setupBusy, setSetupBusy] = useState(false);
   const [accountBusy, setAccountBusy] = useState(false);
   const [accountOperationId, setAccountOperationId] = useState('');
   const [productKind, setProductKind] = useState<DigitalServiceKind>('eload');
@@ -231,7 +236,7 @@ export function DigitalServicesPage() {
     setRecordMessage(null);
   };
 
-  const submitRecord = async () => {
+  const submitRecord = async (quick = false) => {
     if (!storeId || storeId === 'all' || !workspace || !selectedProduct) return;
     if (!navigator.onLine) {
       setLoadError('Digital service recording is online-only. Reconnect before recording a service.');
@@ -253,11 +258,11 @@ export function DigitalServicesPage() {
           policyCode: kind === 'digital_product' ? null : selectedPolicy?.policy_code,
           providerAccountId: kind === 'digital_product' ? null : selectedAccount?.provider_account_id,
           walletAccountId: kind === 'digital_product' ? null : selectedAccount?.wallet_account_id,
-          externalOutcome: kind === 'digital_product' ? 'confirmed' : outcome,
-          reference: kind === 'digital_product' ? null : reference,
-          externalAt: kind === 'digital_product' ? null : externalAt,
-          evidenceRef,
-          cashExchangeAttested: cashAttested,
+          externalOutcome: kind === 'digital_product' ? 'confirmed' : (quick ? 'confirmed' : outcome),
+          reference: kind === 'digital_product' ? null : (quick ? (reference.trim() || `MANUAL-${Date.now().toString(36).toUpperCase()}`) : reference),
+          externalAt: kind === 'digital_product' ? null : (quick ? localDateTimeNow() : externalAt),
+          evidenceRef: quick ? (evidenceRef.trim() || 'Recorded at counter') : evidenceRef,
+          cashExchangeAttested: quick ? true : cashAttested,
         });
         setPendingCommand(command);
       }
@@ -330,6 +335,42 @@ export function DigitalServicesPage() {
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Could not create service product. Retry the same setup.');
     } finally { setProductBusy(false); }
+  };
+
+  const setupDefaults = async () => {
+    if (!storeId || storeId === 'all' || !workspace) return;
+    if (!categories.length) {
+      setLoadError('Create a product category in Product Management first, then run setup again.');
+      return;
+    }
+    setSetupBusy(true);
+    setLoadError('');
+    try {
+      const hasAccount = (accountKind: string) => workspace.accounts.some((account) => account.account_kind === accountKind);
+      if (!hasAccount('gcash')) {
+        await createDigitalProviderAccount({ storeId, providerName: 'GCash', accountKind: 'gcash', accountLabel: 'Store GCash', maskedIdentifier: '', operationId: createOperationId() });
+      }
+      if (!hasAccount('load')) {
+        await createDigitalProviderAccount({ storeId, providerName: 'Load supplier', accountKind: 'load', accountLabel: 'Load wallet', maskedIdentifier: '', operationId: createOperationId() });
+      }
+      const defaults: Array<[DigitalServiceKind, string, string, string | null]> = [
+        ['eload', 'E-load', 'DIGITAL-ELOAD', null],
+        ['gcash_cash_in', 'GCash cash-in', 'DIGITAL-GCASH-IN', null],
+        ['gcash_cash_out', 'GCash cash-out', 'DIGITAL-GCASH-OUT', '50.00'],
+      ];
+      for (const [productKind, name, sku, min] of defaults) {
+        if (workspace.products.some((product) => product.kind === productKind)) continue;
+        await createDigitalServiceProduct({
+          storeId, kind: productKind, name, sku, categoryId: categories[0].id,
+          sellingPrice: '0.00', costPrice: '0.00', minFaceAmount: min, maxFaceAmount: null,
+          additionalCharge: '0.00', operationId: createOperationId(),
+        });
+      }
+      toast('success', 'Digital services are ready to use.');
+      await reload();
+    } catch (error) {
+      setLoadError(safeMessage(error, 'Setup did not finish. Run it again to continue where it stopped.'));
+    } finally { setSetupBusy(false); }
   };
 
   const requestWalletFunding = async () => {
@@ -475,6 +516,51 @@ export function DigitalServicesPage() {
           </Alert>}
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(19rem,0.75fr)]">
+            <div className="space-y-6">
+            <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm sm:p-6" aria-labelledby="quick-record-title">
+              <h2 id="quick-record-title" className="flex items-center gap-2 text-lg font-semibold text-[var(--foreground)]">Record a service <HelpTip text="1) Do the GCash transfer or load on your phone. 2) Pick the service and enter the amount here. 3) Press Record. The cash you collected or paid out is added to your drawer count automatically." /></h2>
+              <p className="mt-1 text-sm text-[var(--muted-foreground)]">Do the transfer or load first, then record it here.</p>
+              <DigitalSetupGuide workspace={workspace} isAdmin={isAdmin} busy={setupBusy} hasCategories={categories.length > 0} onRun={() => void setupDefaults()} />
+              <div className="mt-4 grid grid-cols-3 gap-2" role="group" aria-label="Service type">
+                {quickKinds.map((option) => <button key={option} type="button" onClick={() => changeKind(option)} disabled={Boolean(pendingCommand)}
+                  className={`min-h-16 rounded-xl border px-2 py-3 text-sm font-semibold transition-colors ${kind === option ? 'border-[var(--primary)] bg-[var(--primary)] text-white' : 'border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] hover:bg-[var(--muted)]'}`}>
+                  {serviceLabels[option]}
+                </button>)}
+              </div>
+              {quickKinds.includes(kind) && <>
+                <div className="mt-4">
+                  <Field label={kind === 'eload' ? 'Load amount' : 'Amount'} help={kind === 'eload' ? 'The load the customer is buying, for example 100. The customer pays this amount; your supplier discount is your earning.' : kind === 'gcash_cash_in' ? 'The amount the customer wants in their GCash. They hand you this amount plus the fee in cash.' : 'The amount the customer wants in cash. They send it (plus the fee) to your GCash and you hand over the cash.'}>
+                    <Input inputMode="decimal" value={faceAmount} onChange={(event) => setFaceAmount(event.target.value)} placeholder="0.00" className="h-14 text-2xl font-semibold" disabled={Boolean(pendingCommand)} />
+                  </Field>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {[50, 100, 200, 300, 500, 1000].map((amount) => <button key={amount} type="button" onClick={() => setFaceAmount(String(amount))} disabled={Boolean(pendingCommand)}
+                      className="rounded-full border border-[var(--border)] px-3 py-1.5 text-sm hover:bg-[var(--muted)]">{currency(amount).replace('.00', '')}</button>)}
+                  </div>
+                </div>
+                {quote && <div className="mt-4 rounded-xl bg-[var(--background)] p-4 text-sm" aria-live="polite">
+                  <p className="text-base font-semibold text-[var(--foreground)]">
+                    {kind === 'gcash_cash_out'
+                      ? `Customer sends ${currency(Number(quote.face_amount) + Number(quote.fee_amount))} to GCash — give ${currency(Math.abs(Number(quote.cash_delta)))} cash`
+                      : `Collect ${currency(quote.cash_delta)} cash`}
+                  </p>
+                  <p className="mt-1 text-[var(--muted-foreground)]">You earn {currency(quote.earning_amount)}{kind !== 'eload' ? ` (fee ${currency(quote.fee_amount)})` : ''}</p>
+                </div>}
+                {quoteError && <p className="mt-3 text-sm text-[var(--destructive)]" role="status">{quoteError}</p>}
+                <div className="mt-4">
+                  <Field label="Reference number (optional)" help="The reference or transaction number shown by GCash or your load app. Leave it blank if you don't have one — the system makes one for you. Never type a PIN or OTP.">
+                    <Input value={reference} onChange={(event) => setReference(event.target.value)} maxLength={160} autoComplete="off" placeholder="GCash or load reference, if you have it" disabled={Boolean(pendingCommand)} />
+                  </Field>
+                </div>
+                <Button className="mt-4 h-12 w-full text-base" onClick={() => void submitRecord(true)} loading={submitting}
+                  disabled={!workspace.enabled || !selectedProduct || !selectedAccount || !quote || Boolean(quoteError)}>
+                  {pendingCommand ? 'Retry same record' : quote ? (kind === 'gcash_cash_out' ? `Record — cash out ${currency(Math.abs(Number(quote.cash_delta)))}` : `Record — cash in ${currency(quote.cash_delta)}`) : 'Enter an amount'}
+                </Button>
+              </>}
+            </section>
+
+            <details className="rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-sm">
+              <summary className="cursor-pointer select-none px-5 py-4 text-sm font-semibold text-[var(--foreground)]">Advanced details (digital products, failed or unknown outcomes, full audit fields)</summary>
+              <div className="px-0 pb-1">
             <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm sm:p-6" aria-labelledby="record-digital-title">
               <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -566,6 +652,9 @@ export function DigitalServicesPage() {
                 {!workspace.enabled && <span className="text-xs text-[var(--muted-foreground)]">Recording is disabled for this store.</span>}
               </div>
             </section>
+              </div>
+            </details>
+            </div>
 
             <aside className="space-y-6">
               <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm" aria-labelledby="wallets-title">
@@ -694,8 +783,60 @@ export function DigitalServicesPage() {
 
 const inputClass = 'flex h-10 w-full rounded-lg border border-[var(--input)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] shadow-sm outline-none focus-visible:border-[var(--ring)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]/20 disabled:cursor-not-allowed disabled:opacity-50';
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return <label className="block space-y-1.5"><span className="block text-sm font-medium text-[var(--foreground)]">{label}</span>{children}{hint && <span className="block text-xs leading-4 text-[var(--muted-foreground)]">{hint}</span>}</label>;
+function Field({ label, hint, help, children }: { label: string; hint?: string; help?: string; children: React.ReactNode }) {
+  const field = <label className="block space-y-1.5"><span className="block text-sm font-medium text-[var(--foreground)]">{label}</span>{children}{hint && <span className="block text-xs leading-4 text-[var(--muted-foreground)]">{hint}</span>}</label>;
+  if (!help) return field;
+  return <div className="relative">{field}<span className="absolute right-0 top-0"><HelpTip text={help} /></span></div>;
+}
+
+type GuideProps = { workspace: DigitalServiceWorkspace | null; isAdmin: boolean; busy: boolean; hasCategories: boolean; onRun: () => void };
+
+function DigitalSetupGuide({ workspace, isAdmin, busy, hasCategories, onRun }: GuideProps) {
+  const accountsDone = Boolean(workspace) && ['gcash', 'load'].every((accountKind) => workspace!.accounts.some((account) => account.account_kind === accountKind && account.wallet_account_id));
+  const productsDone = Boolean(workspace) && quickKinds.every((serviceKind) => workspace!.products.some((product) => product.kind === serviceKind));
+  const firstDone = (workspace?.records.length ?? 0) > 0;
+  const ready = accountsDone && productsDone;
+
+  if (!isAdmin) {
+    return ready ? null : <Alert className="mt-4"><AlertDescription>Digital services are not set up yet. Ask an admin to open this page and follow the setup guide.</AlertDescription></Alert>;
+  }
+  if (ready && firstDone) return null;
+
+  const steps = [
+    { title: 'Add your GCash and load accounts', done: accountsDone, help: 'These are just labels the system uses to group transactions. No passwords or PINs are ever stored.', detail: 'Creates a GCash account and a load account for you.' },
+    { title: 'Add the three services', done: productsDone, help: 'E-load, GCash cash-in and GCash cash-out. Fees are already filled in (e-load 2% supplier discount, cash-in 3%, cash-out ₱2/₱4) and can be changed later.', detail: 'Creates E-load, GCash cash-in and GCash cash-out.' },
+    { title: 'Let your cashier record services', done: firstDone, help: 'Cashiers can only use this page after you switch on "Record digital services" for them.', detail: 'Settings → User Management → Permissions → turn on "Record digital services".' },
+    { title: 'Record your first service', done: firstDone, help: 'Try a small one, like ₱50 e-load. The cash goes into your drawer count automatically.', detail: 'Use the form below.' },
+  ];
+  const current = steps.findIndex((step) => !step.done);
+
+  return (
+    <section className="mt-4 rounded-xl border border-sky-300 bg-sky-50 p-4 text-sky-950" aria-label="Digital services setup guide">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-sm font-semibold">Quick setup <HelpTip text="You only do this once. After it, recording a service takes about five seconds." /></h3>
+        <span className="text-xs">Step {Math.min(current + 1, steps.length)} of {steps.length}</span>
+      </div>
+      <ol className="mt-3 space-y-2">
+        {steps.map((step, index) => (
+          <li key={step.title} className={`rounded-lg border p-3 ${index === current ? 'border-sky-400 bg-white' : 'border-transparent'}`}>
+            <div className="flex items-start gap-2">
+              {step.done ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-label="Done" /> : <Circle className="mt-0.5 size-4 shrink-0 text-sky-500" aria-label="To do" />}
+              <div className="min-w-0 flex-1">
+                <p className={`flex items-center gap-2 text-sm font-medium ${step.done ? 'text-emerald-800 line-through decoration-emerald-400' : ''}`}>{step.title} <HelpTip text={step.help} /></p>
+                {index === current && <p className="mt-1 text-xs">{step.detail}</p>}
+                {index === current && index <= 1 && <div className="mt-2">
+                  {hasCategories
+                    ? <Button size="sm" onClick={onRun} loading={busy}>Do steps 1 and 2 for me</Button>
+                    : <p className="text-xs">You need at least one product category first. <Link to="/inventory" className="font-medium underline">Open Product Management</Link>, add a category, then come back.</p>}
+                </div>}
+                {index === current && index === 2 && <Link to="/settings/users" className="mt-2 inline-block text-xs font-medium underline">Open staff permissions</Link>}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
