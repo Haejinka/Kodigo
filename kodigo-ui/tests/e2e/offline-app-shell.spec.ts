@@ -3,6 +3,7 @@ import { expect, test } from 'playwright/test';
 test('previously loaded static app shell opens offline without caching API responses', async ({ page, context }) => {
   await page.goto('/login');
   await page.evaluate(async () => {
+    await navigator.serviceWorker.register('/service-worker.js', { scope: '/' });
     await navigator.serviceWorker.ready;
   });
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
