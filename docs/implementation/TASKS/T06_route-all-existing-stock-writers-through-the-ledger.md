@@ -1,6 +1,6 @@
 # T06 — Route all existing stock writers through the ledger
 
-**Status:** In progress; additive schema is applied and the feature gate remains off. Remote CI found TypeScript errors in the first pushed client build; the fix is awaiting hosted revalidation. No production business write or cutover has been performed for T06.  
+**Status:** In progress; additive schema and client are deployed, hosted CI and read-only live UI smoke passed, and the inventory cutover remains off. Write-path acceptance and isolated concurrency/rollback checks remain unverified. No production business write or cutover has been performed for T06.  
 **Task ID:** T06  
 **Feature:** Inventory cutover and checkout  
 **Priority:** Critical  
@@ -39,6 +39,7 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 - `docs/implementation/API_CONTRACTS.md`
 - `docs/implementation/ARCHITECTURE.md`
 - `docs/implementation/DATABASE_MIGRATION_PLAN.md`
+- `docs/implementation/SCHEMA_BASELINE.md`
 - `docs/implementation/TASK_STATUS.md`
 
 ## New files
