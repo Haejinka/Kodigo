@@ -1,10 +1,10 @@
 import type { IDBPDatabase } from 'idb';
 import type { ConfirmedOperationResult, OperationCommandV1 } from '@/types/operations';
 import type { OfflineLeaseSnapshot } from '@/types/offline';
-import type { OfflineDatabase } from './offline-db';
-import { offlineScopeKey, persistOfflineLeaseSnapshot } from './offline-db';
-import { parseConfirmedOperationResult, createOperationCommand } from './pos-operations';
-import type { OfflineKeySession } from './offline-crypto';
+import type { OfflineDatabase } from './offline-db.ts';
+import { offlineScopeKey, persistOfflineLeaseSnapshot } from './offline-db.ts';
+import { parseConfirmedOperationResult, createOperationCommand } from './pos-operations.ts';
+import type { OfflineKeySession } from './offline-crypto.ts';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_LEASE_DURATION_MS = 8 * 60 * 60 * 1000;
@@ -152,7 +152,7 @@ export async function issueOfflineLease(input: {
 }): Promise<ConfirmedOperationResult<OfflineLeaseSnapshot>> {
   assertIssueCommandScope(input.command, input.scope);
   await assertOfflineLeaseQueueDrained(input.database, input.scope);
-  const { supabase } = await import('./supabase');
+  const { supabase } = await import('./supabase.ts');
   const { data, error } = await supabase.rpc('issue_offline_lease', { p_command: input.command });
   if (error) throw error;
   const result = parseConfirmedOperationResult<unknown>(data);
@@ -185,7 +185,7 @@ export async function getOfflineLease(storeId: string, leaseId: string): Promise
   if (!UUID_PATTERN.test(storeId) || !UUID_PATTERN.test(leaseId)) {
     throw new TypeError('Store and lease IDs must be UUIDs.');
   }
-  const { supabase } = await import('./supabase');
+  const { supabase } = await import('./supabase.ts');
   const { data, error } = await supabase.rpc('get_offline_lease', {
     p_store_id: storeId.toLowerCase(),
     p_lease_id: leaseId.toLowerCase(),
@@ -211,7 +211,7 @@ export async function revokeOfflineLease(input: {
     || input.command.expected_version !== input.lease.version) {
     throw new Error('Revocation command does not match the current offline lease version.');
   }
-  const { supabase } = await import('./supabase');
+  const { supabase } = await import('./supabase.ts');
   const { data, error } = await supabase.rpc('revoke_offline_lease', { p_command: input.command });
   if (error) throw error;
   const result = parseConfirmedOperationResult<unknown>(data);
