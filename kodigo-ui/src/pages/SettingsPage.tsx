@@ -703,7 +703,9 @@ export function UserManagementPage() {
   const [capabilityTarget, setCapabilityTarget] = useState<User | null>(null);
   const [resettingUserId, setResettingUserId] = useState<string | null>(null);
 
-  const scopedStoreId = activeStoreId && activeStoreId !== 'all' ? activeStoreId : undefined;
+  const scopedStoreId = activeStoreId && activeStoreId !== 'all'
+    ? activeStoreId
+    : (stores.length === 1 ? stores[0].id : undefined);
 
   const refreshUsers = async () => {
     setLoadingUsers(true);
