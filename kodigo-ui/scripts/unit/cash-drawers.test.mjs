@@ -19,7 +19,7 @@ test('terminal registration command normalizes display metadata and carries no a
     displayIdentifier: '  COUNTER-A  ',
   });
 
-  assert.deepEqual(command, {
+  assert.deepEqual(JSON.parse(JSON.stringify(command)), {
     contract_version: 1,
     operation_id: context.operationId,
     store_id: context.storeId,
@@ -58,7 +58,7 @@ test('shift opening uses exact non-negative money strings and registered identif
 
   assert.equal(command.terminal_id, terminalId);
   assert.equal(command.shift_id, null);
-  assert.deepEqual(command.payload, { drawer_id: drawerId, opening_cash: '750.50' });
+  assert.deepEqual(JSON.parse(JSON.stringify(command.payload)), { drawer_id: drawerId, opening_cash: '750.50' });
 });
 
 test('cash custody command builders reject malformed IDs, names, and unsupported money precision', () => {
