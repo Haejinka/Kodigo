@@ -41,6 +41,8 @@ const currency = (value: string | number | null | undefined) => `₱${Number(val
   maximumFractionDigits: 2,
 })}`;
 
+const cashDirection = (value: string | number) => `${Number(value) < 0 ? 'Out' : 'In'} ${currency(Math.abs(Number(value)))}`;
+
 function safeMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
@@ -230,7 +232,7 @@ export function DigitalServicesPage() {
   };
 
   const submitRecord = async () => {
-    if (!storeId || storeId === 'all' || !selectedProduct || !workspace?.active_shifts.length) return;
+    if (!storeId || storeId === 'all' || !selectedProduct) return;
     if (!navigator.onLine) {
       setLoadError('Digital service recording is online-only. Reconnect before recording a service.');
       return;
@@ -241,11 +243,10 @@ export function DigitalServicesPage() {
       let command = pendingCommand;
       if (!command) {
         const shift = workspace.active_shifts.find((item) => item.id === activeShiftId);
-        if (!shift) throw new Error('Select an active cashier shift first.');
         command = buildManualDigitalServiceCommand({
           storeId,
-          terminalId: shift.terminal_id,
-          shiftId: shift.id,
+          terminalId: shift?.terminal_id ?? null,
+          shiftId: shift?.id ?? null,
           productId: selectedProduct.id,
           serviceKind: kind,
           faceAmount,
@@ -467,10 +468,10 @@ export function DigitalServicesPage() {
         <>
           {!workspace.enabled && <Alert className="mb-6 border-amber-300 bg-amber-50 text-amber-950">
             <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>Recording is disabled for this store until digital services and its cash, approval, and operations prerequisites are released. The setup panels below are available to store admins where operations are enabled.</AlertDescription>
+            <AlertDescription>Recording is disabled until digital services, approvals, and operations are enabled for this store. The setup panels below are available to store admins where operations are enabled.</AlertDescription>
           </Alert>}
           {workspace.enabled && !currentShift && <Alert className="mb-6 border-sky-300 bg-sky-50 text-sky-950">
-            <AlertDescription>Open an active cashier shift before recording services. Cash effects are attached to the assigned drawer.</AlertDescription>
+            <AlertDescription>There is no active drawer shift. You can still record this service here; its cash amount stays in the digital service transaction and will not change a POS drawer balance.</AlertDescription>
           </Alert>}
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(19rem,0.75fr)]">
@@ -480,11 +481,12 @@ export function DigitalServicesPage() {
                   <h2 id="record-digital-title" className="text-lg font-semibold text-[var(--foreground)]">Record a service</h2>
                   <p className="mt-1 text-sm text-[var(--muted-foreground)]">Use this after the cash exchange and manual provider check actually happened.</p>
                 </div>
-                {workspace.active_shifts.length > 1 ? <Field label="Cashier shift">
+                {workspace.active_shifts.length > 0 ? <Field label="Optional cashier shift">
                   <select value={currentShift?.id ?? ''} onChange={(event) => setActiveShiftId(event.target.value)} className={inputClass} disabled={Boolean(pendingCommand)}>
+                    <option value="">Record without a drawer shift</option>
                     {workspace.active_shifts.map((shift) => <option key={shift.id} value={shift.id}>{shift.cashier_name} · {shift.terminal_id.slice(0, 8)}</option>)}
                   </select>
-                </Field> : <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--muted-foreground)]">{currentShift ? `Shift · ${currentShift.cashier_name}` : 'No active shift'}</span>}
+                </Field> : <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--muted-foreground)]">{currentShift ? `Shift · ${currentShift.cashier_name}` : 'No drawer shift · record only'}</span>}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -558,7 +560,7 @@ export function DigitalServicesPage() {
 
               {pendingCommand && <Alert className="mt-4 border-sky-300 bg-sky-50 text-sky-950"><AlertDescription>This record may have committed already. Retry with the same operation ID before starting another service.</AlertDescription></Alert>}
               <div className="mt-5 flex flex-wrap items-center gap-3">
-                <Button onClick={() => void submitRecord()} loading={submitting} disabled={!workspace.enabled || !currentShift || !selectedProduct || !quote || Boolean(quoteError) || !cashAttested || !evidenceRef.trim() || (kind !== 'digital_product' && (!selectedAccount || !selectedPolicy || (outcome === 'confirmed' && (!reference.trim() || !externalAt))) )}>
+                <Button onClick={() => void submitRecord()} loading={submitting} disabled={!workspace.enabled || !selectedProduct || !quote || Boolean(quoteError) || !cashAttested || !evidenceRef.trim() || (kind !== 'digital_product' && (!selectedAccount || !selectedPolicy || (outcome === 'confirmed' && (!reference.trim() || !externalAt))) )}>
                   {pendingCommand ? 'Retry same record' : 'Save manual record'}
                 </Button>
                 {!workspace.enabled && <span className="text-xs text-[var(--muted-foreground)]">Recording is disabled for this store.</span>}
@@ -656,15 +658,15 @@ export function DigitalServicesPage() {
             </div>
             {workspace.records.length === 0 ? <p className="px-5 py-8 text-center text-sm text-[var(--muted-foreground)]">No digital service records yet.</p> : <div className="overflow-x-auto">
               <table className="min-w-full text-left text-sm">
-                <thead className="bg-[var(--background)] text-xs uppercase tracking-wide text-[var(--muted-foreground)]"><tr><th className="px-5 py-3 font-medium">Service / date</th><th className="px-5 py-3 font-medium">Principal</th><th className="px-5 py-3 font-medium">Fee</th><th className="px-5 py-3 font-medium">Earning</th><th className="px-5 py-3 font-medium">Status</th></tr></thead>
+                <thead className="bg-[var(--background)] text-xs uppercase tracking-wide text-[var(--muted-foreground)]"><tr><th className="px-5 py-3 font-medium">Service / date</th><th className="px-5 py-3 font-medium">Principal</th><th className="px-5 py-3 font-medium">Cash in / out</th><th className="px-5 py-3 font-medium">Fee</th><th className="px-5 py-3 font-medium">Earning</th><th className="px-5 py-3 font-medium">Status</th></tr></thead>
                 <tbody className="divide-y divide-[var(--border)]">{workspace.records.map((record) => <Fragment key={record.id}>
                   <tr key={record.id}>
                     <td className="px-5 py-3"><p className="font-medium text-[var(--foreground)]">{serviceLabels[record.service_kind]}{record.product_name ? ` · ${record.product_name}` : ''}</p><p className="text-xs text-[var(--muted-foreground)]">{new Date(record.created_at).toLocaleString('en-PH')}{record.reference ? ` · Ref ${record.reference}` : ''}</p></td>
-                    <td className="px-5 py-3 tabular-nums">{currency(record.face_amount)}</td><td className="px-5 py-3 tabular-nums">{currency(record.fee_amount)}</td><td className="px-5 py-3 tabular-nums">{record.state === 'completed' ? currency(record.earning_amount) : '—'}</td>
+                    <td className="px-5 py-3 tabular-nums">{currency(record.face_amount)}</td><td className="px-5 py-3 tabular-nums">{cashDirection(record.cash_delta)}</td><td className="px-5 py-3 tabular-nums">{currency(record.fee_amount)}</td><td className="px-5 py-3 tabular-nums">{record.state === 'completed' ? currency(record.earning_amount) : '—'}</td>
                     <td className="px-5 py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${record.state === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'}`}>{record.state === 'completed' ? 'Complete' : 'Needs reconciliation'}</span>{record.reconciliation_case_id && <p className="mt-1 text-xs text-amber-900">Review case opened</p>}</td>
                   </tr>
                   {isAdmin && record.state === 'needs_reconciliation' && (record.provider_leg_state === 'unknown' || record.provider_leg_state === 'confirmed') && <tr key={`${record.id}-review`}>
-                    <td colSpan={5} className="bg-amber-50/70 px-5 py-4">
+                    <td colSpan={6} className="bg-amber-50/70 px-5 py-4">
                       <div className="max-w-4xl">
                         <p className="text-sm font-semibold text-amber-950">Manually confirm provider outcome</p>
                         <p className="mt-1 text-xs leading-5 text-amber-900">Review the provider account directly. This records your confirmation and attempts the wallet ledger posting; it does not contact GCash or repeat a transfer.</p>

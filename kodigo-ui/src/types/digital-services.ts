@@ -71,6 +71,7 @@ export interface DigitalServiceRecord {
   service_kind: DigitalServiceKind;
   state: 'draft' | 'reserved' | 'awaiting_cash' | 'awaiting_external' | 'completed' | 'needs_reconciliation' | string;
   face_amount: string;
+  cash_delta: string;
   fee_amount: string;
   retail_amount: string;
   earning_amount: string;
@@ -141,7 +142,7 @@ export interface DigitalServiceRecordResult {
   cost_amount: string;
   earning_amount: string;
   cash_delta: string;
-  cash_movement_id: string;
+  cash_movement_id: string | null;
   wallet_movement_id: string | null;
   external_event_id: string | null;
   reconciliation_case_id: string | null;

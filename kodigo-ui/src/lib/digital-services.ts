@@ -177,8 +177,8 @@ export async function createDigitalServiceProduct(input: {
 
 export function buildManualDigitalServiceCommand(input: {
   storeId: string;
-  terminalId: string;
-  shiftId: string;
+  terminalId?: string | null;
+  shiftId?: string | null;
   productId: string;
   serviceKind: DigitalServiceKind;
   faceAmount: string;
@@ -196,8 +196,8 @@ export function buildManualDigitalServiceCommand(input: {
   return newCommand({
     operationId: input.operationId,
     storeId: input.storeId,
-    terminalId: input.terminalId,
-    shiftId: input.shiftId,
+    terminalId: input.terminalId ?? null,
+    shiftId: input.shiftId ?? null,
     payload: {
       product_id: normalizeId(input.productId, 'Product ID'),
       service_kind: input.serviceKind,
