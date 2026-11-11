@@ -946,7 +946,7 @@ function CapabilityManagementDialog({
   const availableCapabilities = STORE_CAPABILITY_OPTIONS.filter((option) => (
     user.role === 'inventory'
       ? option.code === 'approve_inventory_adjustment'
-      : option.code !== 'approve_inventory_adjustment'
+      : !option.code.startsWith('approve_') // approvals are decided per request by an admin, not as standing permissions
   ));
   const hasChanges = availableCapabilities.some(({ code }) => (
     initialCapabilities.has(code) !== selectedCapabilities.has(code)
