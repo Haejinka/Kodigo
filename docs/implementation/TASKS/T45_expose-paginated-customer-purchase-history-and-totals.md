@@ -46,7 +46,7 @@ Customer detail profile/summary/history/item drill-down with date-basis labels a
 
 ## Business rules
 
-B03/B10. Voids net0; returned credit and financial refund subtract once; guest separate; prior financial refund does not hide physical return.
+B03/B10. Voids net0; returned credit and financial refund subtract once; history and rankings count only sales explicitly linked to that customer; guest sales remain unlinked with separate guest totals. Prior financial refund does not hide physical return.
 
 ## Implementation steps
 

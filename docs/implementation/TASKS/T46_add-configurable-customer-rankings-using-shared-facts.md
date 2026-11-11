@@ -44,7 +44,7 @@ Net spending/net units/distinct transaction visits/recent nonvoid purchase per B
 
 ## Frontend work
 
-Separate /customers/rankings route, metric/date filters, guest aggregate card and displayed definition; preserve existing /rankings product page.
+Separate /customers/rankings route, metric/date filters, a separate guest aggregate card, and displayed definition; rank only customers with explicitly linked sales and preserve existing /rankings product page.
 
 ## Business rules
 

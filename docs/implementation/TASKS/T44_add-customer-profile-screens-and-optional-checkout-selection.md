@@ -49,7 +49,7 @@ Guest default, search/create/select/clear, minimal customer management route and
 
 ## Business rules
 
-B10. Guest always allowed; no forced TIN/address; profile edits do not rewrite old receipts.
+B10. Guest always allowed; selecting a customer is an explicit client choice for only the people they want to track. Do not force or auto-create profiles, infer identity from contact fields, or link unselected sales. No forced TIN/address; profile edits do not rewrite old receipts.
 
 ## Implementation steps
 

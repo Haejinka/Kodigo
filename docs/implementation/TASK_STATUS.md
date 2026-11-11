@@ -23,6 +23,7 @@ Customer-management follow-up: remote run [#133](https://github.com/Haejinka/Kod
 ## Plan corrections from implementation evidence
 
 - Offline lease boundary: ARCHITECTURE.md A07 originally said issue_offline_lease also reserved lot stock, while T51 owns lease identity/time/sequence and T52 separately owns product/lot grants. API_CONTRACTS.md, DATABASE_MIGRATION_PLAN.md M12, A07, T51 and T52 now agree on a pending_stock lease that cannot authorize sales until T52 attaches server-computed quote snapshots and grants and activates it atomically. Offline escrow stays disabled until T06, T26, T31, T52-T59 and D03 acceptance. The initial 100-operation/8-hour lease cap requires owner confirmation before activation.
+- Customer tracking decision: checkout customer capture is opt-in for only the people the client chooses to track. Guest sales stay unlinked; no auto-created profiles or name/contact matching; customer history/rankings use explicit links and guest totals remain separate. This is recorded in B10, API contracts, M11, and T44-T46. No user or customer data changed.
 
 | Task | Status | Owner / branch | Exact migration / changed artifacts | Evidence / date | Gate / limitation |
 | --- | --- | --- | --- | --- | --- |
