@@ -1,6 +1,6 @@
 # T43 — Add store-scoped customer identity without rewriting history
 
-**Status:** In progress; additive schema and guarded RPCs are applied to the existing deployed project. Catalog checks passed, and one clearly labeled no-contact test customer exists from T44 live verification; its create and update commands succeeded after the T02 deferred-trigger fix. Sale links remain empty. Role-specific archive/association, operation replay, and foreign-store behavior remain unverified. Contact retention/redaction stays gated by D07.
+**Status:** In progress; additive schema and guarded RPCs are applied to the existing deployed project. Catalog checks passed, and deployed create/update/archive commands were exercised through T44. One labeled no-contact test customer remains archived at version 3; no sale is linked. Foreign-store denial, exact replay, and association remain unverified. Contact retention/redaction stays gated by D07.
 **Task ID:** T43  
 **Feature:** Customer foundation  
 **Priority:** Medium  
