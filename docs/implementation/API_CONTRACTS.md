@@ -50,9 +50,10 @@ Reads: `get_void_eligibility(p_sale_id)`, `get_return_eligibility(p_sale_id)`, `
 
 | API / owner | Payload fields | Result |
 | --- | --- | --- |
-| `register_pos_terminal` / T24 | name, display_identifier | Registered UUID and active state; admin only. |
-| `register_cash_drawer` / T24 | name, terminal_id? | Logical drawer UUID; admin only. |
-| `open_cashier_shift` / T24,T25 | drawer_id, terminal_id, opening_cash | Shift ID/version and opening movement, server start; no overlapping custody. |
+| `register_pos_terminal` / T24 | `CommandV1`; payload `{name,display_identifier|null}`; terminal/shift envelope IDs null | Registered UUID and active state; assigned store admin only. |
+| `register_cash_drawer` / T24 | `CommandV1`; payload `{name,terminal_id|null}`; envelope terminal_id must match payload | Logical drawer UUID; assigned store admin only. |
+| `open_cashier_shift` / T24,T25 | `CommandV1`; payload `{drawer_id,opening_cash}` where opening_cash is a decimal string with at most two places; envelope terminal_id is registered and shift_id is null | Shift ID/version and, after T25, its opening movement; server start; no overlapping custody. The `drawer_shifts` flag stays off until posting the opening cash movement is available. |
+| `list_store_cash_custody` / T24 | store_id | Registered terminals and drawers; assigned store admin only. |
 | `request_cash_movement` / T27 | type add/remove/drop/adjustment, amount, signed_direction where adjustment, reason, source_ref? | Posted permitted routine movement or independent approval request; no cash change while pending. |
 | `record_cash_movement` / T27 | approved_request_id?, type, amount, reason, expected_shift_version | One actual physical cash movement with before/after/available; applies only exact approved proposal where approval required. |
 | `prepare_closeout` / T28 | shift_id, expected_shift_version | Freeze/watermark draft, pending IDs and totals; blocks new sales while closing. This is a write command, not read-only preview. |

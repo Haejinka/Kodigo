@@ -161,6 +161,19 @@ A read-only preflight against the same deployed project, recorded 2026-11-10 bef
 | `supabase/migrations/20261110205156_t04_inventory_shadow_constraints.sql` | `786718bb33f206768c303d257879f56abe633e35e1f3d6f03623c8fe2127564c` | Prepared; unapplied |
 | `supabase/tests/enhancements/T04_inventory_schema.sql` | `e73f158c2004848ada36fd2dc53ab2c81e255f0dd42420d87aa6c3e0f75aaa74` | Read-only catalog/reconciliation assertions; unexecuted |
 
+### T24 predeployment cash-custody check
+
+Read-only inspection of the same deployed project found no `pos_terminals`, `cash_drawers`, or `cashier_shifts` relations. `public.pos_operations` had zero rows (zero rows with terminal or shift IDs), and the historical `public.cashier_closeouts` table had zero rows. No T24 DDL, registration, shift opening, or cash record was created. Existing closeouts remain untouched. T02/T03 operation identity, MFA, store membership, admin assertion, and the existing `drawer_shifts` default-off feature flag are the implementation baseline.
+
+The T24 API shorthand originally omitted the operation ID/envelope for writes, conflicting with the deployed T02 replay contract. The smallest correction is to require `CommandV1` for terminal registration, drawer registration, and shift opening, with actor identity derived from the authenticated session. This correction is reflected in `API_CONTRACTS.md` and the T24 task specification.
+
+| Prepared artifact | Canonical LF SHA-256 | State |
+| --- | --- | --- |
+| `supabase/migrations/20261110212138_t24_drawers_terminals_shifts.sql` | `055845a95f1f40951312d97355d2fc45d2831a287246e7e18d77c4563098813a` | Prepared; unapplied |
+| `supabase/tests/enhancements/T24_shift_open.sql` | `e77dc0a86e3d1ae68b3b7b407c320d041bcea47c1cbdf0cd4992f2dfc2da41ff` | Read-only catalog assertions; unexecuted |
+
+The T24 opening RPC checks the existing `drawer_shifts` flag, which defaults off; it cannot create an active shift until T25 can post the opening movement in the same transaction. No terminal/drawer/shift UI was added by T24, and no flag was enabled.
+
 The following T00 acceptance evidence is still pending and blocks any feature-write activation:
 
 - Confirm the checksummed manifest replays successfully on the approved isolated target. This remains blocked by the user's instruction not to create a fresh database. Run #111 demonstrates that the candidate order reaches `migration_21_reporting_snapshots_and_reports.sql`, where `MIN(si.category_id)` fails with `function min(uuid) does not exist`; no source correction to this historical migration has been made. The populated deployed project has no `min(uuid)` aggregate and has a different `v_category_sales` definition, confirmed by read-only catalog query. Do not run the candidate manifest or historical SQL on the deployed project.

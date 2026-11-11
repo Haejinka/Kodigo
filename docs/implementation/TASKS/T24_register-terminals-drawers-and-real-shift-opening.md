@@ -1,6 +1,6 @@
 # T24 — Register terminals drawers and real shift opening
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; additive schema and typed command adapter are prepared, but no migration or shift record has been applied/created.  
 **Task ID:** T24  
 **Feature:** Drawer custody  
 **Priority:** Critical  
@@ -24,14 +24,21 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 
 ## Files to modify
 
-None.
+- `docs/implementation/API_CONTRACTS.md`
+- `docs/implementation/SCHEMA_BASELINE.md`
+- `docs/implementation/TASK_STATUS.md`
 
 ## New files
 
 - `kodigo-ui/src/types/cash-drawers.ts`
 - `kodigo-ui/src/lib/cash-drawers.ts`
+- `kodigo-ui/scripts/unit/cash-drawers.test.mjs`
 - `supabase/tests/enhancements/T24_shift_open.sql`
-- CLI-generated migration: `supabase/migrations/<generated-timestamp>_t24_drawers_terminals_shifts.sql`. Run the pinned CLI's verified `migration new t24_drawers_terminals_shifts` command; record its exact returned path in SCHEMA_BASELINE/TASK_STATUS. Do not hand-invent the timestamp.
+- CLI-generated migration: `supabase/migrations/20261110212138_t24_drawers_terminals_shifts.sql`.
+
+### Contract correction
+
+The original T24 API shorthand listed only business fields for terminal registration, drawer registration, and shift opening. That conflicts with the already deployed T02 requirement that every retryable write use `CommandV1` with a stable operation ID and server-derived actor. The API contract is corrected to use `CommandV1`; operation IDs and the full envelope are now mandatory, and the actor is never supplied in the payload. This is the smallest correction that preserves T02 idempotency and avoids duplicate custody on response loss.
 
 ## Database changes
 
@@ -53,7 +60,7 @@ B07. Opening declared at start; one active/submitting shift per drawer and cashi
 
 1. Add entities and admin registration/list RPCs.
 2. Implement locked idempotent shift opening with nonnegative counted amount.
-3. Attach future movement opening hook after T25; until then opening records remain flag-gated.
+3. Keep `drawer_shifts` disabled until T25 can post the opening movement in the shift-open transaction; attach that hook after T25.
 4. Test two actors/drawers and store-switch authority.
 5. Run this task's checks against the declared environment; record actual results, skipped checks and unresolved gates in TASK_STATUS. Do not enable a dependent feature while its accounting/authorization prerequisites are incomplete.
 
