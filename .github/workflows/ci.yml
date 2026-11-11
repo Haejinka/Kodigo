@@ -32,6 +32,9 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://kodigo-e2e.invalid
+          VITE_SUPABASE_ANON_KEY: e2e-placeholder-key-not-a-credential
 
       - name: Unit tests
         run: npm run test:unit
