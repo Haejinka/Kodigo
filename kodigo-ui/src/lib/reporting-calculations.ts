@@ -10,6 +10,22 @@ export interface SaleLinePaymentInput {
   lineTotal: number;
 }
 
+export type SaleLineAmountBasis = 'net_item_discounted' | 'legacy_gross' | 'legacy_unknown';
+
+export interface SaleLineFinancialInput {
+  saleItemId: string;
+  lineTotal: number;
+  itemDiscount: number;
+  credit: number;
+}
+
+export interface SaleLineFinancialAmounts {
+  grossRevenue: number | null;
+  discountAllocated: number | null;
+  creditAllocated: number;
+  netRevenue: number | null;
+}
+
 export interface MonthlySalesLine {
   dateTime: string;
   productId: string | null;
@@ -38,6 +54,53 @@ export function isValidSalesTransactionStatus(status: string) {
   return status === 'completed' || status === 'partially_refunded' || status === 'refunded';
 }
 
+/** Calculate billed line facts without applying an item discount twice. */
+export function calculateSaleLineFinancialAmounts(
+  lines: SaleLineFinancialInput[],
+  lineAmountBasis: SaleLineAmountBasis,
+  saleDiscount: number,
+): Map<string, SaleLineFinancialAmounts> {
+  const orderedLines = [...lines].sort((a, b) => a.saleItemId.localeCompare(b.saleItemId));
+  if (lineAmountBasis === 'legacy_unknown') {
+    return new Map(orderedLines.map((line) => [line.saleItemId, {
+      grossRevenue: null,
+      discountAllocated: null,
+      creditAllocated: roundMoney(line.credit),
+      netRevenue: null,
+    }]));
+  }
+
+  if (lineAmountBasis === 'net_item_discounted') {
+    return new Map(orderedLines.map((line) => {
+      const lineTotal = roundMoney(line.lineTotal);
+      const itemDiscount = Math.max(0, roundMoney(line.itemDiscount));
+      const credit = roundMoney(line.credit);
+      return [line.saleItemId, {
+        grossRevenue: roundMoney(lineTotal + itemDiscount),
+        discountAllocated: itemDiscount,
+        creditAllocated: credit,
+        netRevenue: roundMoney(lineTotal - credit),
+      }];
+    }));
+  }
+
+  const grossCents = orderedLines.map((line) => Math.max(0, moneyToCents(line.lineTotal)));
+  const totalGrossCents = grossCents.reduce((total, cents) => total + cents, 0);
+  const discountCents = Math.min(Math.max(0, moneyToCents(saleDiscount)), totalGrossCents);
+  const discountShares = prorateCents(discountCents, grossCents);
+  return new Map(orderedLines.map((line, index) => {
+    const grossRevenue = grossCents[index] / 100;
+    const discountAllocated = discountShares[index] / 100;
+    const creditAllocated = roundMoney(line.credit);
+    return [line.saleItemId, {
+      grossRevenue,
+      discountAllocated,
+      creditAllocated,
+      netRevenue: roundMoney(grossRevenue - discountAllocated - creditAllocated),
+    }];
+  }));
+}
+
 /**
  * Allocate transaction payments back to their sale lines. Captures follow each
  * line's discounted historical amount; item returns use their recorded refund
@@ -50,13 +113,17 @@ export function allocateSaleLineAmountPaid(
   saleDiscount: number,
   payments: ReportPaymentEvent[],
   returnAmountsByLine: Record<string, number>,
+  lineAmountBasis: SaleLineAmountBasis = 'legacy_gross',
 ): Map<string, number> {
   const orderedLines = [...lines].sort((a, b) => a.saleItemId.localeCompare(b.saleItemId));
   if (orderedLines.length === 0) return new Map();
+  if (lineAmountBasis === 'legacy_unknown') return new Map();
 
   const lineTotals = orderedLines.map((line) => Math.max(0, finite(line.lineTotal)));
   const grossTotal = lineTotals.reduce((sum, amount) => sum + amount, 0);
-  const discount = Math.min(Math.max(0, finite(saleDiscount)), grossTotal);
+  const discount = lineAmountBasis === 'legacy_gross'
+    ? Math.min(Math.max(0, finite(saleDiscount)), grossTotal)
+    : 0;
   const discountedWeights = prorate(discount, lineTotals).map((allocated, index) => Math.max(0, lineTotals[index] - allocated));
   const captureTotal = payments.reduce((sum, payment) => (
     payment.status === 'captured' ? sum + Math.max(0, finite(payment.amount)) : sum
@@ -170,8 +237,11 @@ export function formatSalesReportPdfCurrency(amount: number) {
 }
 
 function prorate(total: number, weights: number[]): number[] {
+  return prorateCents(moneyToCents(total), weights).map((cents) => cents / 100);
+}
+
+function prorateCents(totalCents: number, weights: number[]): number[] {
   if (weights.length === 0) return [];
-  const totalCents = Math.round((finite(total) + Number.EPSILON) * 100);
   const safeWeights = weights.map((weight) => Math.max(0, finite(weight)));
   const weightTotal = safeWeights.reduce((sum, weight) => sum + weight, 0);
   const effectiveWeights = weightTotal > 0 ? safeWeights : safeWeights.map(() => 1);
@@ -183,7 +253,11 @@ function prorate(total: number, weights: number[]): number[] {
   const centsLeft = totalCents - raw.reduce((sum, share) => sum + share.cents, 0);
   const remainderOrder = [...raw].sort((a, b) => b.remainder - a.remainder || a.index - b.index);
   for (let index = 0; index < centsLeft; index += 1) remainderOrder[index % remainderOrder.length].cents += 1;
-  return raw.sort((a, b) => a.index - b.index).map((share) => share.cents / 100);
+  return raw.sort((a, b) => a.index - b.index).map((share) => share.cents);
+}
+
+function moneyToCents(value: number) {
+  return Math.round((finite(value) + Number.EPSILON) * 100);
 }
 
 function finite(value: number) {

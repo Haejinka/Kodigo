@@ -1,0 +1,75 @@
+{
+  "input": "C:\\Users\\verga\\Downloads\\REPRINT FINAL REQ\\Informed Consent v2 - READY TO PRINT.docx",
+  "fonts_by_char_count": {
+    "Arial": 2151
+  },
+  "direct_run_formatting_runs": 24,
+  "direct_paragraph_formatting_paragraphs": 11,
+  "heading_like_paragraphs_not_heading_style": [
+    {
+      "para_index": 2,
+      "text": "Participant Information Sheet and Informed Consent ",
+      "style": "normal"
+    }
+  ],
+  "examples": {
+    "direct_run_formatting": [
+      {
+        "para_index": 2,
+        "run_text": "Participant Information Sheet and Informed Consent ",
+        "style": "normal"
+      },
+      {
+        "para_index": 3,
+        "run_text": "Dear Participant,",
+        "style": "normal"
+      },
+      {
+        "para_index": 5,
+        "run_text": "We, students from Southwestern University College of Information Technology are ",
+        "style": "normal"
+      },
+      {
+        "para_index": 6,
+        "run_text": "This study aims to design and evaluate a cloud-based inventory and financial man",
+        "style": "normal"
+      },
+      {
+        "para_index": 7,
+        "run_text": "What you will do in this study:  ",
+        "style": "normal"
+      }
+    ],
+    "direct_paragraph_formatting": [
+      {
+        "para_index": 17,
+        "text": "Almie Joy B. Ilustrisimo (abilustrisimo.swu@phinmaed.com;09981547296)",
+        "style": "normal"
+      },
+      {
+        "para_index": 18,
+        "text": "Evon Vergara (evpa.vergara.swu@phinmaed.com;09062983517)  ",
+        "style": "normal"
+      },
+      {
+        "para_index": 19,
+        "text": "Xymmer Nadera (xyde.nadera.swu@phinmaed.com)",
+        "style": "normal"
+      },
+      {
+        "para_index": 20,
+        "text": "Justin Commendador (just.comendador.swu@phinmaed.com)",
+        "style": "normal"
+      },
+      {
+        "para_index": 21,
+        "text": "",
+        "style": "normal"
+      }
+    ]
+  },
+  "notes": [
+    "Direct formatting is not always wrong, but it often causes inconsistent output when templates change.",
+    "Heading-like paragraphs not using Heading styles can break TOC and accessibility."
+  ]
+}

@@ -1,6 +1,6 @@
 # T06 — Route all existing stock writers through the ledger
 
-**Status:** In progress; additive schema and client are deployed, hosted CI and read-only live UI smoke passed, and the inventory cutover remains off. Write-path acceptance and isolated concurrency/rollback checks remain unverified. No production business write or cutover has been performed for T06.  
+**Status:** Implemented — Pending Verification; additive schema and client are deployed, hosted CI and read-only live UI smoke passed, and the inventory cutover remains off. Write-path acceptance and isolated concurrency/rollback checks remain unverified. No production business write or cutover has been performed for T06.
 **Task ID:** T06  
 **Feature:** Inventory cutover and checkout  
 **Priority:** Critical  

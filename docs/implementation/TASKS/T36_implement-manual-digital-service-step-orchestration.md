@@ -1,6 +1,6 @@
 # T36 — Implement manual digital service step orchestration
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; the atomic manual-record path is applied, but staged legs, recovery and required verification are pending.  
 **Task ID:** T36  
 **Feature:** Digital transaction core  
 **Priority:** Critical  
@@ -29,7 +29,7 @@ None.
 
 - `kodigo-ui/src/lib/digital-services.ts`
 - `supabase/tests/enhancements/T36_digital_steps.sql`
-- CLI-generated migration: `supabase/migrations/<generated-timestamp>_t36_manual_digital_steps.sql`. Run the pinned CLI's verified `migration new t36_manual_digital_steps` command; record its exact returned path in SCHEMA_BASELINE/TASK_STATUS. Do not hand-invent the timestamp.
+- Combined CLI-generated migration for T32–T42 schema/source: `supabase/migrations/20261111120227_t32_t42_manual_digital_services.sql`, applied to the existing project as history version `20261111130705`; checksum and verification are in SCHEMA_BASELINE/TASK_STATUS.
 
 ## Database changes
 

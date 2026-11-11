@@ -1,6 +1,6 @@
 # T33 — Implement immutable fee policy versions and exact quotes
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; default fee-policy and quote schema/source are applied, but policy administration and required verification are pending.  
 **Task ID:** T33  
 **Feature:** Digital fees  
 **Priority:** Critical  
@@ -29,7 +29,7 @@ None.
 - `kodigo-ui/src/lib/digital-service-quotes.ts`
 - `kodigo-ui/scripts/unit/digital-service-quotes.test.mjs`
 - `supabase/tests/enhancements/T33_fee_policies.sql`
-- CLI-generated migration: `supabase/migrations/<generated-timestamp>_t33_service_fee_policies.sql`. Run the pinned CLI's verified `migration new t33_service_fee_policies` command; record its exact returned path in SCHEMA_BASELINE/TASK_STATUS. Do not hand-invent the timestamp.
+- Combined CLI-generated migration for T32–T42 schema/source: `supabase/migrations/20261111120227_t32_t42_manual_digital_services.sql`, applied to the existing project as history version `20261111130705`; checksum and verification are in SCHEMA_BASELINE/TASK_STATUS.
 
 ## Database changes
 

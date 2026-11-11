@@ -1,6 +1,6 @@
 # T34 — Implement wallet ledger holds and balance conservation
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; wallet ledger and adjustment schema/source are applied, but service holds and required verification are pending.  
 **Task ID:** T34  
 **Feature:** Wallet accounting  
 **Priority:** Critical  
@@ -28,7 +28,7 @@ None.
 
 - `kodigo-ui/src/lib/wallets.ts`
 - `supabase/tests/enhancements/T34_wallet_ledger.sql`
-- CLI-generated migration: `supabase/migrations/<generated-timestamp>_t34_wallet_movements_reservations.sql`. Run the pinned CLI's verified `migration new t34_wallet_movements_reservations` command; record its exact returned path in SCHEMA_BASELINE/TASK_STATUS. Do not hand-invent the timestamp.
+- Combined CLI-generated migration for T32–T42 schema/source: `supabase/migrations/20261111120227_t32_t42_manual_digital_services.sql`, applied to the existing project as history version `20261111130705`; checksum and verification are in SCHEMA_BASELINE/TASK_STATUS.
 
 ## Database changes
 

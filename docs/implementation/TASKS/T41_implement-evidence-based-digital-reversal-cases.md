@@ -1,6 +1,6 @@
 # T41 — Implement evidence-based digital reversal cases
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; schema scaffolding is applied, but reversal commands, UI and required verification are not implemented.  
 **Task ID:** T41  
 **Feature:** Digital recovery  
 **Priority:** Critical  
@@ -28,7 +28,7 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 ## New files
 
 - `supabase/tests/enhancements/T41_digital_reversals.sql`
-- CLI-generated migration: `supabase/migrations/<generated-timestamp>_t41_digital_reversal_reconciliation.sql`. Run the pinned CLI's verified `migration new t41_digital_reversal_reconciliation` command; record its exact returned path in SCHEMA_BASELINE/TASK_STATUS. Do not hand-invent the timestamp.
+- Combined CLI-generated migration for T32–T42 schema/source: `supabase/migrations/20261111120227_t32_t42_manual_digital_services.sql`, applied to the existing project as history version `20261111130705`; checksum and verification are in SCHEMA_BASELINE/TASK_STATUS.
 
 ## Database changes
 

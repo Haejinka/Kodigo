@@ -29,10 +29,16 @@ export interface ReportFilters {
 export interface SalesReportSummary {
   grossSales: number;
   discounts: number;
+  postedCredits: number;
   tax: number;
   refunds: number;
   voidedSales: number;
   netSales: number;
+  netPaid: number;
+  unallocatedBilled: number;
+  unclassifiedSales: number;
+  settlementUnknownSales: number;
+  financialAttributionComplete: boolean;
   totalTransactions: number;
   completedTransactions: number;
   voidedTransactions: number;
@@ -61,6 +67,10 @@ export interface SalesTransactionReportRow {
   refunds: number;
   total: number;
   netSales: number;
+  netPaid: number;
+  postedCredits: number;
+  financialAttributionComplete: boolean;
+  settlementUnknown: boolean;
 }
 
 export interface SalesLineReportRow {
@@ -96,11 +106,13 @@ export interface SalesLineReportRow {
   cogs: number;
   grossRevenue: number;
   discountAllocated: number;
+  creditAllocated: number;
   refundAllocated: number;
   netRevenue: number;
   amountPaid: number;
   grossProfit: number;
   grossMargin: number;
+  financialAttributionComplete: boolean;
   status: SaleStatus;
   cashierId: string | null;
   cashierName: string;
@@ -126,12 +138,14 @@ export interface SalesGroupReportRow {
   netBaseUnitQuantity: number;
   grossRevenue: number;
   discounts: number;
+  credits: number;
   refunds: number;
   netRevenue: number;
   cost: number;
   grossProfit: number;
   grossMargin: number;
   transactions: number;
+  financialAttributionComplete: boolean;
 }
 
 export interface DateSalesReportRow {
@@ -264,18 +278,54 @@ interface SaleItemRow {
   final_selling_price: number | null;
   base_unit_label: string | null;
   cost_per_base_unit: number | null;
+  cogs: number | null;
   allocated_cogs: number | null;
   quantity: number;
   unit_price: number;
   cost_price: number | null;
   line_total: number;
+  item_discount_amount: number;
 }
 
 interface SalePaymentRow {
   sale_id: string;
   method: PaymentMethod;
-  status: 'captured' | 'refunded' | 'voided';
+  status: string;
+  event_kind: string | null;
   amount: number;
+}
+
+interface SaleReportLineFact {
+  sale_item_id: string;
+  line_amount_basis: 'net_item_discounted' | 'legacy_gross' | 'legacy_unknown';
+  gross_revenue: number | null;
+  discount_allocated: number | null;
+  credit_allocated: number;
+  net_revenue: number | null;
+  returned_quantity: number;
+  returned_base_quantity: number;
+  cogs_recovered: number;
+  line_cost: number;
+  financial_attribution_complete: boolean;
+}
+
+interface SaleFinancialFact {
+  sale_id: string;
+  line_amount_basis: SaleReportLineFact['line_amount_basis'];
+  financial_complete: boolean;
+  unclassified_count: number;
+  gross_billed: number | null;
+  sale_discount: number | null;
+  net_billed: number;
+  posted_credits: number;
+  captured_payments: number;
+  confirmed_refunds: number;
+  net_paid: number;
+  refund_due: number;
+  settlement_unknown: boolean;
+  line_facts: SaleReportLineFact[];
+  unallocated_billed: number;
+  attribution_complete: boolean;
 }
 
 interface SaleReturnItemRow {
@@ -293,10 +343,16 @@ type ReportWorkbookSheet = Sheet<Blob>;
 const zeroSummary: SalesReportSummary = {
   grossSales: 0,
   discounts: 0,
+  postedCredits: 0,
   tax: 0,
   refunds: 0,
   voidedSales: 0,
   netSales: 0,
+  netPaid: 0,
+  unallocatedBilled: 0,
+  unclassifiedSales: 0,
+  settlementUnknownSales: 0,
+  financialAttributionComplete: true,
   totalTransactions: 0,
   completedTransactions: 0,
   voidedTransactions: 0,
@@ -662,36 +718,25 @@ export async function fetchSalesReport(
   if (sales.length === 0) return empty;
 
   const saleIds = sales.map((sale) => sale.id);
-  const [items, payments, returnedItems, cashierNames] = await Promise.all([
+  const [items, payments, returnedItems, cashierNames, financialFacts] = await Promise.all([
     fetchSaleItems(saleIds, requestContext),
     fetchSalePayments(saleIds, requestContext),
     fetchReturnedItems(saleIds, requestContext),
     fetchCashierNames(sales.map((sale) => sale.cashier_id).filter(Boolean) as string[], requestContext),
+    fetchSaleFinancialFacts(saleIds),
   ]);
-  const allocations = items.length > 0
-    ? await fetchSaleItemAllocations(items.map((item) => item.id), requestContext)
-    : [];
-
-  const allocatedCogsByItem = new Map<string, number>();
-  for (const allocation of allocations) {
-    const remainingQuantity = Math.max(0, allocation.quantity_base_units - allocation.quantity_returned);
-    allocatedCogsByItem.set(
-      allocation.sale_item_id,
-      (allocatedCogsByItem.get(allocation.sale_item_id) ?? 0) + remainingQuantity * allocation.unit_cost,
-    );
+  const financialSales = new Set(financialFacts.map((fact) => fact.sale_id));
+  if (sales.some((sale) => !financialSales.has(sale.id))) {
+    throw new Error('The financial report facts are incomplete for the selected sales.');
   }
-  const saleItems = items.map((item) => ({
-    ...item,
-    allocated_cogs: allocatedCogsByItem.has(item.id) ? allocatedCogsByItem.get(item.id)! : null,
-  }));
 
   const aggregationStarted = performance.now();
-  const report = buildSalesReport(normalizedFilters, sales, saleItems, payments, returnedItems, cashierNames);
+  const report = buildSalesReport(normalizedFilters, sales, items, payments, returnedItems, cashierNames, financialFacts);
   if (import.meta.env.DEV) {
     console.debug('[Reporting Performance]', {
       operation: 'aggregate_sales_report',
       durationMs: Math.round((performance.now() - aggregationStarted) * 100) / 100,
-      rows: { sales: sales.length, items: items.length, payments: payments.length, returns: returnedItems.length },
+      rows: { sales: sales.length, items: items.length, payments: payments.length, returns: returnedItems.length, financialFacts: financialFacts.length },
       range: requestContext.range,
       storeId: requestContext.storeId,
       status: 'success',
@@ -1033,24 +1078,27 @@ function buildSalesReport(
   payments: SalePaymentRow[],
   returnedItems: SaleReturnItemRow[],
   cashierNames: Map<string, string>,
+  financialFacts: SaleFinancialFact[],
 ): SalesReportData {
   const saleById = new Map(sales.map((sale) => [sale.id, sale]));
   const allItemsBySale = groupItemsBySale(items);
+  const financialBySaleId = new Map(financialFacts.map((fact) => [fact.sale_id, fact]));
+  const lineFactsByItemId = new Map<string, SaleReportLineFact>();
+  for (const fact of financialFacts) {
+    for (const line of fact.line_facts) lineFactsByItemId.set(line.sale_item_id, line);
+  }
+  if (items.some((item) => !lineFactsByItemId.has(item.id))) {
+    throw new Error('The financial report is missing one or more sale-line facts.');
+  }
   const returnedQuantityByItem = new Map<string, number>();
-  const returnedAmountByItem = new Map<string, number>();
   for (const item of returnedItems) {
     returnedQuantityByItem.set(item.sale_item_id, (returnedQuantityByItem.get(item.sale_item_id) || 0) + toNumber(item.quantity));
-    returnedAmountByItem.set(item.sale_item_id, (returnedAmountByItem.get(item.sale_item_id) || 0) + toNumber(item.line_total));
   }
 
-  const paymentRefundBySale = new Map<string, number>();
   const paymentsBySale = new Map<string, SalePaymentRow[]>();
   for (const payment of payments) {
     if (!paymentsBySale.has(payment.sale_id)) paymentsBySale.set(payment.sale_id, []);
     paymentsBySale.get(payment.sale_id)?.push(payment);
-    if (payment.amount < 0 || payment.status === 'refunded') {
-      paymentRefundBySale.set(payment.sale_id, (paymentRefundBySale.get(payment.sale_id) || 0) + Math.abs(payment.amount));
-    }
   }
 
   const hasLineFilters = Boolean(filters.productId || filters.categoryName || filters.sellingUnitKey);
@@ -1079,44 +1127,100 @@ function buildSalesReport(
   const paymentMap = new Map<PaymentMethod, PaymentSalesReportRow>();
   const summary: SalesReportSummary = { ...zeroSummary };
   const saleContributionFactors = new Map<string, number>();
+  const paidAmountByItem = new Map<string, number>();
+
+  for (const sale of sales) {
+    if (!isValidSalesTransactionStatus(sale.status)) continue;
+    const fact = financialBySaleId.get(sale.id);
+    if (!fact) continue;
+    const allSaleItems = allItemsBySale.get(sale.id) || [];
+    const amountPaidByLine = allocateSaleLineAmountPaid(
+      allSaleItems.map((line) => ({ saleItemId: line.id, lineTotal: line.line_total })),
+      fact.sale_discount ?? 0,
+      [
+        { status: 'captured', amount: fact.captured_payments },
+        { status: 'refunded', amount: -fact.confirmed_refunds },
+      ],
+      {},
+      fact.line_amount_basis,
+    );
+    for (const [saleItemId, amountPaid] of amountPaidByLine) paidAmountByItem.set(saleItemId, amountPaid);
+  }
 
   for (const sale of sales) {
     if (!matchingSaleIds.has(sale.id)) continue;
 
+    const fact = financialBySaleId.get(sale.id);
+    if (!fact) throw new Error(`Missing financial facts for sale ${sale.id}.`);
     const allSaleItems = allItemsBySale.get(sale.id) || [];
     const filteredSaleItems = hasLineFilters
       ? allSaleItems.filter(lineMatchesFilters)
       : allSaleItems;
-    const allLineGross = sum(allSaleItems.map((item) => item.line_total)) || sale.subtotal || sale.total;
-    const matchingLineGross = sum(filteredSaleItems.map((item) => item.line_total)) || (!hasLineFilters ? sale.subtotal : 0);
-    const factor = allLineGross > 0 ? matchingLineGross / allLineGross : 1;
+    const allAttributedNet = sum(allSaleItems
+      .map((item) => lineFactsByItemId.get(item.id)?.net_revenue)
+      .filter((amount): amount is number => amount != null));
+    const matchingAttributedNet = sum(filteredSaleItems
+      .map((item) => lineFactsByItemId.get(item.id)?.net_revenue)
+      .filter((amount): amount is number => amount != null));
+    const factor = hasLineFilters
+      ? (allAttributedNet > 0 ? matchingAttributedNet / allAttributedNet : 0)
+      : 1;
     saleContributionFactors.set(sale.id, factor);
 
+    const matchingLineGross = sum(filteredSaleItems
+      .map((item) => lineFactsByItemId.get(item.id)?.gross_revenue)
+      .filter((amount): amount is number => amount != null));
+    const matchingLineDiscount = sum(filteredSaleItems
+      .map((item) => lineFactsByItemId.get(item.id)?.discount_allocated)
+      .filter((amount): amount is number => amount != null));
+    const matchingLineCredits = sum(filteredSaleItems.map((item) => lineFactsByItemId.get(item.id)?.credit_allocated ?? 0));
+    const discountAllocated = hasLineFilters ? matchingLineDiscount : fact.sale_discount ?? matchingLineDiscount;
+    const postedCredits = hasLineFilters ? matchingLineCredits : fact.posted_credits;
+    const refundAllocated = hasLineFilters ? fact.confirmed_refunds * factor : fact.confirmed_refunds;
+    const taxAllocated = hasLineFilters ? sale.tax * factor : sale.tax;
+    const totalAllocated = hasLineFilters ? sale.total * factor : sale.total;
+    const packageQuantity = sum(filteredSaleItems.map((item) => item.quantity));
+    const itemQuantity = sum(filteredSaleItems.map((item) => getBaseUnitQuantity(item)));
+    const returnedQuantity = sum(filteredSaleItems.map((item) => (
+      lineFactsByItemId.get(item.id)?.returned_quantity ?? returnedQuantityByItem.get(item.id) ?? 0
+    )));
+    const cost = sum(filteredSaleItems.map((item) => lineFactsByItemId.get(item.id)?.line_cost ?? getNetCogs(item)));
+    const netSales = hasLineFilters ? matchingAttributedNet : fact.net_billed;
+    const netPaid = hasLineFilters
+      ? sum(filteredSaleItems.map((item) => paidAmountByItem.get(item.id) ?? 0))
+      : fact.net_paid;
+    const grossProfit = sum(filteredSaleItems
+      .map((item) => {
+        const lineFact = lineFactsByItemId.get(item.id);
+        return lineFact?.net_revenue == null ? null : lineFact.net_revenue - lineFact.line_cost;
+      })
+      .filter((amount): amount is number => amount != null));
+
+    summary.unallocatedBilled += fact.unallocated_billed;
+    if (!fact.financial_complete) summary.unclassifiedSales += 1;
+    if (fact.settlement_unknown) summary.settlementUnknownSales += 1;
+    summary.financialAttributionComplete = summary.financialAttributionComplete && fact.attribution_complete;
+
+    const grossSalesForSale = hasLineFilters ? matchingLineGross : fact.gross_billed ?? matchingLineGross;
     if (sale.status === 'voided') {
       summary.voidedTransactions += 1;
       summary.voidedSales += sale.total * factor;
+      summary.postedCredits += postedCredits;
+      summary.refunds += refundAllocated;
+      summary.netPaid += fact.net_paid;
       continue;
     }
     if (!isValidSalesTransactionStatus(sale.status)) continue;
 
-    const refundAllocated = (paymentRefundBySale.get(sale.id) || 0) * factor;
-    const discountAllocated = sale.discount * factor;
-    const taxAllocated = sale.tax * factor;
-    const totalAllocated = sale.total * factor;
-    const packageQuantity = sum(filteredSaleItems.map((item) => item.quantity));
-    const itemQuantity = sum(filteredSaleItems.map((item) => getBaseUnitQuantity(item)));
-    const returnedQuantity = sum(filteredSaleItems.map((item) => getReturnedBaseUnitQuantity(item, returnedQuantityByItem.get(item.id) || 0)));
-    const cost = sum(filteredSaleItems.map((item) => getNetCogs(item, returnedQuantityByItem.get(item.id) || 0)));
-    const netSales = totalAllocated - refundAllocated;
-    const grossProfit = matchingLineGross - discountAllocated - refundAllocated - cost;
-
     summary.completedTransactions += 1;
     summary.totalTransactions += 1;
-    summary.grossSales += matchingLineGross;
+    summary.grossSales += grossSalesForSale;
     summary.discounts += discountAllocated;
+    summary.postedCredits += postedCredits;
     summary.tax += taxAllocated;
     summary.refunds += refundAllocated;
     summary.netSales += netSales;
+    summary.netPaid += netPaid;
     summary.totalPackagesSold += packageQuantity;
     summary.totalItemsSold += itemQuantity;
     summary.returnedItems += returnedQuantity;
@@ -1139,6 +1243,10 @@ function buildSalesReport(
       refunds: refundAllocated,
       total: totalAllocated,
       netSales,
+      netPaid,
+      postedCredits,
+      financialAttributionComplete: fact.attribution_complete,
+      settlementUnknown: fact.settlement_unknown,
     });
 
     const dateKey = sale.created_at.slice(0, 10);
@@ -1152,7 +1260,7 @@ function buildSalesReport(
       itemsSold: 0,
       grossProfit: 0,
     });
-    dateRow.grossSales += matchingLineGross;
+    dateRow.grossSales += grossSalesForSale;
     dateRow.discounts += discountAllocated;
     dateRow.refunds += refundAllocated;
     dateRow.netSales += netSales;
@@ -1170,24 +1278,11 @@ function buildSalesReport(
       transactions: 0,
       itemsSold: 0,
     });
-    cashierRow.grossSales += matchingLineGross;
+    cashierRow.grossSales += grossSalesForSale;
     cashierRow.refunds += refundAllocated;
     cashierRow.netSales += netSales;
     cashierRow.transactions += 1;
     cashierRow.itemsSold += itemQuantity;
-  }
-
-  const paidAmountByItem = new Map<string, number>();
-  for (const sale of sales) {
-    if (!isValidSalesTransactionStatus(sale.status) || !matchingSaleIds.has(sale.id)) continue;
-    const allSaleItems = allItemsBySale.get(sale.id) || [];
-    const amountPaidByItem = allocateSaleLineAmountPaid(
-      allSaleItems.map((line) => ({ saleItemId: line.id, lineTotal: line.line_total })),
-      sale.discount,
-      paymentsBySale.get(sale.id) || [],
-      Object.fromEntries(allSaleItems.map((line) => [line.id, returnedAmountByItem.get(line.id) || 0])),
-    );
-    for (const [saleItemId, amountPaid] of amountPaidByItem) paidAmountByItem.set(saleItemId, amountPaid);
   }
 
   for (const item of matchingItems) {
@@ -1195,16 +1290,28 @@ function buildSalesReport(
     if (!sale || !isValidSalesTransactionStatus(sale.status)) continue;
 
     const allSaleItems = allItemsBySale.get(item.sale_id) || [];
-    const allLineGross = sum(allSaleItems.map((line) => line.line_total)) || sale.subtotal || sale.total;
-    const returnedQuantity = returnedQuantityByItem.get(item.id) || 0;
-    const lineShare = allLineGross > 0 ? item.line_total / allLineGross : 0;
-    const lineDiscount = sale.discount * lineShare;
-    const lineRefund = (paymentRefundBySale.get(sale.id) || 0) * lineShare;
-    const netRevenue = item.line_total - lineDiscount - lineRefund;
-    const cost = getNetCogs(item, returnedQuantity);
+    const financialFact = financialBySaleId.get(sale.id);
+    const lineFact = lineFactsByItemId.get(item.id);
+    if (!financialFact || !lineFact) continue;
+    const attributedNetTotal = sum(allSaleItems
+      .map((line) => lineFactsByItemId.get(line.id)?.net_revenue)
+      .filter((amount): amount is number => amount != null));
+    const lineShare = lineFact.net_revenue != null && attributedNetTotal > 0
+      ? lineFact.net_revenue / attributedNetTotal
+      : 0;
+    const returnedQuantity = lineFact.returned_quantity ?? returnedQuantityByItem.get(item.id) ?? 0;
+    const lineRefund = lineFact.net_revenue == null ? 0 : financialFact.confirmed_refunds * lineShare;
+    const cost = lineFact.line_cost ?? getNetCogs(item, 0);
     const line = mapSaleLine(
-      item, sale, cashierNames, returnedQuantity, lineDiscount, lineRefund, netRevenue, cost,
+      item, sale, cashierNames, returnedQuantity,
+      lineFact.gross_revenue ?? 0,
+      lineFact.discount_allocated ?? 0,
+      lineFact.credit_allocated,
+      lineRefund,
+      lineFact.net_revenue ?? 0,
+      cost,
       paidAmountByItem.get(item.id) || 0,
+      lineFact.financial_attribution_complete,
     );
     saleLines.push(line);
 
@@ -1229,19 +1336,24 @@ function buildSalesReport(
         net: 0,
         transactions: 0,
       });
-      const amount = payment.amount * factor;
-      if (amount >= 0 && payment.status === 'captured') {
-        row.captured += amount;
+      const isCapture = (payment.event_kind === 'capture' || (!payment.event_kind && payment.status === 'captured'))
+        && payment.amount > 0;
+      const isRefund = (payment.event_kind === 'refund' || payment.event_kind === 'void_reversal'
+        || (!payment.event_kind && payment.status === 'refunded')) && payment.amount < 0;
+      if (isCapture) {
+        row.captured += payment.amount * factor;
         row.transactions += 1;
-      } else {
-        row.refunds += Math.abs(amount);
+      } else if (isRefund) {
+        row.refunds += Math.abs(payment.amount) * factor;
       }
       row.net = row.captured - row.refunds;
     }
   }
 
   summary.averageTransactionValue = summary.totalTransactions ? summary.netSales / summary.totalTransactions : 0;
-  summary.grossMargin = summary.netSales > 0 ? summary.grossProfit / summary.netSales : 0;
+  summary.grossMargin = summary.financialAttributionComplete && summary.netSales > 0
+    ? summary.grossProfit / summary.netSales
+    : 0;
 
   return {
     filters,
@@ -1264,13 +1376,16 @@ function mapSaleLine(
   sale: SaleRow,
   cashierNames: Map<string, string>,
   returnedQuantity: number,
+  grossRevenue: number,
   discountAllocated: number,
+  creditAllocated: number,
   refundAllocated: number,
   netRevenue: number,
   cost: number,
   amountPaid: number,
+  financialAttributionComplete: boolean,
 ): SalesLineReportRow {
-  const grossProfit = netRevenue - cost;
+  const grossProfit = financialAttributionComplete ? netRevenue - cost : 0;
   const unitsPerPackage = Math.max(1, toNumber(item.units_per_package ?? item.package_size ?? 1));
   const baseUnitQuantity = Math.max(0, toNumber(item.base_unit_quantity ?? item.quantity * unitsPerPackage));
   const returnedBaseUnitQuantity = returnedQuantity * unitsPerPackage;
@@ -1314,13 +1429,15 @@ function mapSaleLine(
     costPrice: item.cost_price || 0,
     costPerBaseUnit,
     cogs: cost,
-    grossRevenue: item.line_total,
+    grossRevenue,
     discountAllocated,
+    creditAllocated,
     refundAllocated,
     netRevenue,
     amountPaid,
     grossProfit,
-    grossMargin: netRevenue > 0 ? grossProfit / netRevenue : 0,
+    grossMargin: financialAttributionComplete && netRevenue > 0 ? grossProfit / netRevenue : 0,
+    financialAttributionComplete,
     status: sale.status,
     cashierId: sale.cashier_id,
     cashierName: sale.cashier_id ? cashierNames.get(sale.cashier_id) || 'Unknown cashier' : 'Unknown cashier',
@@ -1355,12 +1472,14 @@ function addLineToGroup(
      netBaseUnitQuantity: 0,
     grossRevenue: 0,
     discounts: 0,
+    credits: 0,
     refunds: 0,
     netRevenue: 0,
     cost: 0,
     grossProfit: 0,
     grossMargin: 0,
     transactions: 0,
+    financialAttributionComplete: true,
   });
   row.quantity += line.quantity;
   row.baseUnitQuantity += line.baseUnitQuantity;
@@ -1370,11 +1489,13 @@ function addLineToGroup(
   row.netBaseUnitQuantity += line.netBaseUnitQuantity;
   row.grossRevenue += line.grossRevenue;
   row.discounts += line.discountAllocated;
+  row.credits += line.creditAllocated;
   row.refunds += line.refundAllocated;
   row.netRevenue += line.netRevenue;
   row.cost += line.cogs;
   row.grossProfit += line.grossProfit;
   row.transactions += 1;
+  row.financialAttributionComplete = row.financialAttributionComplete && line.financialAttributionComplete;
   if (mergePurchaseModes && row.sellingOptionLabel !== line.sellingOptionLabel) {
     row.sellingOptionLabel = 'Multiple purchase modes';
     row.packageSize = undefined;
@@ -1394,19 +1515,71 @@ function finalizeGroups(map: Map<string, SalesGroupReportRow[]> | Map<string, Sa
       netBaseUnitQuantity: round(row.netBaseUnitQuantity, 3),
       grossRevenue: round(row.grossRevenue),
       discounts: round(row.discounts),
+      credits: round(row.credits),
       refunds: round(row.refunds),
       netRevenue: round(row.netRevenue),
       cost: round(row.cost),
       grossProfit: round(row.grossProfit),
       grossMargin: row.netRevenue > 0 ? round(row.grossProfit / row.netRevenue, 4) : 0,
     }))
-    .sort((a, b) => b.netRevenue - a.netRevenue);
+    .sort((a, b) => b.netRevenue - a.netRevenue || b.netBaseUnitQuantity - a.netBaseUnitQuantity);
+}
+
+async function fetchSaleFinancialFacts(saleIds: string[]): Promise<SaleFinancialFact[]> {
+  const results: SaleFinancialFact[] = [];
+  for (let start = 0; start < saleIds.length; start += 5000) {
+    const { data, error } = await (supabase as any).rpc('get_sales_report_facts', {
+      p_sale_ids: saleIds.slice(start, start + 5000),
+    });
+    if (error) throw error;
+    results.push(...(data ?? []).map(mapSaleFinancialFact));
+  }
+  return results;
+}
+
+function mapSaleFinancialFact(row: any): SaleFinancialFact {
+  const lineAmountBasis = row.line_amount_basis === 'net_item_discounted' || row.line_amount_basis === 'legacy_gross'
+    ? row.line_amount_basis
+    : 'legacy_unknown';
+  const lineFacts = Array.isArray(row.line_facts) ? row.line_facts : [];
+  return {
+    sale_id: String(row.sale_id),
+    line_amount_basis: lineAmountBasis,
+    financial_complete: Boolean(row.financial_complete),
+    unclassified_count: toNumber(row.unclassified_count),
+    gross_billed: row.gross_billed == null ? null : toNumber(row.gross_billed),
+    sale_discount: row.sale_discount == null ? null : toNumber(row.sale_discount),
+    net_billed: toNumber(row.net_billed),
+    posted_credits: toNumber(row.posted_credits),
+    captured_payments: toNumber(row.captured_payments),
+    confirmed_refunds: toNumber(row.confirmed_refunds),
+    net_paid: toNumber(row.net_paid),
+    refund_due: toNumber(row.refund_due),
+    settlement_unknown: Boolean(row.settlement_unknown),
+    line_facts: lineFacts.map((line: any) => ({
+      sale_item_id: String(line.sale_item_id),
+      line_amount_basis: line.line_amount_basis === 'net_item_discounted' || line.line_amount_basis === 'legacy_gross'
+        ? line.line_amount_basis
+        : 'legacy_unknown',
+      gross_revenue: line.gross_revenue == null ? null : toNumber(line.gross_revenue),
+      discount_allocated: line.discount_allocated == null ? null : toNumber(line.discount_allocated),
+      credit_allocated: toNumber(line.credit_allocated),
+      net_revenue: line.net_revenue == null ? null : toNumber(line.net_revenue),
+      returned_quantity: toNumber(line.returned_quantity),
+      returned_base_quantity: toNumber(line.returned_base_quantity),
+      cogs_recovered: toNumber(line.cogs_recovered),
+      line_cost: toNumber(line.line_cost),
+      financial_attribution_complete: Boolean(line.financial_attribution_complete),
+    })),
+    unallocated_billed: toNumber(row.unallocated_billed),
+    attribution_complete: Boolean(row.attribution_complete),
+  };
 }
 
 async function fetchSaleItems(saleIds: string[], context: ReportingRequestContext): Promise<SaleItemRow[]> {
   const data = await fetchAllReportPages('fetch_sale_items', 'sale_items', context, (from, to) => supabase
     .from('sale_items')
-    .select('id,sale_id,product_id,product_name,category_name,selling_option_id,selling_option_label,unit_label,base_unit_label,package_size,package_unit,stock_source,purchase_mode,units_per_package,base_unit_quantity,regular_unit_price,regular_value,bulk_discount_amount,final_selling_price,cost_per_base_unit,quantity,unit_price,cost_price,line_total')
+    .select('id,sale_id,product_id,product_name,category_name,selling_option_id,selling_option_label,unit_label,base_unit_label,package_size,package_unit,stock_source,purchase_mode,units_per_package,base_unit_quantity,regular_unit_price,regular_value,bulk_discount_amount,final_selling_price,cost_per_base_unit,cogs,quantity,unit_price,cost_price,line_total,item_discount_amount')
     .in('sale_id', saleIds)
     .range(from, to));
   return (data ?? []).map((row: any) => ({
@@ -1430,38 +1603,27 @@ async function fetchSaleItems(saleIds: string[], context: ReportingRequestContex
     bulk_discount_amount: row.bulk_discount_amount == null ? null : toNumber(row.bulk_discount_amount),
     final_selling_price: row.final_selling_price == null ? null : toNumber(row.final_selling_price),
     cost_per_base_unit: row.cost_per_base_unit == null ? null : toNumber(row.cost_per_base_unit),
+    cogs: row.cogs == null ? null : toNumber(row.cogs),
     allocated_cogs: null,
     quantity: toNumber(row.quantity),
     unit_price: toNumber(row.unit_price),
     cost_price: toNumber(row.cost_price),
     line_total: toNumber(row.line_total),
-  }));
-}
-
-async function fetchSaleItemAllocations(saleItemIds: string[], context: ReportingRequestContext) {
-  const data = await fetchAllReportPages('fetch_sale_item_stock_allocations', 'sale_item_stock_allocations', context, (from, to) => supabase
-    .from('sale_item_stock_allocations')
-    .select('sale_item_id,quantity_base_units,quantity_returned,unit_cost')
-    .in('sale_item_id', saleItemIds)
-    .range(from, to));
-  return (data ?? []).map((row: any) => ({
-    sale_item_id: String(row.sale_item_id),
-    quantity_base_units: toNumber(row.quantity_base_units),
-    quantity_returned: toNumber(row.quantity_returned),
-    unit_cost: toNumber(row.unit_cost),
+    item_discount_amount: toNumber(row.item_discount_amount),
   }));
 }
 
 async function fetchSalePayments(saleIds: string[], context: ReportingRequestContext): Promise<SalePaymentRow[]> {
   const data = await fetchAllReportPages('fetch_sale_payments', 'sale_payments', context, (from, to) => supabase
     .from('sale_payments')
-    .select('sale_id,method,status,amount')
+    .select('sale_id,method,status,event_kind,amount')
     .in('sale_id', saleIds)
     .range(from, to));
   return (data ?? []).map((row: any) => ({
     sale_id: row.sale_id,
     method: row.method || 'cash',
-    status: row.status || 'captured',
+    status: row.status || 'pending',
+    event_kind: row.event_kind ?? null,
     amount: toNumber(row.amount),
   }));
 }
@@ -1603,11 +1765,11 @@ function getReturnedBaseUnitQuantity(item: SaleItemRow, returnedPackages: number
   return Math.max(0, returnedPackages) * getUnitsPerPackage(item);
 }
 
-function getNetCogs(item: SaleItemRow, returnedPackages: number): number {
+function getNetCogs(item: SaleItemRow): number {
   if (item.allocated_cogs != null) return item.allocated_cogs;
-  const netBaseUnits = Math.max(0, getBaseUnitQuantity(item) - getReturnedBaseUnitQuantity(item, returnedPackages));
-  if (item.cost_per_base_unit != null) return toNumber(item.cost_per_base_unit) * netBaseUnits;
-  return toNumber(item.cost_price) * Math.max(0, item.quantity - returnedPackages);
+  if (item.cogs != null) return Math.max(0, toNumber(item.cogs));
+  if (item.cost_per_base_unit != null) return toNumber(item.cost_per_base_unit) * getBaseUnitQuantity(item);
+  return toNumber(item.cost_price) * Math.max(0, item.quantity);
 }
 
 function isRiceLine(line: SalesLineReportRow) {
@@ -1639,10 +1801,16 @@ function roundSummary(summary: SalesReportSummary): SalesReportSummary {
   return {
     grossSales: round(summary.grossSales),
     discounts: round(summary.discounts),
+    postedCredits: round(summary.postedCredits),
     tax: round(summary.tax),
     refunds: round(summary.refunds),
     voidedSales: round(summary.voidedSales),
     netSales: round(summary.netSales),
+    netPaid: round(summary.netPaid),
+    unallocatedBilled: round(summary.unallocatedBilled),
+    unclassifiedSales: summary.unclassifiedSales,
+    settlementUnknownSales: summary.settlementUnknownSales,
+    financialAttributionComplete: summary.financialAttributionComplete,
     totalPackagesSold: round(summary.totalPackagesSold, 3),
     totalTransactions: summary.totalTransactions,
     completedTransactions: summary.completedTransactions,

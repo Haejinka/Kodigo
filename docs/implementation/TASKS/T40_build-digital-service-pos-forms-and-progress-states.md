@@ -1,6 +1,6 @@
 # T40 — Build digital service POS forms and progress states
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; the online manual-record screen is written, but end-to-end verification and release gates are pending.  
 **Task ID:** T40  
 **Feature:** Digital POS UI  
 **Priority:** High  

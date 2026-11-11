@@ -1,6 +1,6 @@
 # T08 — Add commercial credit and normalized financial fact models
 
-**Status:** Planned; implementation has not started.  
+**Status:** Implemented — Pending Verification. The additive migration is applied to the existing deployed database; the reader/catalog checks and focused allocation tests passed. The credit writer remains private and version-5-only, and no UI operation is enabled.
 **Task ID:** T08  
 **Feature:** Accounting foundation  
 **Priority:** Critical  
@@ -32,6 +32,13 @@ None.
 - `kodigo-ui/src/types/sale-adjustments.ts`
 - `kodigo-ui/src/lib/sale-credits.ts`
 - CLI-generated migration: `supabase/migrations/<generated-timestamp>_t08_sale_credits_and_financial_facts.sql`. Run the pinned CLI's verified `migration new t08_sale_credits_and_financial_facts` command; record its exact returned path in SCHEMA_BASELINE/TASK_STATUS. Do not hand-invent the timestamp.
+
+## Implementation evidence
+
+- CLI generated `supabase/migrations/20261111104446_t08_sale_credits_and_financial_facts.sql`; Supabase recorded/applied it to the existing project as `20261111110225`, aligned in the repository as `supabase/migrations/20261111110225_t08_sale_credits_and_financial_facts.sql` (canonical LF SHA-256 `4acb950cb2e0954b33ca687bcf2f9e9e440f05ba1a1a2dd6d22b788df2a9dd23`).
+- `npm run typecheck` passed; focused `sale-credits.test.mjs` passed 3/3. The deployed `T08_financial_facts.sql` catalog assertions and a read-only legacy fact-adapter smoke passed.
+- Existing deployed counts remain 8 sales, 8 sale items, 11 payment rows and 2 legacy return rows; all new credit/classification tables remain empty. The migration did not update receipts, payments, returns, or business rows.
+- Full authenticated role/RLS, credit-writer rollback/replay, and concurrency cases remain pending. No isolated test database was created. Do not enable credit posting for legacy sales or expose a UI route until those cases and the dependent workflows are implemented.
 
 ## Database changes
 

@@ -1,6 +1,6 @@
 # T37 — Configure and verify e-load sale workflow
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; e-load quote and manual-record source are applied, but recovery and required verification are pending.  
 **Task ID:** T37  
 **Feature:** E-load  
 **Priority:** High  
@@ -27,7 +27,7 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 ## New files
 
 - `supabase/tests/enhancements/T37_eload.sql`
-- CLI-generated migration: `supabase/migrations/<generated-timestamp>_t37_eload_service_rules.sql`. Run the pinned CLI's verified `migration new t37_eload_service_rules` command; record its exact returned path in SCHEMA_BASELINE/TASK_STATUS. Do not hand-invent the timestamp.
+- Combined CLI-generated migration for T32–T42 schema/source: `supabase/migrations/20261111120227_t32_t42_manual_digital_services.sql`, applied to the existing project as history version `20261111130705`; checksum and verification are in SCHEMA_BASELINE/TASK_STATUS.
 
 ## Database changes
 

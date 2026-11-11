@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  calculateSaleLineFinancialAmounts,
   allocateSaleLineAmountPaid,
   formatSalesReportPdfCurrency,
   getCalendarInterval,
@@ -9,6 +10,52 @@ import {
   getSalesReportBaseUnitPrice,
   getSalesReportPaidTotal,
 } from '../../src/lib/reporting-calculations.ts';
+
+test('allocates a legacy PHP100 gross line discount once and reconciles to PHP90 net billed', () => {
+  const lines = calculateSaleLineFinancialAmounts(
+    [{ saleItemId: 'line-1', lineTotal: 100, itemDiscount: 0, credit: 0 }],
+    'legacy_gross',
+    10,
+  );
+
+  assert.deepEqual(lines.get('line-1'), {
+    grossRevenue: 100,
+    discountAllocated: 10,
+    creditAllocated: 0,
+    netRevenue: 90,
+  });
+  assert.equal([...lines.values()].reduce((total, line) => total + (line.netRevenue ?? 0), 0), 90);
+});
+
+test('does not deduct the item discount again from current net line totals', () => {
+  const lines = calculateSaleLineFinancialAmounts(
+    [{ saleItemId: 'line-1', lineTotal: 90, itemDiscount: 10, credit: 0 }],
+    'net_item_discounted',
+    10,
+  );
+
+  assert.deepEqual(lines.get('line-1'), {
+    grossRevenue: 100,
+    discountAllocated: 10,
+    creditAllocated: 0,
+    netRevenue: 90,
+  });
+});
+
+test('leaves unknown legacy line money unallocated and keeps an explicit credit separate', () => {
+  const lines = calculateSaleLineFinancialAmounts(
+    [{ saleItemId: 'line-1', lineTotal: 100, itemDiscount: 0, credit: 20 }],
+    'legacy_unknown',
+    10,
+  );
+
+  assert.deepEqual(lines.get('line-1'), {
+    grossRevenue: null,
+    discountAllocated: null,
+    creditAllocated: 20,
+    netRevenue: null,
+  });
+});
 
 test('allocates captured amounts after discounts and assigns cent remainders consistently', () => {
   const allocated = allocateSaleLineAmountPaid(
@@ -20,6 +67,18 @@ test('allocates captured amounts after discounts and assigns cent remainders con
 
   assert.deepEqual([...allocated.entries()], [['a', 49.5], ['b', 49.5]]);
   assert.equal(getSalesReportPaidTotal([...allocated.values()].map((amountPaid) => ({ amountPaid }))), 99);
+});
+
+test('does not subtract a header discount from current already-net line amounts when allocating paid amounts', () => {
+  const allocated = allocateSaleLineAmountPaid(
+    [{ saleItemId: 'a', lineTotal: 45 }, { saleItemId: 'b', lineTotal: 45 }],
+    10,
+    [{ status: 'captured', amount: 90 }],
+    {},
+    'net_item_discounted',
+  );
+
+  assert.deepEqual([...allocated.entries()], [['a', 45], ['b', 45]]);
 });
 
 test('allocates item return refunds to the matching line and manual refunds across remaining paid lines', () => {

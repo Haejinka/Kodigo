@@ -1,6 +1,6 @@
 # T42 — Add digital earnings and reconciliation reporting
 
-**Status:** Planned; implementation has not started.  
+**Status:** In progress; earning-event schema is applied and recent screen summary exists, but reporting and reconciliation UI are pending.  
 **Task ID:** T42  
 **Feature:** Digital reports  
 **Priority:** High  
@@ -34,7 +34,7 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 
 - `kodigo-ui/src/pages/ReconciliationPage.tsx`
 - `supabase/tests/enhancements/T42_service_reports.sql`
-- CLI-generated migration: `supabase/migrations/<generated-timestamp>_t42_digital_report_reads.sql`. Run the pinned CLI's verified `migration new t42_digital_report_reads` command; record its exact returned path in SCHEMA_BASELINE/TASK_STATUS. Do not hand-invent the timestamp.
+- Combined CLI-generated migration for T32–T42 schema/source: `supabase/migrations/20261111120227_t32_t42_manual_digital_services.sql`, applied to the existing project as history version `20261111130705`; checksum and verification are in SCHEMA_BASELINE/TASK_STATUS.
 
 ## Database changes
 
