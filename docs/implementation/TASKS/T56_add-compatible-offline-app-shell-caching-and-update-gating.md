@@ -1,6 +1,6 @@
 # T56 — Add compatible offline app-shell caching and update gating
 
-**Status:** In progress; versioned static shell caching and compatible-update gating are implemented and the offline login shell passed both production-preview and deployed-origin browser checks. Pending-outbox and lease compatibility combinations remain for supported workflows.  
+**Status:** In progress; versioned static shell caching and compatible-update gating are implemented and the offline login shell passed both production-preview and deployed-origin browser checks. Pending-outbox and lease compatibility combinations remain for supported workflows.
 **Task ID:** T56  
 **Feature:** Offline cold launch  
 **Priority:** Medium  
