@@ -1,6 +1,6 @@
 # T04 — Add inventory locations and structured ledger fields
 
-**Status:** In progress; additive SQL is prepared and reviewed against the recorded deployed schema, but has not been applied.  
+**Status:** In progress; additive schema and shadow reconciliation are applied to the existing project. T05/T06 write-path gates and isolated behavior tests remain.
 **Task ID:** T04  
 **Feature:** Inventory foundation  
 **Priority:** Critical  
@@ -29,10 +29,11 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 ## New files
 
 - `supabase/tests/enhancements/T04_inventory_schema.sql`
-- CLI-generated `supabase/migrations/20261110203314_t04_inventory_ledger_structure.sql`
-- CLI-generated `supabase/migrations/20261110205156_t04_inventory_shadow_constraints.sql`
+- Applied-history-aligned `supabase/migrations/20261111043255_t04_inventory_ledger_structure.sql` (CLI-generated as `20261110203314_t04_inventory_ledger_structure.sql`)
+- Forward fix `supabase/migrations/20261111043438_t04_fix_uuid_batch_cursors.sql` (CLI-generated as `20261111043350_t04_fix_uuid_batch_cursors.sql`)
+- Applied-history-aligned `supabase/migrations/20261111043523_t04_inventory_shadow_constraints.sql` (CLI-generated as `20261110205156_t04_inventory_shadow_constraints.sql`)
 
-The second migration is deliberately separate: apply the first migration, run the bounded idempotent lot-location, product-balance, and lot-location-balance helpers in committed batches, reconcile, then apply the second migration's preflight and validated constraints. Both migrations remain unapplied until the existing production project's required predeployment backup is confirmed. No new project, branch, or database is part of this work.
+The constraints migration is deliberately separate: apply the structure, run the bounded idempotent lot-location, product-balance, and lot-location-balance helpers in committed batches, reconcile, then validate constraints. The existing project was the only target under the user's explicit additive-migration authorization. No separate project, branch, or backup database was created. The first backfill attempt exposed that PostgreSQL has no `max(uuid)` aggregate; the failed call rolled back without changing lots, and the forward migration fixed all three UUID cursors before backfill continued. Destructive rollback and concurrency tests remain isolated-target-only and were not run against this populated project.
 
 ## Database changes
 

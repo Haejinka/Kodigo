@@ -1,6 +1,6 @@
 # T24 — Register terminals drawers and real shift opening
 
-**Status:** In progress; additive schema and typed command adapter are prepared, but no migration or shift record has been applied/created.  
+**Status:** In progress; additive schema is applied and its read-only catalog assertions passed. Cashier workflow UI and isolated behavioral tests remain.
 **Task ID:** T24  
 **Feature:** Drawer custody  
 **Priority:** Critical  
@@ -34,13 +34,13 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 - `kodigo-ui/src/lib/cash-drawers.ts`
 - `kodigo-ui/scripts/unit/cash-drawers.test.mjs`
 - `supabase/tests/enhancements/T24_shift_open.sql`
-- CLI-generated migration: `supabase/migrations/20261110212138_t24_drawers_terminals_shifts.sql`.
+- Applied-history-aligned migration: `supabase/migrations/20261111043135_t24_drawers_terminals_shifts.sql` (CLI-generated as `20261110212138_t24_drawers_terminals_shifts.sql`).
 
 ### Contract correction
 
 The original T24 API shorthand listed only business fields for terminal registration, drawer registration, and shift opening. That conflicts with the already deployed T02 requirement that every retryable write use `CommandV1` with a stable operation ID and server-derived actor. The API contract is corrected to use `CommandV1`; operation IDs and the full envelope are now mandatory, and the actor is never supplied in the payload. This is the smallest correction that preserves T02 idempotency and avoids duplicate custody on response loss.
 
-T24 accepts a non-negative opening amount. A zero opening amount creates shift custody with no cash-ledger row; a positive amount must have exactly one opening movement when T25 is applied. This preserves the T24 zero-amount contract while keeping zero-delta ledger entries exclusive to closing-count observations.
+T24 accepts a non-negative opening amount. A zero opening amount creates shift custody with no cash-ledger row; a positive amount posts exactly one opening movement atomically with the shift because T25 is applied. This preserves the T24 zero-amount contract while keeping zero-delta ledger entries exclusive to closing-count observations.
 
 ## Database changes
 
@@ -62,7 +62,7 @@ B07. Opening declared at start; one active/submitting shift per drawer and cashi
 
 1. Add entities and admin registration/list RPCs.
 2. Implement locked idempotent shift opening with nonnegative counted amount.
-3. Keep `drawer_shifts` disabled until T25 can post the opening movement in the shift-open transaction; attach that hook after T25.
+3. Keep `drawer_shifts` disabled until T27/T30 expose the complete shift and closeout workflow; T25's same-transaction opening-movement hook is now applied.
 4. Test two actors/drawers and store-switch authority.
 5. Run this task's checks against the declared environment; record actual results, skipped checks and unresolved gates in TASK_STATUS. Do not enable a dependent feature while its accounting/authorization prerequisites are incomplete.
 

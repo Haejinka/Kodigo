@@ -151,41 +151,50 @@ Before deployment, the existing project was checked for the T03 tables and RPCs;
 
 Post-deployment read-only checks passed for RLS on all five tables, no direct `anon`/`authenticated`/`service_role` table access, authenticated-only blank-search-path public wrappers, private helper denial, active grant uniqueness, and feature flag allowlist/type checks. The dedicated catalog script returned `T03 capability and approval catalog checks OK` before and after the follow-up. Capability grants, store settings, approval requests, decisions and applications all remain empty. After the follow-up, the catalog contains 52 relations, 116 routines, 54 user triggers and 84 policies. Supabase security advisors still report the project's existing broad SECURITY DEFINER warnings and expected warnings for signed-in command RPCs; the new T03 wrappers have no `anon` or `service_role` execute grant. The T03 migrations did not insert or update business records.
 
-### T04 predeployment inventory check
+### T04 inventory deployment and shadow reconciliation
 
-A read-only preflight against the same deployed project, recorded 2026-11-10 before any T04 DDL, found 32 products, 34 source lots, 10 sale-item lot allocations, 15 inventory movements, eight sales and seven stock adjustments. No product had negative stock. For every product, `current_stock` equaled the sum of its source lots' `quantity_remaining`; the query found no cross-store lot/product, allocation/sale, or movement/product mismatches. Deployed precision was confirmed as `inventory_stock_lots.unit_cost numeric(14,6)` and `sale_items.cost_per_base_unit numeric(12,4)`. These are a preflight snapshot, not a guarantee about later activity. The T04 migrations and shadow backfill remain unapplied; no production schema or business data was changed for T04.
+The 2026-11-10 preflight found 32 products, 34 source lots, 10 sale-item lot allocations, 15 inventory movements, eight sales and seven stock adjustments. On 2026-11-11, a fresh read-only preflight reconfirmed the same counts, zero negative products/lots, zero product/source-lot stock mismatches and zero cross-store lots or allocations. Deployed precision remains `inventory_stock_lots.unit_cost numeric(14,6)` and `sale_items.cost_per_base_unit numeric(12,4)`.
 
-| Prepared artifact | Canonical LF SHA-256 | State |
-| --- | --- | --- |
-| `supabase/migrations/20261110203314_t04_inventory_ledger_structure.sql` | `b173ad6142c6a950b4f2fea6df0d13820f507dee04442593dd28c5e1fd1b3b33` | Prepared; unapplied |
-| `supabase/migrations/20261110205156_t04_inventory_shadow_constraints.sql` | `786718bb33f206768c303d257879f56abe633e35e1f3d6f03623c8fe2127564c` | Prepared; unapplied |
-| `supabase/tests/enhancements/T04_inventory_schema.sql` | `e73f158c2004848ada36fd2dc53ab2c81e255f0dd42420d87aa6c3e0f75aaa74` | Read-only catalog/reconciliation assertions; unexecuted |
+The additive T04 schema and shadow snapshot were applied to the existing project `vlnucrbsgxnetdiejnwt` in this order. Supabase migration history assigned versions that differ from the local CLI-generated names; checked-in filenames below are aligned with the applied history so a later `db push` cannot replay them.
 
-### T24 predeployment cash-custody check
+| CLI-generated file | Applied history / checked-in file | Canonical LF SHA-256 | Result |
+| --- | --- | --- | --- |
+| `20261110203314_t04_inventory_ledger_structure.sql` | `20261111043255` / `t04_inventory_ledger_structure` / `20261111043255_t04_inventory_ledger_structure.sql` | `b173ad6142c6a950b4f2fea6df0d13820f507dee04442593dd28c5e1fd1b3b33` | Applied; additive schema, triggers, private bounded helpers, RLS and deny grants |
+| `20261111043350_t04_fix_uuid_batch_cursors.sql` | `20261111043438` / `t04_fix_uuid_batch_cursors` / `20261111043438_t04_fix_uuid_batch_cursors.sql` | `5e8b40ea23068e4ac4d07d1454089e225b9b80a4504f69b105e59842eb76f67e` | Applied forward fix for three unsupported `max(uuid)` batch cursors |
+| `20261110205156_t04_inventory_shadow_constraints.sql` | `20261111043523` / `t04_inventory_shadow_constraints` / `20261111043523_t04_inventory_shadow_constraints.sql` | `786718bb33f206768c303d257879f56abe633e35e1f3d6f03623c8fe2127564c` | Applied after preflight; required constraints validated |
+| `supabase/tests/enhancements/T04_inventory_schema.sql` | — | `e73f158c2004848ada36fd2dc53ab2c81e255f0dd42420d87aa6c3e0f75aaa74` | Executed on the existing project; catalog assertions completed without error |
 
-Read-only inspection of the same deployed project found no `pos_terminals`, `cash_drawers`, or `cashier_shifts` relations. `public.pos_operations` had zero rows (zero rows with terminal or shift IDs), and the historical `public.cashier_closeouts` table had zero rows. No T24 DDL, registration, shift opening, or cash record was created. Existing closeouts remain untouched. T02/T03 operation identity, MFA, store membership, admin assertion, and the existing `drawer_shifts` default-off feature flag are the implementation baseline.
+The first live backfill call failed before changing any lot row because PostgreSQL does not implement `max(uuid)`. A forward-only migration replaced that cursor expression in all three helpers with ordered UUID selection. The failed statement rolled back; the corrected bounded batches then assigned locations to 34 legacy lots, inserted 64 product/location balance snapshots and 68 lot/location snapshots, all marked `shadow`. Reconciliation checked all 32 products and reported zero mismatches. All 15 existing movements remain `legacy`, all 10 allocations remain `legacy`, and no baseline movement or cutover row was fabricated. No product or source-lot quantity was changed.
+
+The user explicitly authorized additive migrations on this existing project and prohibited creating a separate database or backup database. Accordingly, no backup database, branch or isolated project was created. Destructive rollback, write-path, and concurrency checks remain unrun because they require an isolated target; T05/T06 writers and cutover remain the next gates.
+
+### T24 cash-custody schema deployment
+
+Before T24, read-only inspection found no `pos_terminals`, `cash_drawers`, or `cashier_shifts` relations; `public.pos_operations` and historical `public.cashier_closeouts` contained zero rows. Existing closeouts remain untouched. T02/T03 operation identity, MFA, store membership, admin assertion, and the existing `drawer_shifts` default-off feature flag are the implementation baseline.
 
 The T24 API shorthand originally omitted the operation ID/envelope for writes, conflicting with the deployed T02 replay contract. The smallest correction is to require `CommandV1` for terminal registration, drawer registration, and shift opening, with actor identity derived from the authenticated session. This correction is reflected in `API_CONTRACTS.md` and the T24 task specification.
 
-| Prepared artifact | Canonical LF SHA-256 | State |
+| CLI-generated file | Applied history / checked-in file | Canonical LF SHA-256 | Result |
 | --- | --- | --- |
-| `supabase/migrations/20261110212138_t24_drawers_terminals_shifts.sql` | `055845a95f1f40951312d97355d2fc45d2831a287246e7e18d77c4563098813a` | Prepared; unapplied |
-| `supabase/tests/enhancements/T24_shift_open.sql` | `e77dc0a86e3d1ae68b3b7b407c320d041bcea47c1cbdf0cd4992f2dfc2da41ff` | Read-only catalog assertions; unexecuted |
+| `20261110212138_t24_drawers_terminals_shifts.sql` | `20261111043135` / `t24_drawers_terminals_shifts` / `20261111043135_t24_drawers_terminals_shifts.sql` | `055845a95f1f40951312d97355d2fc45d2831a287246e7e18d77c4563098813a` | Applied to existing project |
+| `supabase/tests/enhancements/T24_shift_open.sql` | — | `e77dc0a86e3d1ae68b3b7b407c320d041bcea47c1cbdf0cd4992f2dfc2da41ff` | Read-only catalog assertions executed successfully |
 
-The T24 opening RPC checks the existing `drawer_shifts` flag, which defaults off; it cannot create an active shift until T25 can post the opening movement in the same transaction. No terminal/drawer/shift UI was added by T24, and no flag was enabled.
+The T24 opening RPC checks the existing `drawer_shifts` flag, which defaults off; it cannot create an active shift until the application enables the complete T24–T30 workflow. The post-migration snapshot has zero terminal, drawer, shift and closeout rows. No flag was enabled and no business record was created.
 
-### T25 predeployment cash-ledger check
+### T25 cash-ledger schema deployment
 
-Read-only inspection of the existing deployed project confirmed that `cash_movements`, `cash_reservations`, `cash_reservation_events`, `payment_cash_links`, and `payment_service_links` do not exist yet; no T25 migration or cash record was applied. The deployed `sale_payments` table has `id`, `store_id`, `method`, `status`, and `amount`, with `id` as its primary key but no `(store_id,id)` unique key. T25 therefore uses the existing payment ID FK plus a locked store/method scope trigger rather than adding an unnecessary uniqueness index to historical payment rows. The pre-existing T24 read-only check found no cashier shifts and no historical closeout rows.
+Before T25, `cash_movements`, `cash_reservations`, `cash_reservation_events`, `payment_cash_links`, and `payment_service_links` did not exist. The deployed `sale_payments` table has `id`, `store_id`, `method`, `status`, and `amount`, with `id` as its primary key but no `(store_id,id)` unique key. T25 therefore uses the existing payment ID FK plus a locked store/method scope trigger rather than adding an unnecessary uniqueness index to historical payment rows. Before the new schema, there were no cashier shifts or historical closeouts.
 
 Two exact specification conflicts were corrected before SQL application. First, M07 originally sent reservation lifecycle events to `pos_operation_events`, but the deployed T02 `event_type` constraint is exactly `started|committed` and that table is a command lifecycle log. T25 adds a dedicated immutable `cash_reservation_events` table linked to operation IDs. Second, T24 explicitly accepts `opening_cash = 0`, while B07/M07 reserve zero-delta movements for close counts. T25 preserves both contracts: positive opening cash posts one opening movement; a zero opening records shift custody only and produces no cash-ledger row. These are documented in the database plan, API contract, and T24/T25 specifications.
 
-The pinned Supabase CLI `3.1.0` was invoked via `npm exec`; its `migration new --help` confirmed local-only generation. It created `supabase/migrations/20261111040311_t25_cash_movements_and_reservations.sql`. The migration is prepared only; no DB, branch, migration, hold, or business row was created.
+The pinned Supabase CLI `3.1.0` generated the original migration file `20261111040311_t25_cash_movements_and_reservations.sql`. Supabase applied migration history version `20261111043143`; the checked-in migration filename is aligned to that applied version.
 
-| Prepared artifact | Canonical LF SHA-256 | State |
+| CLI-generated file | Applied history / checked-in file | Canonical LF SHA-256 | Result |
 | --- | --- | --- |
-| `supabase/migrations/20261111040311_t25_cash_movements_and_reservations.sql` | `22a5c5a9095255f960d2b9c6b7a54e79d68e6ba5e7aaa02cb9db52acda48f5ec` | Prepared; unapplied |
-| `supabase/tests/enhancements/T25_cash_ledger.sql` | `4c739e4394d3b8b9b68bde0dab15aab616b1a55dc60a7cea762d787c6901322f` | Catalog-only assertions; unexecuted |
+| `20261111040311_t25_cash_movements_and_reservations.sql` | `20261111043143` / `t25_cash_movements_and_reservations` / `20261111043143_t25_cash_movements_and_reservations.sql` | `22a5c5a9095255f960d2b9c6b7a54e79d68e6ba5e7aaa02cb9db52acda48f5ec` | Applied to existing project |
+| `supabase/tests/enhancements/T25_cash_ledger.sql` | — | `4c739e4394d3b8b9b68bde0dab15aab616b1a55dc60a7cea762d787c6901322f` | Executed without SQL error; it returned no result rows |
+
+Post-migration read-only counts are zero for terminals, drawers, shifts, cash movements, reservations, reservation events and payment links. No shift, cash movement or hold was created; the schemas are not enabled in the cashier UI. The catalog test does not prove cash-flow behavior, authorization replay or concurrent reservation behavior.
 
 The following T00 acceptance evidence is still pending and blocks any feature-write activation:
 
@@ -194,4 +203,4 @@ The following T00 acceptance evidence is still pending and blocks any feature-wr
 - Run V47, V48, and V51 on that isolated environment; preserve receipt hashes and avoid fabricated stock/cash history.
 - Confirm deployed login/workflows separately with the authorized test account. Do not include its credentials in reports or screenshots.
 
-No bootstrap correction or historical SQL was applied to production. The additive T02 and T03 migrations above are separate forward changes and did not replay the candidate manifest. If empty/restore evidence proves the candidate order wrong, make the smallest forward correction and record the changed specification paths here and in TASK_STATUS; never edit or replay the old production history to make the hashes match.
+No bootstrap correction or historical SQL was applied to the deployed project. The additive T02, T03, T04, T24 and T25 migrations above are separate forward changes and did not replay the candidate manifest. If empty/restore evidence proves the candidate order wrong, make the smallest forward correction and record the changed specification paths here and in TASK_STATUS; never edit or replay the old deployed history to make the hashes match.

@@ -1,6 +1,6 @@
 # T25 — Post append-only physical cash movements and holds
 
-**Status:** In progress; forward migration and typed read adapter are being prepared, unapplied.
+**Status:** In progress; forward migration is applied and catalog assertions completed. Ledger behavior tests and cashier UI integration remain.
 **Task ID:** T25  
 **Feature:** Cash accounting  
 **Priority:** Critical  
@@ -27,7 +27,7 @@ None.
 ## New files
 
 - `supabase/tests/enhancements/T25_cash_ledger.sql`
-- CLI-generated migration: `supabase/migrations/<generated-timestamp>_t25_cash_movements_and_reservations.sql`. Run the pinned CLI's verified `migration new t25_cash_movements_and_reservations` command; record its exact returned path in SCHEMA_BASELINE/TASK_STATUS. Do not hand-invent the timestamp.
+- Applied-history-aligned migration: `supabase/migrations/20261111043143_t25_cash_movements_and_reservations.sql` (originally CLI-generated as `20261111040311_t25_cash_movements_and_reservations.sql`; Supabase recorded version `20261111043143`).
 - `kodigo-ui/src/types/cash-drawers.ts`
 - `kodigo-ui/src/lib/cash-drawers.ts`
 - `kodigo-ui/scripts/unit/cash-drawers.test.mjs`
