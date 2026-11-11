@@ -3,6 +3,7 @@ import type { DBSchema, IDBPDatabase, IDBPTransaction, StoreNames } from 'idb';
 import type { Product, Sale } from '@/types';
 import type { OperationCommandV1, OfflineQueueState } from '@/types/operations';
 import type {
+  EncryptedOfflineLeaseRecord,
   LegacyRecoveryRecord,
   OfflineGrantEvent,
   OfflineLeaseSnapshot,
@@ -56,7 +57,7 @@ export interface OfflineDatabase extends DBSchema {
   };
   offline_leases: {
     key: string;
-    value: OfflineLeaseSnapshot;
+    value: EncryptedOfflineLeaseRecord;
     indexes: { 'by-store-terminal': IDBValidKey; 'by-cashier': string };
   };
   stock_grants: {
@@ -87,7 +88,7 @@ export interface OfflineDatabase extends DBSchema {
 }
 
 export const OFFLINE_DATABASE_NAME = 'kodigo-pos-db';
-export const OFFLINE_DATABASE_VERSION = 2;
+export const OFFLINE_DATABASE_VERSION = 3;
 
 export class OfflineStorageError extends Error {
   readonly code: 'UNAVAILABLE' | 'QUOTA' | 'BLOCKED' | 'CORRUPT';
@@ -117,6 +118,10 @@ export function openOfflineDatabase(options: {
           preserveLegacyStore(transaction, 'sales_queue');
           preserveLegacyStore(transaction, 'generic_mutations');
         }
+      }
+      if (oldVersion < 3) {
+        createOfflineStores(database);
+        preserveLegacyOfflineLeases(transaction);
       }
     },
     blocked(currentVersion, requestedVersion) {
@@ -156,6 +161,83 @@ export interface EnqueueOfflineOperationResult {
   inserted: boolean;
 }
 
+/** Read and authenticate the encrypted lease snapshot for this cashier/device scope. */
+export async function readOfflineLeaseSnapshot(input: {
+  database: IDBPDatabase<OfflineDatabase>;
+  keySession: OfflineKeySession;
+  scope: { storeId: string; actorId: string; terminalId: string };
+  leaseId: string;
+}): Promise<OfflineLeaseSnapshot | null> {
+  const record = await input.database.get('offline_leases', input.leaseId);
+  if (!record) return null;
+  if (record.store_id !== input.scope.storeId || record.terminal_id !== input.scope.terminalId
+    || record.cashier_id !== input.scope.actorId) {
+    throw new Error('Offline lease belongs to another account, store, or terminal.');
+  }
+  const snapshot = await decryptOfflinePayload<OfflineLeaseSnapshot>(record.encrypted_snapshot,
+    input.keySession.getKey(), {
+      recordId: record.id,
+      storeId: input.scope.storeId,
+      actorId: input.scope.actorId,
+      terminalId: input.scope.terminalId,
+    });
+  if (snapshot.id !== record.id || snapshot.store_id !== record.store_id
+    || snapshot.terminal_id !== record.terminal_id || snapshot.cashier_id !== record.cashier_id) {
+    throw new Error('Encrypted offline lease does not match its clear account scope.');
+  }
+  return snapshot;
+}
+
+/** Persist a server-issued lease with all authority fields encrypted at rest. */
+export async function persistOfflineLeaseSnapshot(input: {
+  database: IDBPDatabase<OfflineDatabase>;
+  keySession: OfflineKeySession;
+  scope: { storeId: string; actorId: string; terminalId: string };
+  snapshot: OfflineLeaseSnapshot;
+}): Promise<void> {
+  const { snapshot, scope } = input;
+  if (snapshot.store_id !== scope.storeId || snapshot.cashier_id !== scope.actorId
+    || snapshot.terminal_id !== scope.terminalId) {
+    throw new Error('Offline lease scope does not match this cashier and terminal.');
+  }
+  const key = input.keySession.getKey();
+  const encryptedSnapshot = await encryptOfflinePayload(snapshot, key, {
+    recordId: snapshot.id,
+    storeId: scope.storeId,
+    actorId: scope.actorId,
+    terminalId: scope.terminalId,
+  });
+  const nextRecord: EncryptedOfflineLeaseRecord = {
+    id: snapshot.id,
+    store_id: snapshot.store_id,
+    terminal_id: snapshot.terminal_id,
+    cashier_id: snapshot.cashier_id,
+    encrypted_snapshot: encryptedSnapshot,
+  };
+  const priorRecord = await input.database.get('offline_leases', snapshot.id);
+  if (priorRecord) {
+    const prior = await readOfflineLeaseSnapshot({ ...input, leaseId: snapshot.id });
+    if (!prior) throw new Error('Offline lease changed while it was being read.');
+    if (snapshot.version < prior.version) throw new Error('A stale offline lease cannot replace a newer snapshot.');
+    if (snapshot.version === prior.version && canonicalOperationJson(snapshot) !== canonicalOperationJson(prior)) {
+      throw new Error('An offline lease version cannot be reused for different authorization data.');
+    }
+  }
+
+  const tx = input.database.transaction('offline_leases', 'readwrite', { durability: 'strict' });
+  try {
+    const current = await tx.store.get(snapshot.id);
+    if (canonicalOperationJson(current ?? null) !== canonicalOperationJson(priorRecord ?? null)) {
+      throw new Error('Offline lease changed in another tab; refresh before saving it.');
+    }
+    await tx.store.put(nextRecord);
+    await tx.done;
+  } catch (error) {
+    abortTransaction(tx);
+    throw normalizeOfflineStorageError(error);
+  }
+}
+
 export type OfflineOperationFailureState = Extract<OfflineQueueState, 'retry_wait' | 'conflicted' | 'blocked_auth' | 'needs_recovery'>;
 
 /** Stores ciphertext, consumes local grants, and advances one terminal sequence atomically. */
@@ -171,7 +253,18 @@ export async function enqueueOfflineOperation(input: EnqueueOfflineOperationInpu
   }
   const grantConsumptions = normalizeGrantConsumptions(input.grantConsumptions);
   const hash = await hashOperationCommand(command);
+  const existingBeforeTransaction = await database.get('operations_outbox', command.operation_id);
+  if (existingBeforeTransaction) {
+    assertExistingOfflineOperationMatches(existingBeforeTransaction, {
+      hash, operationKind, scope, leaseId, shiftId: command.shift_id,
+    });
+    return { operation: existingBeforeTransaction, inserted: false };
+  }
   const key = keySession.getKey();
+  const leaseRecord = await database.get('offline_leases', leaseId);
+  if (!leaseRecord) throw new Error('Offline authorization data is missing; nothing was saved.');
+  const lease = await readOfflineLeaseSnapshot({ database, keySession, scope, leaseId });
+  if (!lease) throw new Error('Offline authorization data is missing; nothing was saved.');
   const payloadScope = { recordId: command.operation_id, ...scope };
   // Encrypt before opening the transaction so no crypto wait can close it.
   const sealed = await encryptOfflinePayload({
@@ -187,12 +280,9 @@ export async function enqueueOfflineOperation(input: EnqueueOfflineOperationInpu
     const outbox = tx.objectStore('operations_outbox');
     const existing = await outbox.get(command.operation_id);
     if (existing) {
-      if (existing.payload_hash !== hash || existing.operation_kind !== operationKind
-        || existing.store_id !== scope.storeId || existing.actor_id !== scope.actorId
-        || existing.terminal_id !== scope.terminalId || existing.lease_id !== leaseId
-        || existing.shift_id !== command.shift_id) {
-        throw new Error('Operation ID was already used for a different offline request.');
-      }
+      assertExistingOfflineOperationMatches(existing, {
+        hash, operationKind, scope, leaseId, shiftId: command.shift_id,
+      });
       await tx.done;
       return { operation: existing, inserted: false };
     }
@@ -200,8 +290,11 @@ export async function enqueueOfflineOperation(input: EnqueueOfflineOperationInpu
     const scopeKey = offlineScopeKey(scope);
     const metaStore = tx.objectStore('terminal_meta');
     const metadata = await metaStore.get(scopeKey);
-    const lease = await tx.objectStore('offline_leases').get(leaseId);
-    if (!metadata || !lease) throw new Error('Offline authorization data is missing; nothing was saved.');
+    const currentLeaseRecord = await tx.objectStore('offline_leases').get(leaseId);
+    if (!metadata || !currentLeaseRecord) throw new Error('Offline authorization data is missing; nothing was saved.');
+    if (canonicalOperationJson(currentLeaseRecord) !== canonicalOperationJson(leaseRecord)) {
+      throw new Error('Offline authorization changed in another tab; nothing was saved.');
+    }
     if (lease.id !== metadata.lease_id || lease.id !== leaseId || lease.store_id !== scope.storeId
       || lease.terminal_id !== scope.terminalId || lease.cashier_id !== scope.actorId
       || lease.shift_id !== command.shift_id || lease.state !== 'active'
@@ -270,6 +363,24 @@ export async function enqueueOfflineOperation(input: EnqueueOfflineOperationInpu
   } catch (error) {
     abortTransaction(tx);
     throw normalizeOfflineStorageError(error);
+  }
+}
+
+function assertExistingOfflineOperationMatches(
+  existing: OfflineQueuedOperation,
+  expected: {
+    hash: string;
+    operationKind: string;
+    scope: { storeId: string; actorId: string; terminalId: string };
+    leaseId: string;
+    shiftId: string;
+  },
+): void {
+  if (existing.payload_hash !== expected.hash || existing.operation_kind !== expected.operationKind
+    || existing.store_id !== expected.scope.storeId || existing.actor_id !== expected.scope.actorId
+    || existing.terminal_id !== expected.scope.terminalId || existing.lease_id !== expected.leaseId
+    || existing.shift_id !== expected.shiftId) {
+    throw new Error('Operation ID was already used for a different offline request.');
   }
 }
 
@@ -498,6 +609,7 @@ export function offlineScopeKey(scope: { storeId: string; actorId: string; termi
 /** Take a consistent scope snapshot and encrypt all included recovery evidence before returning it. */
 export async function createOfflineRecoveryExport(input: {
   database: IDBPDatabase<OfflineDatabase>;
+  keySession: OfflineKeySession;
   scope: { storeId: string; actorId: string; terminalId: string };
   passphrase: string;
   now?: Date;
@@ -517,14 +629,28 @@ export async function createOfflineRecoveryExport(input: {
   const recoveryRequest = tx.objectStore('legacy_recovery').getAll();
   const legacySalesRequest = tx.objectStore('sales_queue').getAll();
   const legacyMutationsRequest = tx.objectStore('generic_mutations').getAll();
-  const [terminalMeta, catalogs, leases, grants, events, operations, acknowledgements, recovery, sales, mutations] = await Promise.all([
+  const [terminalMeta, catalogs, leaseRecords, grants, events, operations, acknowledgements, recovery, sales, mutations] = await Promise.all([
     metaRequest, catalogRequest, leaseRequest, grantRequest, eventRequest,
     operationRequest, ackRequest, recoveryRequest, legacySalesRequest, legacyMutationsRequest,
   ]);
   await tx.done;
 
-  const scopedLeases = leases.filter((lease) => lease.store_id === input.scope.storeId
+  const scopedLeaseRecords = leaseRecords.filter((lease) => lease.store_id === input.scope.storeId
     && lease.terminal_id === input.scope.terminalId && lease.cashier_id === input.scope.actorId);
+  const scopedLeases = await Promise.all(scopedLeaseRecords.map(async (record) => {
+    const lease = await decryptOfflinePayload<OfflineLeaseSnapshot>(record.encrypted_snapshot,
+      input.keySession.getKey(), {
+        recordId: record.id,
+        storeId: input.scope.storeId,
+        actorId: input.scope.actorId,
+        terminalId: input.scope.terminalId,
+      });
+    if (lease.id !== record.id || lease.store_id !== record.store_id
+      || lease.terminal_id !== record.terminal_id || lease.cashier_id !== record.cashier_id) {
+      throw new Error('Encrypted offline lease does not match its recovery scope.');
+    }
+    return lease;
+  }));
   const leaseIds = new Set(scopedLeases.map((lease) => lease.id));
   const scopedGrants = grants.filter((grant) => grant.store_id === input.scope.storeId
     && grant.terminal_id === input.scope.terminalId && leaseIds.has(grant.lease_id));
@@ -534,10 +660,12 @@ export async function createOfflineRecoveryExport(input: {
   const operationIds = new Set(scopedOperations.map((operation) => operation.operation_id));
   const scopedAcks = acknowledgements.filter((ack) => ack.store_id === input.scope.storeId
     && ack.actor_id === input.scope.actorId && ack.terminal_id === input.scope.terminalId);
+  const scopedRecovery = recovery.filter((record) => record.source_store !== 'offline_leases'
+    || legacyOfflineLeaseMatchesScope(record.original_payload, input.scope));
   const bundle: OfflineRecoveryBundleV1 = {
     format: 'kodigo-offline-recovery-bundle',
     version: 1,
-    schema_version: OFFLINE_DATABASE_VERSION,
+    schema_version: 2,
     exported_at_local: (input.now ?? new Date()).toISOString(),
     scope: {
       store_id: input.scope.storeId,
@@ -553,9 +681,9 @@ export async function createOfflineRecoveryExport(input: {
       .sort((left, right) => left.id.localeCompare(right.id)),
     operations_outbox: scopedOperations.sort((left, right) => left.terminal_sequence - right.terminal_sequence),
     operation_acks: scopedAcks.sort((left, right) => left.terminal_sequence - right.terminal_sequence),
-    // Legacy v1 rows have no trustworthy store/actor/terminal scope. Keep them as unscoped evidence,
-    // encrypted in this export, and never reattribute or replay them here.
-    legacy_recovery: recovery.sort((left, right) => left.id.localeCompare(right.id)),
+    // Legacy v1 queues are unscoped, so retain them only as encrypted recovery evidence.
+    // Migrated v2 leases have trustworthy scope and are included only for their original cashier/device.
+    legacy_recovery: scopedRecovery.sort((left, right) => left.id.localeCompare(right.id)),
     legacy_v1_sales: sales,
     legacy_v1_mutations: mutations,
   };
@@ -579,6 +707,16 @@ function normalizeGrantConsumptions(consumptions: Array<{ grantId: string; quant
   }
   return Array.from(quantities, ([grantId, quantity]) => ({ grantId, quantity }))
     .sort((left, right) => left.grantId.localeCompare(right.grantId));
+}
+
+function legacyOfflineLeaseMatchesScope(
+  value: unknown,
+  scope: { storeId: string; actorId: string; terminalId: string },
+): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const lease = value as Partial<OfflineLeaseSnapshot>;
+  return lease.store_id === scope.storeId && lease.cashier_id === scope.actorId
+    && lease.terminal_id === scope.terminalId;
 }
 
 function createLegacyStores(database: IDBPDatabase<OfflineDatabase>): void {
@@ -653,6 +791,38 @@ function preserveLegacyStore(
           recovery_state: 'unreviewed',
         };
         await recovery.add(record);
+      }
+    } catch {
+      try {
+        transaction.abort();
+      } catch {
+        // The version-change transaction may already have aborted.
+      }
+    }
+  })();
+}
+
+function preserveLegacyOfflineLeases(
+  transaction: IDBPTransaction<OfflineDatabase, StoreNames<OfflineDatabase>[], 'versionchange'>,
+): void {
+  if (!transaction.objectStoreNames.contains('offline_leases')
+    || !transaction.objectStoreNames.contains('legacy_recovery')) return;
+  const source = transaction.objectStore('offline_leases');
+  const recovery = transaction.objectStore('legacy_recovery');
+  void (async () => {
+    try {
+      for await (const cursor of source) {
+        const original = cursor.value;
+        const record: LegacyRecoveryRecord = {
+          id: `v2:offline_leases:${String(cursor.key)}`,
+          source_store: 'offline_leases',
+          source_key: String(cursor.key),
+          original_payload: original,
+          imported_at_local: new Date().toISOString(),
+          recovery_state: 'unreviewed',
+        };
+        await recovery.add(record);
+        await cursor.delete();
       }
     } catch {
       try {

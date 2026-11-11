@@ -238,3 +238,16 @@ Post-migration catalog verification confirmed that both customer tables have RLS
 The security advisor reports authenticated SECURITY DEFINER warnings for the six intentionally exposed RPCs. These routines are the narrow API boundary because direct table access is denied; each write path checks the authenticated actor, store capability, command envelope and operation identity. No new anon-executable customer definer function or mutable-search-path finding appeared. Performance advice reports the new indexes unused while customer tables are empty. The project already has unrelated pre-existing security/performance findings.
 
 T43 remains in progress. The catalog check does not exercise authenticated profile writes, foreign-store denial, version conflicts, archive, identical-operation replay, or two-connection races. Those need an isolated integration target or authorized role-specific workflow tests. Contact retention/redaction remains gated by D07; the optional customer UI is T44 and is not connected yet.
+
+### T51 bounded offline lease schema
+
+Before the T51 migration on 2026-11-11, the deployed project had no lease or cursor tables, zero cashier shifts, and zero stores with `offline_escrow` enabled. Migration history ended at `20261111064952`. The pinned Supabase CLI 3.1.0 generated `20261111071449_t51_offline_authorization_leases.sql`; Supabase recorded migration `20261111073628 / t51_offline_authorization_leases`, and the checked-in filename is aligned to that applied version.
+
+| CLI-generated file | Applied history / checked-in file | Canonical LF SHA-256 | Result |
+| --- | --- | --- | --- |
+| `20261111071449_t51_offline_authorization_leases.sql` | `20261111073628` / `t51_offline_authorization_leases` / `20261111073628_t51_offline_authorization_leases.sql` | `515bf6066eab50eeef593b25185ed98ef039b4fa4400184479925dc169eb3c25` | Applied additively to the existing project; no lease, cursor or test-shift rows were written |
+| `supabase/tests/enhancements/T51_offline_leases.sql` | — | — | Read-only catalog assertions executed against the deployed project; passed |
+
+Read-only verification confirmed RLS on all three tables, no direct privileges for `anon`, `authenticated`, or `service_role`, and authenticated-only blank-search-path SECURITY DEFINER wrappers for issue/revoke/get. Lease lifecycle and event immutability triggers are enabled. Post-migration counts remain zero for leases, lease events, cursors, and shifts; `offline_escrow` remains disabled everywhere. Health advisors remain clear; security advisors reported only pre-existing table/function/auth findings, with no missing-policy finding on the new tables.
+
+This verifies deployed schema, function grants and safety gates, not authenticated issuance/revocation. The live project has no active shift, and the cashier shift UI is not connected. No lease, cursor, shift or sale was created for this check. Role/foreign-store behavior, duplicate replay, rollback and concurrency checks remain unrun because they require a separate isolated database, which the user has instructed us not to create. D03 and T06/T24 UI/T26/T31/T52–T59 still gate activation.

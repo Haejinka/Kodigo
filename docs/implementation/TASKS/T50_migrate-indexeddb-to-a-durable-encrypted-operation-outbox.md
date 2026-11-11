@@ -1,6 +1,6 @@
 # T50 — Migrate IndexedDB to a durable encrypted operation outbox
 
-**Status:** In progress; encryption primitives, typed offline metadata, the v2 IndexedDB schema/upgrader, atomic storage APIs, durable attempt/retry-state transitions, encrypted recovery export, and a fail-closed crash-resume check are implemented but not connected to POS checkout. Hosted run [#126](https://github.com/Haejinka/Kodigo/actions/runs/42967621610) passed typecheck, lint, build, unit tests, eleven Chromium offline-storage tests, deployed read-only login smoke, and print-agent checks; both Vercel deployments succeeded. The new browser test reopens a syncing operation after a simulated restart and verifies the client refuses automatic replay while the server outcome is ambiguous. Actual quota exhaustion, server reconciliation, and POS integration remain open.
+**Status:** In progress; encryption primitives, typed offline metadata, the v3 IndexedDB schema/upgrader, atomic storage APIs, durable attempt/retry-state transitions, encrypted recovery export, and a fail-closed crash-resume check are implemented but not connected to POS checkout. T51 extends v2 by encrypting new lease snapshots and preserving legacy plaintext lease snapshots as read-only recovery evidence. Hosted run [#126](https://github.com/Haejinka/Kodigo/actions/runs/42967621610) passed the v2 foundation checks; T51 remote validation is recorded in TASK_STATUS. Actual quota exhaustion, server reconciliation, and POS integration remain open.
 **Task ID:** T50  
 **Feature:** Offline storage  
 **Priority:** Critical  
@@ -35,7 +35,7 @@ Read [HANDOFF](../HANDOFF.md), the relevant [architecture](../ARCHITECTURE.md) s
 
 ## Database changes
 
-Client IDB v2 stores per A07; server metadata contract T02 unchanged. Preserve v1 queue originals in legacy_recovery, do not replay automatically.
+Client IDB v3 stores per A07; server metadata contract T02 unchanged. Preserve v1 queue originals and v2 plaintext lease snapshots in legacy_recovery, do not replay automatically. v2 lease snapshots are removed from the active lease store during upgrade so plaintext legacy authority cannot authorize new local work.
 
 ## Backend work
 

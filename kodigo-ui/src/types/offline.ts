@@ -73,15 +73,27 @@ export interface OfflineLeaseSnapshot {
   terminal_id: string;
   shift_id: string;
   cashier_id: string;
+  prepared_at: string;
   issued_at: string;
   expires_at: string;
-  last_mfa_at: string;
-  state: 'active' | 'revoked' | 'expired' | 'reconciled';
-  catalog_version: string;
-  price_policy_hash: string;
+  last_mfa_at: string | null;
+  activated_at: string | null;
+  state: 'pending_stock' | 'active' | 'revoked' | 'expired' | 'reconciled';
+  catalog_version: string | null;
+  price_policy_hash: string | null;
   sequence_start: number;
   sequence_end: number;
   contract_version: number;
+  version: number;
+}
+
+/** Clear IDs only; lease authority and bounds stay encrypted at rest in IndexedDB. */
+export interface EncryptedOfflineLeaseRecord {
+  id: string;
+  store_id: string;
+  terminal_id: string;
+  cashier_id: string;
+  encrypted_snapshot: EncryptedOfflinePayload;
 }
 
 export interface OfflineStockGrant {
@@ -123,7 +135,7 @@ export interface OfflineOperationAck {
 
 export interface LegacyRecoveryRecord {
   id: string;
-  source_store: 'sales_queue' | 'generic_mutations';
+  source_store: 'sales_queue' | 'generic_mutations' | 'offline_leases';
   source_key: string;
   original_payload: unknown;
   imported_at_local: string;

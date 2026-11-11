@@ -4,7 +4,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('v1 queues survive a blocked v2 upgrade as recovery evidence', async ({ page }) => {
+test('v1 queues survive a blocked v3 upgrade as recovery evidence', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const name = `offline-v1-${crypto.randomUUID()}`;
     const legacySale = {
@@ -76,7 +76,7 @@ test('v1 queues survive a blocked v2 upgrade as recovery evidence', async ({ pag
   });
 
   expect(result.upgradeBlocked).toBe(true);
-  expect(result.version).toBe(2);
+  expect(result.version).toBe(3);
   expect(result.recovered).toEqual(expect.arrayContaining([
     expect.objectContaining({ source_store: 'sales_queue', source_key: 'legacy-sale-1', original_payload: result.legacySale, recovery_state: 'unreviewed' }),
     expect.objectContaining({ source_store: 'generic_mutations', source_key: 'legacy-mutation-1', original_payload: result.legacyMutation, recovery_state: 'unreviewed' }),
@@ -86,12 +86,116 @@ test('v1 queues survive a blocked v2 upgrade as recovery evidence', async ({ pag
   expect(result.outbox).toEqual([]);
 });
 
+test('v2 plaintext leases move to recovery evidence during the encrypted v3 upgrade', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const name = `offline-v2-lease-${crypto.randomUUID()}`;
+    const lease = {
+      id: '55555555-5555-4555-8555-555555555555',
+      store_id: '22222222-2222-4222-8222-222222222222',
+      terminal_id: '44444444-4444-4444-8444-444444444444',
+      shift_id: '77777777-7777-4777-8777-777777777777',
+      cashier_id: '33333333-3333-4333-8333-333333333333',
+      issued_at: '2026-11-11T00:00:00.000Z',
+      expires_at: '2026-11-11T08:00:00.000Z',
+      last_mfa_at: null,
+      state: 'active',
+      catalog_version: 'legacy-v2',
+      price_policy_hash: 'plaintext-v2-test-only',
+      sequence_start: 1,
+      sequence_end: 100,
+      contract_version: 1,
+    };
+    const oldDatabase = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open(name, 2);
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        const leases = database.createObjectStore('offline_leases', { keyPath: 'id' });
+        leases.createIndex('by-store-terminal', ['store_id', 'terminal_id']);
+        leases.createIndex('by-cashier', 'cashier_id');
+        const recovery = database.createObjectStore('legacy_recovery', { keyPath: 'id' });
+        recovery.createIndex('by-source', 'source_store');
+        database.createObjectStore('products_cache', { keyPath: 'id' });
+        database.createObjectStore('sales_queue', { keyPath: 'id' }).createIndex('by-status', '_syncStatus');
+        database.createObjectStore('generic_mutations', { keyPath: 'id' }).createIndex('by-status', '_syncStatus');
+      };
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+    const seed = oldDatabase.transaction('offline_leases', 'readwrite');
+    seed.objectStore('offline_leases').put(lease);
+    await new Promise<void>((resolve, reject) => {
+      seed.oncomplete = () => resolve();
+      seed.onabort = () => reject(seed.error);
+      seed.onerror = () => reject(seed.error);
+    });
+    oldDatabase.close();
+
+    const { openOfflineDatabase } = await import('/src/lib/offline-db.ts');
+    const database = await openOfflineDatabase({ name });
+    const currentLeases = await database.getAll('offline_leases');
+    const recovery = await database.getAll('legacy_recovery');
+    const version = database.version;
+    database.close();
+    await new Promise<void>((resolve) => {
+      const request = indexedDB.deleteDatabase(name);
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
+      request.onblocked = () => resolve();
+    });
+    return { version, currentLeases, recovery, lease };
+  });
+
+  expect(result.version).toBe(3);
+  expect(result.currentLeases).toEqual([]);
+  expect(result.recovery).toEqual([
+    expect.objectContaining({
+      source_store: 'offline_leases',
+      source_key: result.lease.id,
+      original_payload: result.lease,
+      recovery_state: 'unreviewed',
+    }),
+  ]);
+});
+
+test('lease issuance requires an acknowledged terminal lane and reviewed legacy queues', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { assertOfflineLeaseQueueDrained } = await import('/src/lib/offline-authorization.ts');
+    const { openOfflineDatabase } = await import('/src/lib/offline-db.ts');
+    const name = `offline-lease-drain-${crypto.randomUUID()}`;
+    const scope = {
+      storeId: '22222222-2222-4222-8222-222222222222',
+      actorId: '33333333-3333-4333-8333-333333333333',
+      terminalId: '44444444-4444-4444-8444-444444444444',
+    };
+    const database = await openOfflineDatabase({ name });
+    await assertOfflineLeaseQueueDrained(database, scope);
+    await database.put('sales_queue', { id: 'legacy-pending', _syncStatus: 'pending' } as never);
+    let legacyQueueBlocked = false;
+    try {
+      await assertOfflineLeaseQueueDrained(database, scope);
+    } catch (error) {
+      legacyQueueBlocked = error instanceof Error && error.message.includes('existing offline work');
+    }
+    database.close();
+    await new Promise<void>((resolve) => {
+      const request = indexedDB.deleteDatabase(name);
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
+      request.onblocked = () => resolve();
+    });
+    return { legacyQueueBlocked };
+  });
+
+  expect(result.legacyQueueBlocked).toBe(true);
+});
+
 test('offline queue commits one grant consumption and sequence across duplicate retries', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const {
       enqueueOfflineOperation,
       offlineScopeKey,
       openOfflineDatabase,
+      persistOfflineLeaseSnapshot,
     } = await import('/src/lib/offline-db.ts');
     const { createOfflineMasterKey, OfflineKeySession } = await import('/src/lib/offline-crypto.ts');
     const name = `offline-enqueue-${crypto.randomUUID()}`;
@@ -117,22 +221,26 @@ test('offline queue commits one grant consumption and sequence across duplicate 
       wrapped_master_key: keyMaterial.wrapped,
       updated_at_local: now.toISOString(),
     });
-    await database.put('offline_leases', {
+    const leaseSnapshot = {
       id: leaseId,
       store_id: scope.storeId,
       terminal_id: scope.terminalId,
       shift_id: '77777777-7777-4777-8777-777777777777',
       cashier_id: scope.actorId,
+      prepared_at: now.toISOString(),
       issued_at: now.toISOString(),
       expires_at: '2030-01-01T00:00:00.000Z',
       last_mfa_at: now.toISOString(),
-      state: 'active',
-      catalog_version: 'catalog-test-v1',
-      price_policy_hash: 'test-policy-hash',
+      activated_at: null,
+      state: 'pending_stock' as const,
+      catalog_version: null,
+      price_policy_hash: null,
       sequence_start: 1,
       sequence_end: 10,
       contract_version: 1,
-    });
+      version: 1,
+    };
+    await persistOfflineLeaseSnapshot({ database, keySession, scope, snapshot: leaseSnapshot });
     await database.put('stock_grants', {
       id: grantId,
       store_id: scope.storeId,
@@ -168,6 +276,26 @@ test('offline queue commits one grant consumption and sequence across duplicate 
       grantConsumptions: [{ grantId, quantity: 2 }],
       now,
     };
+    let pendingStockBlocked = false;
+    try {
+      await enqueueOfflineOperation(input);
+    } catch (error) {
+      pendingStockBlocked = error instanceof Error && error.message.includes('Offline authorization');
+    }
+    const pendingOutboxCount = await database.count('operations_outbox');
+    await persistOfflineLeaseSnapshot({
+      database,
+      keySession,
+      scope,
+      snapshot: {
+        ...leaseSnapshot,
+        state: 'active',
+        activated_at: now.toISOString(),
+        catalog_version: 'catalog-test-v1',
+        price_policy_hash: 'a'.repeat(64),
+        version: 2,
+      },
+    });
     const first = await enqueueOfflineOperation(input);
     const retry = await enqueueOfflineOperation(input);
     let changedRequestRejected = false;
@@ -195,6 +323,8 @@ test('offline queue commits one grant consumption and sequence across duplicate 
       firstInserted: first.inserted,
       retryInserted: retry.inserted,
       changedRequestRejected,
+      pendingStockBlocked,
+      pendingOutboxCount,
       grantConsumed: grant?.quantity_consumed,
       nextSequence: metadata?.next_sequence,
       eventCount: events.length,
@@ -209,6 +339,8 @@ test('offline queue commits one grant consumption and sequence across duplicate 
     firstInserted: true,
     retryInserted: false,
     changedRequestRejected: true,
+    pendingStockBlocked: true,
+    pendingOutboxCount: 0,
     grantConsumed: 2,
     nextSequence: 2,
     eventCount: 1,
@@ -221,7 +353,7 @@ test('offline queue commits one grant consumption and sequence across duplicate 
 
 test('failed multi-grant write rolls back earlier grant use, events, and sequence', async ({ page }) => {
   const result = await page.evaluate(async () => {
-    const { enqueueOfflineOperation, offlineScopeKey, openOfflineDatabase } = await import('/src/lib/offline-db.ts');
+    const { enqueueOfflineOperation, offlineScopeKey, openOfflineDatabase, persistOfflineLeaseSnapshot } = await import('/src/lib/offline-db.ts');
     const { createOfflineMasterKey, OfflineKeySession } = await import('/src/lib/offline-crypto.ts');
     const name = `offline-rollback-${crypto.randomUUID()}`;
     const scope = {
@@ -242,11 +374,12 @@ test('failed multi-grant write rolls back earlier grant use, events, and sequenc
       lease_id: leaseId, next_sequence: 1, last_acknowledged_sequence: 0,
       wrapped_master_key: material.wrapped, updated_at_local: now.toISOString(),
     });
-    await database.put('offline_leases', {
+    await persistOfflineLeaseSnapshot({ database, keySession: session, scope, snapshot: {
       id: leaseId, store_id: scope.storeId, terminal_id: scope.terminalId, shift_id: shiftId, cashier_id: scope.actorId,
-      issued_at: now.toISOString(), expires_at: '2030-01-01T00:00:00.000Z', last_mfa_at: now.toISOString(),
-      state: 'active', catalog_version: 'v1', price_policy_hash: 'hash', sequence_start: 1, sequence_end: 10, contract_version: 1,
-    });
+      prepared_at: now.toISOString(), issued_at: now.toISOString(), expires_at: '2030-01-01T00:00:00.000Z', last_mfa_at: now.toISOString(), activated_at: now.toISOString(),
+      state: 'active', catalog_version: 'v1', price_policy_hash: 'a'.repeat(64), sequence_start: 1, sequence_end: 10,
+      contract_version: 1, version: 1,
+    } });
     for (const [id, quantity] of [[grantA, 3], [grantB, 1]] as const) {
       await database.put('stock_grants', {
         id, store_id: scope.storeId, terminal_id: scope.terminalId, lease_id: leaseId,
@@ -303,6 +436,7 @@ test('server acknowledgements are encrypted, durable, and idempotent', async ({ 
       openOfflineDatabase,
       persistOperationAcknowledgement,
       readOperationAcknowledgement,
+      persistOfflineLeaseSnapshot,
     } = await import('/src/lib/offline-db.ts');
     const { createOfflineMasterKey, OfflineKeySession } = await import('/src/lib/offline-crypto.ts');
     const name = `offline-ack-${crypto.randomUUID()}`;
@@ -323,11 +457,12 @@ test('server acknowledgements are encrypted, durable, and idempotent', async ({ 
       lease_id: leaseId, next_sequence: 4, last_acknowledged_sequence: 3,
       wrapped_master_key: material.wrapped, updated_at_local: now.toISOString(),
     });
-    await database.put('offline_leases', {
+    await persistOfflineLeaseSnapshot({ database, keySession: session, scope, snapshot: {
       id: leaseId, store_id: scope.storeId, terminal_id: scope.terminalId, shift_id: shiftId, cashier_id: scope.actorId,
-      issued_at: now.toISOString(), expires_at: '2030-01-01T00:00:00.000Z', last_mfa_at: now.toISOString(),
-      state: 'active', catalog_version: 'v1', price_policy_hash: 'hash', sequence_start: 4, sequence_end: 10, contract_version: 1,
-    });
+      prepared_at: now.toISOString(), issued_at: now.toISOString(), expires_at: '2030-01-01T00:00:00.000Z', last_mfa_at: now.toISOString(), activated_at: now.toISOString(),
+      state: 'active', catalog_version: 'v1', price_policy_hash: 'a'.repeat(64), sequence_start: 4, sequence_end: 10,
+      contract_version: 1, version: 1,
+    } });
     await database.put('stock_grants', {
       id: '66666666-6666-4666-8666-666666666666', store_id: scope.storeId, terminal_id: scope.terminalId,
       lease_id: leaseId, product_id: '88888888-8888-4888-8888-888888888888',
@@ -510,6 +645,7 @@ test('outbox attempts and retry states persist atomically and prevent overlappin
       offlineScopeKey,
       openOfflineDatabase,
       recordOfflineOperationFailure,
+      persistOfflineLeaseSnapshot,
     } = await import('/src/lib/offline-db.ts');
     const { createOfflineMasterKey, OfflineKeySession } = await import('/src/lib/offline-crypto.ts');
     const name = `offline-attempt-${crypto.randomUUID()}`;
@@ -531,11 +667,12 @@ test('outbox attempts and retry states persist atomically and prevent overlappin
       lease_id: leaseId, next_sequence: 1, last_acknowledged_sequence: 0,
       wrapped_master_key: material.wrapped, updated_at_local: now.toISOString(),
     });
-    await database.put('offline_leases', {
+    await persistOfflineLeaseSnapshot({ database, keySession, scope, snapshot: {
       id: leaseId, store_id: scope.storeId, terminal_id: scope.terminalId, shift_id: shiftId, cashier_id: scope.actorId,
-      issued_at: now.toISOString(), expires_at: '2030-01-01T00:00:00.000Z', last_mfa_at: now.toISOString(),
-      state: 'active', catalog_version: 'v1', price_policy_hash: 'hash', sequence_start: 1, sequence_end: 10, contract_version: 1,
-    });
+      prepared_at: now.toISOString(), issued_at: now.toISOString(), expires_at: '2030-01-01T00:00:00.000Z', last_mfa_at: now.toISOString(), activated_at: now.toISOString(),
+      state: 'active', catalog_version: 'v1', price_policy_hash: 'a'.repeat(64), sequence_start: 1, sequence_end: 10,
+      contract_version: 1, version: 1,
+    } });
     await database.put('stock_grants', {
       id: grantId, store_id: scope.storeId, terminal_id: scope.terminalId, lease_id: leaseId,
       product_id: '88888888-8888-4888-8888-888888888888', location_id: '99999999-9999-4999-8999-999999999999',
@@ -627,6 +764,7 @@ test('an interrupted send survives a browser restart without replaying or consum
       enqueueOfflineOperation,
       offlineScopeKey,
       openOfflineDatabase,
+      persistOfflineLeaseSnapshot,
     } = await import('/src/lib/offline-db.ts');
     const { createOfflineMasterKey, OfflineKeySession, unlockOfflineMasterKey } = await import('/src/lib/offline-crypto.ts');
     const name = `offline-crash-resume-${crypto.randomUUID()}`;
@@ -650,13 +788,13 @@ test('an interrupted send survives a browser restart without replaying or consum
       last_acknowledged_sequence: 0, wrapped_master_key: material.wrapped,
       updated_at_local: now.toISOString(),
     });
-    await firstDatabase.put('offline_leases', {
+    await persistOfflineLeaseSnapshot({ database: firstDatabase, keySession: firstKeySession, scope, snapshot: {
       id: leaseId, store_id: scope.storeId, terminal_id: scope.terminalId,
-      shift_id: shiftId, cashier_id: scope.actorId, issued_at: now.toISOString(),
-      expires_at: '2030-01-01T00:00:00.000Z', last_mfa_at: now.toISOString(),
-      state: 'active', catalog_version: 'v1', price_policy_hash: 'hash',
-      sequence_start: 1, sequence_end: 10, contract_version: 1,
-    });
+      shift_id: shiftId, cashier_id: scope.actorId, prepared_at: now.toISOString(), issued_at: now.toISOString(),
+      expires_at: '2030-01-01T00:00:00.000Z', last_mfa_at: now.toISOString(), activated_at: now.toISOString(),
+      state: 'active', catalog_version: 'v1', price_policy_hash: 'a'.repeat(64),
+      sequence_start: 1, sequence_end: 10, contract_version: 1, version: 1,
+    } });
     await firstDatabase.put('stock_grants', {
       id: grantId, store_id: scope.storeId, terminal_id: scope.terminalId, lease_id: leaseId,
       product_id: '99999999-9999-4999-8999-999999999999',
@@ -754,8 +892,9 @@ test('recovery export encrypts legacy queues and rejects another passphrase or a
     const {
       createOfflineRecoveryExport,
       openOfflineDatabase,
+      persistOfflineLeaseSnapshot,
     } = await import('/src/lib/offline-db.ts');
-    const { decryptOfflineRecoveryBundle } = await import('/src/lib/offline-crypto.ts');
+    const { createOfflineMasterKey, decryptOfflineRecoveryBundle, OfflineKeySession } = await import('/src/lib/offline-crypto.ts');
     const name = `offline-export-${crypto.randomUUID()}`;
     const scope = {
       storeId: '22222222-2222-4222-8222-222222222222',
@@ -775,7 +914,29 @@ test('recovery export encrypts legacy queues and rejects another passphrase or a
       payload: { privateNote: 'EXPORT-SECRET-MUTATION' },
       _syncStatus: 'error' as const,
     };
+    const material = await createOfflineMasterKey('lease-export test-only passphrase', scope);
+    const keySession = new OfflineKeySession(material.key, 60_000);
     const database = await openOfflineDatabase({ name });
+    await persistOfflineLeaseSnapshot({ database, keySession, scope, snapshot: {
+      id: '55555555-5555-4555-8555-555555555555',
+      store_id: scope.storeId,
+      terminal_id: scope.terminalId,
+      shift_id: '77777777-7777-4777-8777-777777777777',
+      cashier_id: scope.actorId,
+      prepared_at: '2026-11-11T00:00:00.000Z',
+      issued_at: '2026-11-11T00:00:00.000Z',
+      expires_at: '2026-11-11T08:00:00.000Z',
+      last_mfa_at: null,
+      activated_at: null,
+      state: 'pending_stock',
+      catalog_version: null,
+      price_policy_hash: null,
+      sequence_start: 1,
+      sequence_end: 100,
+      contract_version: 1,
+      version: 1,
+    } });
+    const localLease = await database.get('offline_leases', '55555555-5555-4555-8555-555555555555');
     await database.put('sales_queue', legacySale as never);
     await database.put('generic_mutations', legacyMutation as never);
     await database.put('legacy_recovery', {
@@ -788,6 +949,7 @@ test('recovery export encrypts legacy queues and rejects another passphrase or a
     });
     const envelope = await createOfflineRecoveryExport({
       database,
+      keySession,
       scope,
       passphrase: 'export test-only passphrase',
       now: new Date('2026-11-11T00:00:00.000Z'),
@@ -821,7 +983,11 @@ test('recovery export encrypts legacy queues and rejects another passphrase or a
       kdfIterations: envelope.iterations,
       legacySales: recovered.legacy_v1_sales,
       legacyMutations: recovered.legacy_v1_mutations,
+      leases: recovered.offline_leases,
       recoveryState: recovered.legacy_recovery[0]?.recovery_state,
+      hasLeasePlaintext: Boolean(localLease && ('shift_id' in localLease || 'sequence_start' in localLease
+        || 'expires_at' in localLease || 'state' in localLease)),
+      leaseCiphertextStored: Boolean(localLease?.encrypted_snapshot?.ciphertext),
       hasRawSaleSecret: serialized.includes('EXPORT-SECRET-CUSTOMER'),
       hasRawMutationSecret: serialized.includes('EXPORT-SECRET-MUTATION'),
       wrongPassphraseRejected,
@@ -833,7 +999,12 @@ test('recovery export encrypts legacy queues and rejects another passphrase or a
   expect(result.kdfIterations).toBe(600_000);
   expect(result.legacySales).toEqual([expect.objectContaining({ customerName: 'EXPORT-SECRET-CUSTOMER' })]);
   expect(result.legacyMutations).toEqual([expect.objectContaining({ payload: { privateNote: 'EXPORT-SECRET-MUTATION' } })]);
+  expect(result.leases).toEqual([expect.objectContaining({
+    id: '55555555-5555-4555-8555-555555555555', state: 'pending_stock',
+  })]);
   expect(result.recoveryState).toBe('unreviewed');
+  expect(result.hasLeasePlaintext).toBe(false);
+  expect(result.leaseCiphertextStored).toBe(true);
   expect(result.hasRawSaleSecret).toBe(false);
   expect(result.hasRawMutationSecret).toBe(false);
   expect(result.wrongPassphraseRejected).toBe(true);
@@ -868,7 +1039,7 @@ test('offline storage quota and conflict errors give safe recovery guidance', as
 
 test('quota failure aborts grant, event, outbox, and sequence writes atomically', async ({ page }) => {
   const result = await page.evaluate(async () => {
-    const { enqueueOfflineOperation, offlineScopeKey, openOfflineDatabase } = await import('/src/lib/offline-db.ts');
+    const { enqueueOfflineOperation, offlineScopeKey, openOfflineDatabase, persistOfflineLeaseSnapshot } = await import('/src/lib/offline-db.ts');
     const { createOfflineMasterKey, OfflineKeySession } = await import('/src/lib/offline-crypto.ts');
     const name = `offline-quota-abort-${crypto.randomUUID()}`;
     const scope = {
@@ -893,13 +1064,13 @@ test('quota failure aborts grant, event, outbox, and sequence writes atomically'
       last_acknowledged_sequence: 0, wrapped_master_key: material.wrapped,
       updated_at_local: now.toISOString(),
     });
-    await database.put('offline_leases', {
+    await persistOfflineLeaseSnapshot({ database, keySession, scope, snapshot: {
       id: leaseId, store_id: scope.storeId, terminal_id: scope.terminalId,
-      shift_id: shiftId, cashier_id: scope.actorId, issued_at: now.toISOString(),
-      expires_at: '2030-01-01T00:00:00.000Z', last_mfa_at: now.toISOString(),
-      state: 'active', catalog_version: 'v1', price_policy_hash: 'hash',
-      sequence_start: 1, sequence_end: 10, contract_version: 1,
-    });
+      shift_id: shiftId, cashier_id: scope.actorId, prepared_at: now.toISOString(), issued_at: now.toISOString(),
+      expires_at: '2030-01-01T00:00:00.000Z', last_mfa_at: now.toISOString(), activated_at: now.toISOString(),
+      state: 'active', catalog_version: 'v1', price_policy_hash: 'a'.repeat(64),
+      sequence_start: 1, sequence_end: 10, contract_version: 1, version: 1,
+    } });
     for (const id of grantIds) {
       await database.put('stock_grants', {
         id, store_id: scope.storeId, terminal_id: scope.terminalId, lease_id: leaseId,
