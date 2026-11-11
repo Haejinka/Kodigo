@@ -487,7 +487,9 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       const { data, error } = await query;
       if (error) throw error;
 
-      const productRows = data || [];
+      // Non-stock service entries have their own manual recording workflow and
+      // must never appear in physical inventory or the ordinary POS cart.
+      const productRows = (data || []).filter((product: any) => !product.kind || product.kind === 'physical');
       const productIds = productRows.map((product: any) => product.id).filter(Boolean);
       let supplierLinks: any[] = [];
       let restockingRows: any[] = [];

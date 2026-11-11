@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Store, Hash, LogOut, ReceiptText, LayoutDashboard, Shield, Moon, Sun } from 'lucide-react';
+import { Clock, Store, Hash, LogOut, ReceiptText, LayoutDashboard, Shield, Moon, Sun, Smartphone } from 'lucide-react';
 import { ProductSearchPanel } from '@/components/pos/ProductSearchPanel';
 import { Cart } from '@/components/pos/Cart';
 import { PaymentModal } from '@/components/pos/PaymentModal';
@@ -163,6 +163,15 @@ export function POSPage() {
         </div>
 
         <div className="w-px h-5 bg-gray-200" />
+
+        <button
+          onClick={() => navigate('/digital-services')}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-blue-700 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg transition-colors"
+          title="Manual digital service records"
+        >
+          <Smartphone className="w-4 h-4" />
+          <span className="hidden sm:inline">Digital services</span>
+        </button>
 
         <button
           type="button"

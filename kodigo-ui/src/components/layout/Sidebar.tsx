@@ -6,6 +6,7 @@ import {
   ChevronRight,
   FileSpreadsheet, Bell,
   UsersRound,
+  Smartphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
@@ -27,6 +28,7 @@ const navItems: NavItem[] = [
   { label: 'Super Admin', path: '/super-admin', icon: LayoutDashboard, roles: ['super_admin'] },
   { label: 'Notifications', path: '/notifications', icon: Bell, roles: ['admin'], badgeKey: 'notifications' },
   { label: 'POS Terminal', path: '/pos', icon: ShoppingCart, roles: ['admin', 'cashier'] },
+  { label: 'Digital Services', path: '/digital-services', icon: Smartphone, roles: ['admin', 'cashier'] },
   { label: 'Product Management', path: '/inventory', icon: Package, roles: ['admin', 'inventory'], badgeKey: 'stockAlerts' },
   { label: 'Suppliers', path: '/suppliers', icon: Truck, roles: ['admin'] },
   { label: 'Analytics', path: '/analytics', icon: BarChart2, roles: ['admin'] },

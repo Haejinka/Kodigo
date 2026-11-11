@@ -36,6 +36,7 @@ import { RegisterPage } from '@/pages/RegisterPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { SuperAdminPage } from '@/pages/SuperAdminPage';
 import { POSPage } from '@/pages/POSPage';
+import { DigitalServicesPage } from '@/pages/DigitalServicesPage';
 import { InventoryPage } from '@/pages/InventoryPage';
 import { AddProductPage } from '@/pages/AddProductPage';
 import { EditProductPage } from '@/pages/EditProductPage';
@@ -296,6 +297,17 @@ function AppRoutes() {
           <RequireAuth>
             <RequirePOSAccess>
               <POSPage />
+            </RequirePOSAccess>
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/digital-services"
+        element={
+          <RequireAuth>
+            <RequirePOSAccess>
+              <AppShell><DigitalServicesPage /></AppShell>
             </RequirePOSAccess>
           </RequireAuth>
         }
