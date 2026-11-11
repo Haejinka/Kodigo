@@ -8,6 +8,8 @@ Latest validation: run [#126](https://github.com/Haejinka/Kodigo/actions/runs/42
 
 T51 schema/client increment is prepared on `main` and awaiting hosted CI: migration `20261111073628_t51_offline_authorization_leases.sql` is already applied to the existing Supabase project and its deployed read-only catalog assertions passed. The client has moved to encrypted lease snapshots in IndexedDB v3, a queue-drained issuance guard, and a strict `pending_stock` versus `active` boundary. No cashier shift or lease exists and offline escrow remains disabled. No local tests/build/lint were run; the next push will determine CI and Vercel results.
 
+Hosted run [#128](https://github.com/Haejinka/Kodigo/actions/runs/42982019295) for `f26b0b7` stopped at TypeScript because `canonicalOperationJson` was missing from the `offline-db.ts` imports. Lint, build, unit/browser checks, and deployment checks did not run. The import fix is committed separately; the replacement hosted run is pending.
+
 Customer-management follow-up: remote run [#133](https://github.com/Haejinka/Kodigo/actions/runs/42975912469) for `73f43f0` passed typecheck, lint, build, unit tests, Chromium IndexedDB checks, deployed read-only login smoke, and print-agent checks; both Vercel contexts succeeded. Isolated database/integration and authenticated UI jobs were skipped. The live admin create/update/archive flow passed after the T02 trigger fix and profile-refresh correction. Database read-only checks confirm one archived, no-contact test customer, eight original sales, and zero linked sales/customer-sale links. No local application tests/build/lint were run.
 
 ## Plan corrections from implementation evidence

@@ -22,7 +22,7 @@ import {
   encryptOfflineRecoveryBundle,
   OfflineKeySession,
 } from './offline-crypto.ts';
-import { hashCanonicalOperationValue, hashOperationCommand } from './pos-operations.ts';
+import { canonicalOperationJson, hashCanonicalOperationValue, hashOperationCommand } from './pos-operations.ts';
 
 export interface OfflineDatabase extends DBSchema {
   products_cache: { key: string; value: Product };
