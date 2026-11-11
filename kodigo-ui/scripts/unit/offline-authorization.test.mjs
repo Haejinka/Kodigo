@@ -76,7 +76,10 @@ test('revocation command binds lease version and trims an auditable reason', () 
   });
 
   assert.equal(command.expected_version, lease.version);
-  assert.deepEqual(command.payload, { lease_id: lease.id, reason: 'Device retired' });
+  assert.deepEqual(JSON.parse(JSON.stringify(command.payload)), {
+    lease_id: lease.id,
+    reason: 'Device retired',
+  });
   assert.throws(() => buildRevokeOfflineLeaseCommand({
     operationId: '88888888-8888-4888-8888-888888888888',
     lease,
