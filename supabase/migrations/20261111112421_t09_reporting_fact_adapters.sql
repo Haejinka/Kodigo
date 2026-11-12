@@ -1,6 +1,10 @@
 -- T09: publish a tenant-scoped report projection over the canonical T08 facts.
 -- No historical rows are classified or rewritten by this migration.
 
+-- Older deployments have different view column types; CREATE OR REPLACE cannot change them.
+DROP VIEW IF EXISTS public.v_product_rankings;
+DROP VIEW IF EXISTS public.v_sales_by_selling_option;
+
 CREATE OR REPLACE FUNCTION public.get_sale_financial_facts(p_sale_id uuid)
 RETURNS TABLE (
   sale_id uuid,

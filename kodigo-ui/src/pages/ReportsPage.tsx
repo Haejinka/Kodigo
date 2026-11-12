@@ -108,7 +108,7 @@ export function ReportsPage() {
     const error = currentTab === 'sales' ? salesQuery.error : inventoryQuery.error;
     if (!error) return;
     console.error('Failed to load reports:', error);
-    toast('error', error instanceof Error ? error.message : 'Failed to load reports.');
+    toast('error', (error as { message?: string }).message || 'Failed to load reports.');
   }, [currentTab, inventoryQuery.error, salesQuery.error, toast]);
 
   useEffect(() => setPage(1), [salesFilters]);
