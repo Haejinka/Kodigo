@@ -6,8 +6,7 @@ import { useToast } from '@/components/shared/Toast';
 import { useAuthStore } from '@/stores/authStore';
 import {
   clearLocalPrintAgentToken,
-  findLocalPrinters,
-  pairLocalPrintAgent,
+  connectLocalPrinters,
   getConfiguredDrawerPrinter,
   hasLocalPrintAgentToken,
   saveConfiguredDrawerPrinter,
@@ -66,8 +65,7 @@ export function PosHardwareSettings({ store }: { store: Store }) {
     setSearchingPrinters(true);
     setPrinterMessage('');
     try {
-      const token = hasLocalPrintAgentToken() ? undefined : await pairLocalPrintAgent();
-      const { printers, unavailablePrinters: unavailable } = await findLocalPrinters(token);
+      const { printers, unavailablePrinters: unavailable } = await connectLocalPrinters();
       setPairingTokenSaved(true);
       setAvailablePrinters(printers);
       setUnavailablePrinters(unavailable);
@@ -100,7 +98,7 @@ export function PosHardwareSettings({ store }: { store: Store }) {
       setAvailablePrinters([]);
       setUnavailablePrinters([]);
       setPrinterMessage(error instanceof Error
-        ? `${error.message} If setup is not installed yet, download and open Kodigo Print Setup, then try again.`
+        ? error.message
         : 'Could not connect. Download and open Kodigo Print Setup, then try again.');
     } finally {
       setSearchingPrinters(false);

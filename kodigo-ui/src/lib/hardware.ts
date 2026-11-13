@@ -16,6 +16,24 @@ export interface LocalPrintAgentCapabilities {
 }
 type AgentErrorResponse = { error?: string; detail?: string; title?: string };
 
+class PrintAgentRequestError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function isPrinterAccessBlocked(): Promise<boolean> {
+  try {
+    // Older browsers do not recognize this permission; let fetch prompt normally.
+    const permission = await navigator.permissions.query({ name: 'loopback-network' as PermissionName });
+    return permission.state === 'denied';
+  } catch {
+    return false;
+  }
+}
+
 function getPrinterPreferenceKey(storeId: string) {
   return `kodigo.pos.receipt-printer.${storeId}`;
 }
@@ -26,7 +44,8 @@ function normalizeAgentError(message: string) {
 
 async function requestLocalPrintAgent<T>(path: string, token: string | undefined, init: RequestInit = {}): Promise<T> {
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), 5000);
+  // First connection may wait for the user to answer the browser permission prompt.
+  const timeoutId = window.setTimeout(() => controller.abort(), path === '/v1/pair' ? 60_000 : 15_000);
 
   try {
     const response = await fetch(`${LOCAL_PRINT_AGENT_URL}${path}`, {
@@ -43,7 +62,7 @@ async function requestLocalPrintAgent<T>(path: string, token: string | undefined
 
     const result = await response.json().catch(() => ({})) as T & AgentErrorResponse;
     if (!response.ok) {
-      throw new Error(normalizeAgentError(result.error || result.detail || result.title || `Print agent request failed (${response.status}).`));
+      throw new PrintAgentRequestError(normalizeAgentError(result.error || result.detail || result.title || `Print agent request failed (${response.status}).`), response.status);
     }
     return result;
   } catch (error) {
@@ -51,7 +70,10 @@ async function requestLocalPrintAgent<T>(path: string, token: string | undefined
       throw new Error('The local print agent did not respond. Check that it is running on this computer.');
     }
     if (error instanceof TypeError) {
-      throw new Error('Could not reach Kodigo Print Agent. Start it on this computer and allow Kodigo local network access if your browser asks.');
+      if (await isPrinterAccessBlocked()) {
+        throw new Error('Your browser has blocked access to the printer on this computer. Open the site controls beside the address bar, open Site settings, and allow Apps on this device / Loopback network (or Local network access). Reload Kodigo, then click Connect this computer.');
+      }
+      throw new Error('Could not reach Kodigo Print Agent. Start it on this computer. In browser Site settings, allow Apps on this device / Loopback network (or Local network access), reload Kodigo, and reconnect.');
     }
     throw error;
   } finally {
@@ -113,6 +135,20 @@ export async function findLocalPrinters(token = getLocalPrintAgentToken()): Prom
     printers: Array.isArray(result.printers) ? result.printers : [],
     unavailablePrinters: Array.isArray(result.unavailablePrinters) ? result.unavailablePrinters : [],
   };
+}
+
+/** Explicit connection action can repair a token replaced by an agent reinstall or another browser. */
+export async function connectLocalPrinters(): Promise<PrinterScanResult> {
+  const token = getLocalPrintAgentToken();
+  if (token) {
+    try {
+      return await findLocalPrinters(token);
+    } catch (error) {
+      if (!(error instanceof PrintAgentRequestError) || error.status !== 401) throw error;
+      clearLocalPrintAgentToken();
+    }
+  }
+  return findLocalPrinters(await pairLocalPrintAgent());
 }
 
 export function getConfiguredDrawerPrinter(storeId: string): string {

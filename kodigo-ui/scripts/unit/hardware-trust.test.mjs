@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  connectLocalPrinters,
   findLocalPrinters,
   getLocalPrintAgentToken,
   hasLocalPrintAgentToken,
@@ -9,6 +10,47 @@ import {
   printThermalReceipt,
   testCashDrawer,
 } from '../../src/lib/hardware.ts';
+
+test('reconnect repairs rejected tokens once, but never repairs or retries print jobs implicitly', async () => {
+  const originalWindow = globalThis.window;
+  const originalFetch = globalThis.fetch;
+  const entries = new Map([['kodigo.local-print-agent.pairing-token', 'a'.repeat(43)]]);
+  const calls = [];
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => entries.get(key) ?? null,
+      setItem: (key, value) => entries.set(key, value),
+      removeItem: (key) => entries.delete(key),
+    },
+    setTimeout, clearTimeout,
+  };
+  globalThis.fetch = async (url, init) => {
+    calls.push(url);
+    if (url.endsWith('/v1/pair')) return { ok: true, json: async () => ({ token: 'b'.repeat(43) }) };
+    if (init.headers.Authorization === `Bearer ${'a'.repeat(43)}`) {
+      return { ok: false, status: 401, json: async () => ({ error: 'Pair this computer' }) };
+    }
+    return { ok: true, json: async () => ({ printers: ['Xprinter XP-58'] }) };
+  };
+  try {
+    assert.deepEqual(await connectLocalPrinters(), { printers: ['Xprinter XP-58'], unavailablePrinters: [] });
+    assert.deepEqual(calls.map((url) => new URL(url).pathname), ['/v1/printers', '/v1/pair', '/v1/printers']);
+    calls.length = 0;
+    await connectLocalPrinters();
+    assert.equal(calls.length, 1);
+    entries.set('kodigo.local-print-agent.pairing-token', 'a'.repeat(43));
+    calls.length = 0;
+    await assert.rejects(printThermalReceipt('Xprinter XP-58', 'sale', {}), /Pair this computer/);
+    assert.equal(calls.length, 1);
+    globalThis.fetch = async () => { throw new TypeError('Failed to fetch'); };
+    await assert.rejects(connectLocalPrinters(), /Could not reach Kodigo Print Agent/);
+    assert.equal(entries.get('kodigo.local-print-agent.pairing-token'), 'a'.repeat(43));
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalWindow === undefined) delete globalThis.window;
+    else globalThis.window = originalWindow;
+  }
+});
 
 test('local printer and drawer requests fail closed until this browser is paired with the agent', async () => {
   assert.equal(getLocalPrintAgentToken(), '');
