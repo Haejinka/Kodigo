@@ -4,6 +4,25 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
+test('catalog cache and startup sync reopen the upgraded offline database after reload', async ({ page }) => {
+  await page.evaluate(async () => {
+    const { openOfflineDatabase } = await import('/src/lib/offline-db.ts');
+    const database = await openOfflineDatabase();
+    if (database.version !== 3) throw new Error('Expected upgraded database');
+    database.close();
+  });
+  await page.reload();
+  const result = await page.evaluate(async () => {
+    const { cacheProductsLocally, getCachedProducts, syncPendingSales, syncPendingMutations } = await import('/src/lib/offline-sync.ts');
+    await syncPendingSales();
+    await syncPendingMutations();
+    const product = { id: 'catalog-reload-test', storeId: 'test-store', name: 'Reload test' };
+    await cacheProductsLocally([product]);
+    return (await getCachedProducts()).map(({ id, name }) => ({ id, name }));
+  });
+  expect(result).toEqual([{ id: 'catalog-reload-test', name: 'Reload test' }]);
+});
+
 test('v1 queues survive a blocked v3 upgrade as recovery evidence', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const name = `offline-v1-${crypto.randomUUID()}`;

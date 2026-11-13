@@ -206,8 +206,7 @@ function AppRoutes() {
     }
     // Flush offline queues first so subsequent fetches include just-synced writes.
     if (role !== 'inventory') {
-      await syncPendingSales();
-      await syncPendingMutations();
+      await Promise.allSettled([syncPendingSales(), syncPendingMutations()]);
     }
 
     // Only fetch products when a specific store is selected

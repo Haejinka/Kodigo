@@ -1,4 +1,4 @@
-import { openDB } from 'idb';
+import { openOfflineDatabase } from './offline-db';
 import type { DBSchema, IDBPDatabase } from 'idb';
 import { supabase } from './supabase';
 import { createOperationCommand, parseConfirmedOperationResult } from './pos-operations.ts';
@@ -57,21 +57,10 @@ async function idbRetry<T>(fn: () => Promise<T>, retries = 3, delayMs = 150): Pr
 }
 
 if (typeof window !== 'undefined') {
-  dbPromise = openDB<PosDB>('kodigo-pos-db', 1, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains('products_cache')) {
-        db.createObjectStore('products_cache', { keyPath: 'id' });
-      }
-      if (!db.objectStoreNames.contains('sales_queue')) {
-        const store = db.createObjectStore('sales_queue', { keyPath: 'id' });
-        store.createIndex('by-status', '_syncStatus');
-      }
-      if (!db.objectStoreNames.contains('generic_mutations')) {
-        const store = db.createObjectStore('generic_mutations', { keyPath: 'id' });
-        store.createIndex('by-status', '_syncStatus');
-      }
-    },
-  });
+  // Use the shared schema owner: opening version 1 rejects after the offline
+  // outbox upgrades this same database, preventing startup from loading products.
+  dbPromise = openOfflineDatabase() as unknown as Promise<IDBPDatabase<PosDB>>;
+  void dbPromise.catch((error) => console.warn('Local catalog storage is unavailable:', error));
 }
 
 /** Cache catalog for offline usage */

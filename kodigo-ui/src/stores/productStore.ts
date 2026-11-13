@@ -587,7 +587,8 @@ export const useProductStore = create<ProductStore>((set, get) => ({
       });
 
       set({ products: mapped, isLoading: false });
-      await cacheProductsLocally(mapped);
+      // A local storage failure must not erase a successful server response.
+      void cacheProductsLocally(mapped).catch((error) => console.warn('Could not cache products locally:', error));
       void get().fetchStockAdjustments();
     } catch (err) {
       console.warn('Falling back to local cache', err);
