@@ -603,7 +603,7 @@ test('offline checkout queues the sale for sync and never reports it as server-c
     const offlineDb = await open('kodigo-offline-sales');
     const queued = await get(offlineDb, 'sales') as { userId?: string } | null;
     offlineDb.close();
-    const legacyDb = await open('kodigo-pos-db', 1);
+    const legacyDb = await open('kodigo-pos-db');
     const legacyQueued = await get(legacyDb, 'sales_queue');
     legacyDb.close();
     return {
@@ -633,7 +633,7 @@ test('legacy sale records remain untouched instead of auto-replaying on reconnec
     const saleId = crypto.randomUUID();
     const legacySale = { id: saleId, total: 5, _syncStatus: 'pending' as const };
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('kodigo-pos-db', 1);
+      const request = indexedDB.open('kodigo-pos-db');
       request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve(request.result);
     });
