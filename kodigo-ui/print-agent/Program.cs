@@ -101,6 +101,9 @@ app.Use(async (context, next) =>
         context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
         context.Response.Headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type";
         context.Response.Headers["Access-Control-Max-Age"] = "600";
+        // Chrome/Edge Private Network Access: public HTTPS site -> loopback preflight needs this.
+        if (context.Request.Headers["Access-Control-Request-Private-Network"] == "true")
+            context.Response.Headers["Access-Control-Allow-Private-Network"] = "true";
     }
 
     if (HttpMethods.IsOptions(context.Request.Method))
@@ -125,11 +128,11 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.MapGet("/v1/health", () => Results.Ok(new { ok = true, name = "Kodigo Print Agent", version = "1.0.2" }));
+app.MapGet("/v1/health", () => Results.Ok(new { ok = true, name = "Kodigo Print Agent", version = "1.0.3" }));
 
 app.MapGet("/v1/capabilities", () => Results.Ok(new
 {
-    version = "1.0.2",
+    version = "1.0.3",
     supportedDocuments = new[] { "receipt", "shopping-list" },
     paperProfiles = new
     {
